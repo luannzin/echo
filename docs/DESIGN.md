@@ -59,9 +59,23 @@ dead links.
 
 ## Motion
 
-Small, fast, and skippable: 120–200ms, ease-out, opacity and 2–4px translation only. Nothing
-bounces. `prefers-reduced-motion` collapses every duration to ~0 in `globals.css`, globally, so a
-component cannot opt out of that promise.
+Small, fast, and skippable: 150–260ms, ease-out (`--ease-out-quart`), opacity and small translation
+only. Nothing bounces. Two motions carry the product:
+
+- **The composer travels.** Moving between the writing space and the stream re-creates the composer
+  in a different subtree, so it animates with FLIP (`lib/flip.ts`, 340ms) rather than a transition —
+  the same movement whether it was triggered by saving, by the toggle, or by the rail.
+- **Entries rise.** Notes enter the stream with a 6px rise, staggered 28ms and capped at eight, so a
+  long stream never feels like it is dealing cards.
+
+`prefers-reduced-motion` collapses every duration to ~0 in `globals.css` and FLIP checks it before
+animating, so a component cannot opt out of that promise.
+
+## Contrast
+
+Body text sits at ~15.8:1. Secondary text (`--muted-foreground`) is neutral-400, measured at 6.7:1
+on the composer surface and 7:1 on the canvas — neutral-500 came in at 4.4:1, under the 4.5 floor,
+which is why the token moved. Anything added here gets measured, not eyeballed.
 
 ## Component policy
 

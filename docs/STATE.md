@@ -70,12 +70,32 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   row geometry.
 - A prompt is drawn at random per visit and fixed for that visit, so nothing shifts under the
   cursor.
-- Saving keeps the writer on the composer and drops a neutral inline alert above it — note title,
-  word count, **Continue** to open it, dismiss to ignore. No toast: the confirmation waits to be
-  read instead of expiring.
+- Saving from home moves into the **stream**: the composer travels from the centre of the screen to
+  the bottom (FLIP, 340ms, `lib/flip.ts`) and every note appears as an entry, oldest first, with day
+  separators and times. Writing continues from the docked composer; each new note lands at the
+  bottom and the view follows it.
+- The note list is hidden in the stream — one column, no competition. It comes back on home.
+- Notes are editable from either side: the sidebar on home, or the pencil that appears on hover
+  (and on keyboard focus) over an entry in the stream. Closing the editor returns to whichever
+  screen opened it.
 - Opening a note puts the caret after the last character and scrolls to it — opening means
   continuing.
 - The rail's pen is Write: it returns home from anywhere and marks itself current.
+- One ghost button in the top bar names the destination — "Stream" while writing, "Write" while
+  reading — and runs through the same FLIP path as saving. Disabled until a note exists.
+- Interface review pass (accessibility, layout, writing, typography, color, UI): skip link to the
+  workspace, a heading on every view, rail placeholders kept focusable with `aria-disabled` so their
+  tooltips can be read, the panel toggle hidden where the panel does not exist, 16px inputs on
+  mobile, micro-labels off the 10px floor, logical properties throughout.
+- The note panel keeps its 240px in the stream and only fades (`inert` when hidden). Unmounting it
+  dragged the whole workspace sideways mid-transition; now the composer's travel is purely vertical,
+  measured at 0px horizontal shift in both directions.
+- The stream is one column, not a chat: every note is a full-width row of the same width, separated
+  by hairlines, with a relative timestamp (`4m`, `3h`, `2d`, then the date) and a day label where the
+  date turns over. No bubbles, no ragged right edge.
+- Stream rows and the composer share one scroll container, which is what keeps their widths
+  identical — a separate scroller made the column 15px narrower than the composer via its scrollbar.
+  Row text lines up with the composer's own text, and the hairlines run the full column.
 - No context and no custom hooks: `app/page.tsx` owns notes, selection and the database handle, and
   every component takes plain props. The editor owns its own save state, because nothing else needs
   to know about it.
@@ -117,13 +137,23 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 | 2026-08-25 | Next static export (`output: "export"`) | user directive; the whole app is client-side, so a server only adds hydration risk |
 | 2026-08-25 | No view-transition morph between composer and note | tried and dropped on request; the swap stays instant |
 | 2026-08-25 | Saving stays on the composer, with an inline alert offering "Continue" | writing sessions are usually a burst of separate thoughts; opening each note would interrupt the next one |
-| 2026-08-25 | Inline alert instead of a toast | the confirmation carries an action, so it must not expire on its own |
+| 2026-08-25 | Stream view after the first capture, sidebar hidden there | writing is a burst of separate thoughts; the stream keeps them in view without turning into a second list |
+| 2026-08-25 | Saved-confirmation alert removed | the stream shows the saved note itself; a confirmation on top of it was noise |
+| 2026-08-25 | FLIP for the composer's travel, not View Transitions | the element is re-created in a different subtree, and FLIP works everywhere without a fallback path |
 | 2026-08-25 | No React context, no custom hooks | one owner component and props are enough at this size; state managers stay out until something actually needs them |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
   needed until after Phase 2.
 - License. README says TBD; permissive is the intent.
+
+## Fixed
+
+- **Opening a note wrote to it.** Switching notes reused one editor instance, so the previous note's
+  draft stayed in the pending-write ref while the `note` prop had already changed — and because
+  `onSave` was re-created every render, the flush effect re-ran and committed it. The result was one
+  note's text saved onto another, plus a reorder on every visit. The editor is now mounted per note
+  (`key={note.id}`) and `save` is a stable `useCallback`, so a draft cannot outlive its note.
 
 ## Known gaps / debt
 - No CI workflow yet. Cheap to add whenever you want it: `typecheck + lint + test + build` on push.
@@ -137,6 +167,8 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 - Composer metadata row shows word count today; it is the slot detected categories, tasks and dates
   plug into from Phase 3.
 - No projects/tasks tables yet — they arrive with Phase 5, on their own migration.
+- No way to delete a note yet (Phase 5). The local test data includes one note corrupted by the
+  autosave bug before it was fixed.
 - App shell is desktop-only so far — the mobile layout is Phase 6, and the panes currently just
   hide below `md`/`lg`.
 - Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,

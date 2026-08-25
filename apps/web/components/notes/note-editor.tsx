@@ -8,7 +8,12 @@ import { Kbd } from "@/components/ui/kbd";
 
 const AUTOSAVE_DELAY_MS = 500;
 
-/** An existing note, open for editing. Autosave here, because the note already exists. */
+/**
+ * An existing note, open for editing. Autosave here, because the note already exists.
+ *
+ * The caller mounts one editor per note (`key={note.id}`), so a draft can never outlive the note it
+ * belongs to — that is what keeps one note's text from being saved onto another.
+ */
 export function NoteEditor({
   note,
   onSave,
@@ -21,29 +26,28 @@ export function NoteEditor({
   const [draft, setDraft] = useState(note.content);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const unsaved = useRef<{ id: string; content: string } | null>(null);
+  const unsaved = useRef<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const loadedId = useRef<string | null>(null);
+  const flush = useRef<() => void>(() => {});
 
-  // The draft loads once per note. Re-seeding it from the store would let a save landing
-  // mid-sentence overwrite characters typed while it was in flight.
+  // Opening a note means continuing it: the caret belongs after the last character.
   useEffect(() => {
-    if (loadedId.current === note.id) return;
-    loadedId.current = note.id;
-    setDraft(note.content);
-    // Opening a note means continuing it: the caret belongs after the last character.
     const element = textarea.current;
     if (!element) return;
     element.focus();
-    element.setSelectionRange(note.content.length, note.content.length);
+    element.setSelectionRange(element.value.length, element.value.length);
     element.scrollTop = element.scrollHeight;
-  }, [note.id, note.content]);
+  }, []);
 
+  // Only a real edit schedules a write. Opening a note and leaving it alone writes nothing, so the
+  // note keeps its place in the list.
   useEffect(() => {
-    if (timer.current) clearTimeout(timer.current);
-    if (draft === note.content) return;
+    if (draft === note.content) {
+      unsaved.current = null;
+      return;
+    }
 
-    unsaved.current = { id: note.id, content: draft };
+    unsaved.current = draft;
     timer.current = setTimeout(async () => {
       unsaved.current = null;
       setSaveState("saving");
@@ -60,23 +64,25 @@ export function NoteEditor({
     };
   }, [draft, note.id, note.content, onSave]);
 
-  // Leaving the note — closing it or opening another — flushes whatever the debounce still holds.
+  // Closing the note flushes whatever the debounce still holds — and nothing when it holds nothing.
   useEffect(() => {
-    return () => {
+    flush.current = () => {
       const pending = unsaved.current;
-      if (!pending) return;
+      if (pending === null) return;
       unsaved.current = null;
-      void onSave(pending.id, pending.content);
+      void onSave(note.id, pending);
     };
-  }, [onSave]);
+  }, [note.id, onSave]);
+
+  useEffect(() => () => flush.current(), []);
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col px-8 py-6">
+    <div className="mx-auto flex h-full w-full max-w-[68ch] flex-col px-8 py-6">
       <div className="flex h-6 items-center justify-between gap-4">
         <button
           type="button"
           onClick={onClose}
-          className="-ml-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground text-xs transition-colors duration-150 hover:text-foreground"
+          className="-ms-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground text-xs transition-colors duration-150 hover:text-foreground"
         >
           <ArrowLeft aria-hidden="true" className="size-3.5" />
           Back to writing
@@ -98,7 +104,7 @@ export function NoteEditor({
         aria-label="Note content"
         placeholder="Write anything…"
         spellCheck={false}
-        className="mt-5 min-h-0 flex-1 resize-none bg-transparent text-[0.975rem] leading-7 outline-none placeholder:text-muted-foreground"
+        className="mt-5 min-h-0 flex-1 resize-none bg-transparent text-base leading-7 outline-none placeholder:text-muted-foreground sm:text-[0.975rem]"
       />
     </div>
   );

@@ -1,0 +1,92 @@
+"use client";
+
+import type { Note } from "@echo/types";
+import { Pencil } from "lucide-react";
+import { Fragment, useEffect, useRef } from "react";
+
+/**
+ * The writing stream: everything captured, oldest first, the way it was written. One column, one
+ * width — a record of thinking, not a chat. Notes stay whole here.
+ */
+export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: string) => void }) {
+  const bottom = useRef<HTMLDivElement>(null);
+  const count = notes.length;
+
+  // A new note lands at the bottom, so the view follows it there. The composer is the last thing
+  // in this scroller, so scrolling the container beats scrolling a sentinel into view.
+  useEffect(() => {
+    const scroller = bottom.current?.closest("[data-stream-scroll]");
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  }, [count]);
+
+  const chronological = [...notes].reverse();
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-6 py-10">
+      <h1 className="sr-only">Your notes</h1>
+      {chronological.map((note, index) => {
+        const previous = chronological[index - 1];
+        const startsDay = previous === undefined || !sameDay(note.createdAt, previous.createdAt);
+        return (
+          <Fragment key={note.id}>
+            {startsDay ? (
+              <p className="px-5 pt-6 pb-2 font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.16em] first:pt-0">
+                {formatDay(note.createdAt)}
+              </p>
+            ) : null}
+            <article
+              style={{ animationDelay: `${Math.min(index, 8) * 28}ms` }}
+              className="animate-rise group border-border/70 border-b px-5 py-4 last:border-b-0"
+            >
+              <div className="flex items-baseline gap-2">
+                <time
+                  dateTime={note.createdAt.toISOString()}
+                  className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em] tabular-nums"
+                >
+                  {formatStamp(note.createdAt)}
+                </time>
+                <button
+                  type="button"
+                  onClick={() => onEdit(note.id)}
+                  aria-label={`Edit ${note.title || "note"}`}
+                  className="-my-1 ms-auto flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[0.6875rem] text-muted-foreground opacity-0 transition-[opacity,color] duration-150 pointer-coarse:opacity-100 focus-visible:opacity-100 group-hover:opacity-100 hover:text-foreground"
+                >
+                  <Pencil aria-hidden="true" className="size-3" />
+                  Edit
+                </button>
+              </div>
+              <p className="mt-1.5 whitespace-pre-wrap text-pretty text-base leading-7 sm:text-[0.95rem]">
+                {note.content}
+              </p>
+            </article>
+          </Fragment>
+        );
+      })}
+      <div ref={bottom} />
+    </div>
+  );
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
+}
+
+/** Recent notes read better as an age; older ones need their date back. */
+function formatStamp(date: Date): string {
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60_000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}h`;
+  if (minutes < 60 * 24 * 7) return `${Math.floor(minutes / (60 * 24))}d`;
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+function formatDay(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (sameDay(date, today)) return "Today";
+  if (sameDay(date, yesterday)) return "Yesterday";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "long" });
+}

@@ -38,18 +38,26 @@ export function Rail({
         aria-label="Primary"
         className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar py-3"
       >
-        <RailButton
-          label={navigationOpen ? "Hide navigation" : "Show navigation"}
-          icon={PanelLeft}
-          onClick={onToggleNavigation}
-        />
+        {/* The note panel only exists from md up, so the toggle stays out of the way below it. */}
+        <div className="hidden md:block">
+          <RailButton
+            label={navigationOpen ? "Hide notes" : "Show notes"}
+            icon={PanelLeft}
+            onClick={onToggleNavigation}
+          />
+        </div>
         <div className="my-1 h-px w-6 bg-sidebar-border" />
         <RailButton label="Write" icon={PenLine} active={atHome} onClick={onHome} />
         {planned.map((item) => (
-          <RailButton key={item.label} label={`${item.label} — soon`} icon={item.icon} disabled />
+          <RailButton
+            key={item.label}
+            label={`${item.label} — soon`}
+            icon={item.icon}
+            unavailable
+          />
         ))}
         <div className="mt-auto">
-          <RailButton label="Settings — soon" icon={Settings} disabled />
+          <RailButton label="Settings — soon" icon={Settings} unavailable />
         </div>
       </nav>
     </TooltipProvider>
@@ -60,13 +68,14 @@ function RailButton({
   label,
   icon: Icon,
   active = false,
-  disabled = false,
+  unavailable = false,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
   active?: boolean;
-  disabled?: boolean;
+  /** Kept focusable rather than `disabled`, so its tooltip can still be read from the keyboard. */
+  unavailable?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -78,8 +87,8 @@ function RailButton({
             size="icon"
             aria-label={label}
             aria-current={active ? "page" : undefined}
-            disabled={disabled}
-            onClick={onClick}
+            aria-disabled={unavailable || undefined}
+            onClick={unavailable ? undefined : onClick}
             className={
               active
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"

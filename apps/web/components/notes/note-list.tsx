@@ -48,8 +48,8 @@ export function NoteList({
                 <button
                   type="button"
                   onClick={() => onSelect(note.id)}
-                  aria-current={note.id === selectedId ? "true" : undefined}
-                  className={`w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-150 ${
+                  aria-current={note.id === selectedId ? "page" : undefined}
+                  className={`w-full truncate rounded-md px-2 py-1.5 text-start text-sm transition-colors duration-150 ${
                     note.id === selectedId
                       ? "bg-sidebar-accent text-foreground"
                       : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"

@@ -1,7 +1,9 @@
 "use client";
 
+import { MessageSquareText, PenLine } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Rail } from "@/components/shell/rail";
+import { Button } from "@/components/ui/button";
 
 /** Shell frame: rail | navigation | workspace | intelligence. */
 export function AppShell({
@@ -10,17 +12,32 @@ export function AppShell({
   intelligence,
   atHome,
   onHome,
+  showNavigation,
+  view,
+  onViewChange,
+  streamAvailable,
 }: {
   navigation: ReactNode;
   workspace: ReactNode;
   intelligence: ReactNode;
   atHome: boolean;
   onHome: () => void;
+  /** The stream is a single column: the note list would only compete with it. */
+  showNavigation: boolean;
+  view: "home" | "stream";
+  onViewChange: (view: "home" | "stream") => void;
+  streamAvailable: boolean;
 }) {
   const [navigationOpen, setNavigationOpen] = useState(true);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+      <a
+        href="#workspace"
+        className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:start-2 focus-visible:top-2 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-card focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm"
+      >
+        Skip to writing
+      </a>
       <Rail
         navigationOpen={navigationOpen}
         onToggleNavigation={() => setNavigationOpen((open) => !open)}
@@ -30,18 +47,27 @@ export function AppShell({
       {navigationOpen ? (
         <aside
           aria-label="Navigation"
-          className="hidden w-60 shrink-0 border-r border-border md:block"
+          // The panel keeps its width in the stream and only fades: unmounting it would drag the
+          // whole workspace sideways mid-transition.
+          inert={!showNavigation}
+          className={`hidden w-60 shrink-0 border-e md:block ${
+            showNavigation
+              ? "border-border opacity-100"
+              : "pointer-events-none border-transparent opacity-0"
+          } transition-[opacity,border-color] duration-200 ease-[var(--ease-out-quart)]`}
         >
           {navigation}
         </aside>
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main className="min-h-0 flex-1 overflow-y-auto">{workspace}</main>
+        <TopBar view={view} onViewChange={onViewChange} streamAvailable={streamAvailable} />
+        <main id="workspace" className="min-h-0 flex-1 overflow-y-auto">
+          {workspace}
+        </main>
       </div>
       <aside
         aria-label="Intelligence"
-        className="hidden w-80 shrink-0 border-l border-border lg:block"
+        className="hidden w-80 shrink-0 border-s border-border lg:block"
       >
         {intelligence}
       </aside>
@@ -49,11 +75,37 @@ export function AppShell({
   );
 }
 
-function TopBar() {
+function TopBar({
+  view,
+  onViewChange,
+  streamAvailable,
+}: {
+  view: "home" | "stream";
+  onViewChange: (view: "home" | "stream") => void;
+  streamAvailable: boolean;
+}) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4">
       <Label>echo</Label>
-      <Label>Local · private</Label>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onViewChange(view === "home" ? "stream" : "home")}
+        disabled={view === "home" && !streamAvailable}
+        className="text-muted-foreground"
+      >
+        {view === "home" ? (
+          <>
+            <MessageSquareText aria-hidden="true" />
+            Stream
+          </>
+        ) : (
+          <>
+            <PenLine aria-hidden="true" />
+            Write
+          </>
+        )}
+      </Button>
     </header>
   );
 }
