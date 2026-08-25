@@ -3,7 +3,8 @@
 import { parse } from "@echo/parser";
 import type { Note } from "@echo/types";
 import { CornerDownLeft } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
 
 const MAX_HEIGHT = 420;
@@ -24,13 +25,16 @@ const PROMPTS = [
  */
 export function Composer({
   onCapture,
+  onDraft,
   docked = false,
 }: {
-  onCapture: (content: string) => Promise<Note>;
+  /** Returns the note synchronously: it exists on screen before it exists in the database. */
+  onCapture: (content: string) => Note;
+  /** Fires behind the typing, never in front of it: retrieval is allowed to be late. */
+  onDraft: (text: string) => void;
   docked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
-  const [committing, setCommitting] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
   // Chosen once per visit: a prompt that changed under the cursor would be a distraction.
   const [prompt] = useState(() => PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
@@ -51,25 +55,22 @@ export function Composer({
 
   const filled = draft.trim().length > 0;
 
-  // Local, synchronous and cheap: no worker, no network, nothing to wait for. The editor is never
-  // blocked because there is nothing to block on.
-  // ponytail: parses the whole draft on every keystroke. Cap or debounce if long notes ever lag.
-  const signals = useMemo(() => parse(draft), [draft]);
+  // Detection is advisory, so it rides a deferred copy of the draft: React finishes the keystroke
+  // first and parses when it has a moment. On a 5k-character note that is the difference between
+  // ~6ms and ~0ms of work per character typed.
+  const deferredDraft = useDeferredValue(draft);
+  const signals = useMemo(() => parse(deferredDraft), [deferredDraft]);
 
-  async function commit() {
-    if (!filled || committing) return;
-    setCommitting(true);
-    const content = draft;
+  useEffect(() => {
+    const timer = setTimeout(() => onDraft(draft), 400);
+    return () => clearTimeout(timer);
+  }, [draft, onDraft]);
+
+  function commit() {
+    if (!filled) return;
+    onCapture(draft);
     setDraft("");
     textarea.current?.focus();
-    try {
-      await onCapture(content);
-    } catch {
-      // The text goes back in the box: nothing is lost, and the writer can try again.
-      setDraft(content);
-    } finally {
-      setCommitting(false);
-    }
   }
 
   return (
@@ -105,7 +106,7 @@ export function Composer({
           onKeyDown={(event) => {
             if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
             event.preventDefault();
-            void commit();
+            commit();
           }}
           rows={1}
           spellCheck={false}
@@ -118,13 +119,15 @@ export function Composer({
             <p className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">
               {filled ? `${countWords(draft)} words` : "Local · private"}
             </p>
-            {signals.tasks.length > 0 ? <Signal>Task</Signal> : null}
-            {signals.deadline ? <Signal>Due {signals.deadline.text}</Signal> : null}
+            {signals.tasks.length > 0 ? <Signal tone="bg-brand-bright">Task</Signal> : null}
+            {signals.deadline ? (
+              <Signal tone="bg-warning">Due {signals.deadline.text}</Signal>
+            ) : null}
           </div>
           <button
             type="button"
             onClick={commit}
-            disabled={!filled || committing}
+            disabled={!filled}
             aria-label="Save note"
             className={`flex h-8 items-center gap-2 rounded-full bg-brand-bright px-3 font-medium text-brand-ink text-xs transition-[opacity,transform,background-color] duration-200 ease-[var(--ease-out-quart)] hover:bg-brand-bright/90 active:scale-[0.96] ${
               filled ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
@@ -146,11 +149,12 @@ export function Composer({
 }
 
 /** Detected, not decided: a quiet read-out of what echo noticed, changing nothing about the note. */
-function Signal({ children }: { children: React.ReactNode }) {
+function Signal({ tone, children }: { tone: string; children: React.ReactNode }) {
   return (
-    <span className="animate-settle rounded-full bg-brand-bright/12 px-2 py-0.5 font-mono text-[0.6875rem] text-brand-bright uppercase tracking-[0.14em]">
+    <Badge variant="outline" className="animate-settle gap-1.5 font-normal">
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${tone}`} />
       {children}
-    </span>
+    </Badge>
   );
 }
 

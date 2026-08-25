@@ -39,6 +39,11 @@ test("numeric dates are read day-first", () => {
   expect(on("versao 40/13 nao e data").dates).toHaveLength(0);
 });
 
+test("trailing punctuation never reaches the label", () => {
+  expect(on("mandar tudo antes de sexta, sem falta").deadline?.text).toBe("sexta");
+  expect(on("ship it before Friday.").deadline?.text).toBe("Friday");
+});
+
 test("phrases beyond a single word resolve too", () => {
   expect(dayOf(on("review this in two weeks").dates[0])).toEqual(new Date(2026, 8, 9));
   expect(dayOf(on("call them next monday").dates[0])).toEqual(new Date(2026, 7, 31));

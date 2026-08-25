@@ -8,3 +8,4 @@ coverage/
 .env
 .env.local
 .DS_Store
+apps/web/public/ort/

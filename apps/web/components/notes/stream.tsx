@@ -2,13 +2,22 @@
 
 import type { Note } from "@echo/types";
 import { Pencil } from "lucide-react";
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, memo, useEffect, useRef } from "react";
 
 /**
  * The writing stream: everything captured, oldest first, the way it was written. One column, one
  * width — a record of thinking, not a chat. Notes stay whole here.
  */
-export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: string) => void }) {
+export const Stream = memo(function Stream({
+  notes,
+  arrivedId,
+  onEdit,
+}: {
+  notes: Note[];
+  /** The note just written, briefly lit so the eye can follow where it landed. */
+  arrivedId: string | null;
+  onEdit: (noteId: string) => void;
+}) {
   const bottom = useRef<HTMLDivElement>(null);
   const settled = useRef(false);
   const count = notes.length;
@@ -43,7 +52,9 @@ export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: stri
             ) : null}
             <article
               style={{ animationDelay: settled.current ? "0ms" : `${Math.min(index, 8) * 28}ms` }}
-              className="animate-rise group border-border/70 border-b py-4 last:border-b-0"
+              className={`group border-border/70 border-b py-4 last:border-b-0 ${
+                note.id === arrivedId ? "animate-arrive" : "animate-rise"
+              }`}
             >
               <div className="flex items-baseline gap-2">
                 <time
@@ -80,7 +91,7 @@ export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: stri
       <div ref={bottom} />
     </div>
   );
-}
+});
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();

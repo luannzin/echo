@@ -16,7 +16,8 @@
       "!**/coverage",
       "!**/components/ui",
       "!**/hooks/use-media-query.ts",
-      "!**/lib/utils.ts"
+      "!**/lib/utils.ts",
+      "!**/public/ort"
     ]
   },
   "formatter": {

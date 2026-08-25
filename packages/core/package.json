@@ -19,6 +19,7 @@
     "@types/node": "^26.3.0"
   },
   "dependencies": {
+    "@echo/embeddings": "workspace:*",
     "@echo/types": "workspace:*"
   }
 }

@@ -11,11 +11,35 @@
 
   --animate-rise: rise 240ms var(--ease-out-quart) both;
   --animate-settle: settle 180ms var(--ease-out-quart) both;
+  --animate-arrive: arrive 1200ms var(--ease-out-quart) both;
 
   @keyframes rise {
     from {
       opacity: 0;
       transform: translateY(6px);
+    }
+  }
+
+  /*
+   * One animation, not two: `animation` is a single property, so a separate highlight class would
+   * simply overwrite the entrance. The note rises in the first 240ms, then the highlight fades over
+   * the remaining second — long enough to find the note, short enough to stop mattering.
+   */
+  @keyframes arrive {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+      background-color: --alpha(var(--color-brand-bright) / 12%);
+    }
+    20% {
+      opacity: 1;
+      transform: none;
+      background-color: --alpha(var(--color-brand-bright) / 12%);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+      background-color: transparent;
     }
   }
 

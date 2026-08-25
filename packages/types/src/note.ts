@@ -15,6 +15,8 @@ export const noteSchema = z.object({
 export type Note = z.infer<typeof noteSchema>;
 
 export const noteCreateSchema = z.object({
+  /** Supplied when the interface already showed the note; omitted, one is generated. */
+  id: z.uuid().optional(),
   folderId: z.uuid().nullable().default(null),
   content: z.string().default(""),
 });

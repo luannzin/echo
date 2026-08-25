@@ -29,6 +29,11 @@ function memoryRepositories(): Repositories {
     },
   };
   return {
+    embeddings: {
+      put: async () => {},
+      list: async () => [],
+      pending: async () => [],
+    },
     notes,
     folders: {
       insert: async (folder) => folder,
@@ -86,4 +91,14 @@ test("moving a note emits both update and move, with the previous location", asy
 
   expect(moved.folderId).toBe(folderId);
   expect(events).toEqual(["note.created", "note.updated", "note.moved"]);
+});
+
+test("a caller can bring its own id, so the interface can show the note first", async () => {
+  const { echo } = testEcho();
+  const id = crypto.randomUUID();
+
+  const note = await echo.notes.create({ id, content: "optimistic" });
+
+  expect(note.id).toBe(id);
+  expect((await echo.notes.get(id))?.content).toBe("optimistic");
 });

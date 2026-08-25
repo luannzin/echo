@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-25 · Phase: **1 complete · 3 started (parser)** · Checkpoint: **B**
+Last updated: 2026-08-25 · Phase: **1 complete · 3 built (parser, embeddings, search)**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -70,6 +70,11 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   row geometry.
 - A prompt is drawn at random per visit and fixed for that visit, so nothing shifts under the
   cursor.
+- **Capture is optimistic end to end.** Enter puts the note on screen, clears the composer and
+  switches view without awaiting anything; the database write happens behind it, and a failure
+  removes the note again. The composer has no busy state because there is nothing to be busy about.
+- The note that just arrived carries its own entrance: it rises in over 240ms and its highlight
+  fades over the following second, so the eye can follow where the writing went.
 - Saving from home moves into the **stream**: the composer travels from the centre of the screen to
   the bottom (FLIP, 340ms, `lib/flip.ts`) and every note appears as an entry, oldest first, with day
   separators and times. Writing continues from the docked composer; each new note lands at the
@@ -148,7 +153,7 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   needed until after Phase 2.
 - License. README says TBD; permissive is the intent.
 
-### Phase 3 — Intelligence (started)
+### Phase 3 — Intelligence
 - `@echo/parser`: deterministic, offline content analysis with no model and no API key.
   - Dates via **chrono-node**: `tomorrow` / `amanhã`, weekday names, `in two weeks`, day-first
     numerics (`03/12` is 3 December). Portuguese parses first so numerics stay day-first, English
@@ -160,9 +165,26 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   - Keywords: frequency ranking with English + Portuguese stopwords, ties broken alphabetically so
     the same note always parses the same way. `now` is injected for determinism.
   - 7 tests covering both languages, deadline vs mention, invalid dates and reproducibility.
-- Wired into the composer: as you type, quiet `Task` and `Due <word>` chips appear in the meta row.
+- `@echo/embeddings`: `Embedder` interface (`embed` / `embedMany` / `embedQuery`) plus a local
+  runtime — `Xenova/multilingual-e5-small` through transformers.js, so notes in any language land in
+  one space. The ONNX runtime is **served by the app itself** (`public/ort`, synced by
+  `scripts/sync-onnx-runtime.ts`), never a CDN. The model runs in a Web Worker, so it cannot cost a
+  keystroke. A failed load is forgotten rather than cached, so a dropped connection costs one retry.
+- `@echo/search`: hybrid ranking — semantic 0.6, lexical 0.3, recency 0.1, coefficients as
+  configuration. Recency halves every 14 days. `relatedTo` deliberately ignores recency: relatedness
+  is about what a note is about. Lexical side is Postgres FTS with the `simple` configuration, so no
+  language is privileged. 8 ranking tests.
+- `@echo/core` analyzer: one pass at a time, driven by note events, queue derived from the database
+  itself (`pending`), so a failure costs a retry and never a lost note. Awaitable — asking for a pass
+  while one runs extends it instead of starting a second.
+- Wired into the composer: as you type, outlined badges with a small colored dot report `Task` and
+  `Due <word>`. Parsing rides `useDeferredValue`, so it runs after the keystroke, never in front of
+  it — on a 5,400-character note that took the per-character cost from ~5.7ms to ~2.6ms.
   Local, synchronous, nothing to wait for. Only deadlines get a chip — a date merely mentioned stays
   silent, because one good suggestion beats three noisy ones.
+- The intelligence panel is now **Related**: the notes closest in meaning to the open note or to
+  what is being written, with a match percentage, debounced 400ms behind the keystroke. It says when
+  it is still reading, and says plainly when the model could not load instead of looking empty.
 - Panel preferences (notes, intelligence) persist in `localStorage` under `echo:*`. Both panels
   render **closed**, matching the prerendered markup exactly, then animate open to the stored
   preference on mount (width + opacity, 260ms). Nothing jumps on first paint; the panels arrive.
@@ -176,6 +198,12 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   (`key={note.id}`) and `save` is a stable `useCallback`, so a draft cannot outlive its note.
 
 ## Known gaps / debt
+- **The embedding model has not run end to end.** This sandbox blocks huggingface.co downloads, so
+  related-notes retrieval is verified only against a stub model (3 integration tests over real
+  PGlite). Everything around it — queue, storage, ranking, UI states — is tested; the download needs
+  one run on a real machine to confirm.
+- Model weights come from Hugging Face on first use and are then cached by the browser. Self-hosting
+  the weights is the obvious follow-up for a fully offline install.
 - No CI workflow yet. Cheap to add whenever you want it: `typecheck + lint + test + build` on push.
 - `search`, `embeddings`, `learning`, `parser`, `sync`, `config`, `ui`, `test-utils` are still
   `export {}` stubs; they fill in from Phase 3 on.

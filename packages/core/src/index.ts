@@ -4,6 +4,7 @@ import { createFolderService, type FolderService } from "./folders";
 import { createNoteService, type NoteService } from "./notes";
 import type { Repositories } from "./ports";
 
+export * from "./analyzer";
 export * from "./clock";
 export * from "./events";
 export * from "./folders";

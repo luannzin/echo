@@ -70,3 +70,44 @@ test("migrations run once and are idempotent", async () => {
 
   expect(await migrate(db)).toEqual([]);
 });
+
+test("embeddings are stored, listed and re-queued when the note changes", async () => {
+  const { repositories } = await openRepositories();
+  const echo = createEcho({ repositories });
+  const note = await echo.notes.create({ content: "vector round trip" });
+
+  expect(await repositories.embeddings.pending("model-a")).toEqual([note.id]);
+
+  await repositories.embeddings.put({
+    noteId: note.id,
+    model: "model-a",
+    values: Float32Array.from([0.1, 0.2, 0.3]),
+  });
+
+  const stored = await repositories.embeddings.list("model-a");
+  expect(stored).toHaveLength(1);
+  expect([...(stored[0]?.values ?? [])]).toEqual([
+    expect.closeTo(0.1, 5),
+    expect.closeTo(0.2, 5),
+    expect.closeTo(0.3, 5),
+  ]);
+  expect(await repositories.embeddings.pending("model-a")).toEqual([]);
+
+  // a different model, and an edit, both put the note back in the queue
+  expect(await repositories.embeddings.pending("model-b")).toEqual([note.id]);
+  await echo.notes.saveContent(note.id, "vector round trip, edited");
+  expect(await repositories.embeddings.pending("model-a")).toEqual([note.id]);
+});
+
+test("lexical search finds notes by their words and ranks them", async () => {
+  const { repositories, lexical } = await openRepositories();
+  const echo = createEcho({ repositories });
+  await echo.notes.create({ content: "cache invalidation in the merchant system" });
+  await echo.notes.create({ content: "unrelated thoughts about breakfast" });
+
+  const hits = await lexical.search("cache");
+
+  expect(hits).toHaveLength(1);
+  expect(hits[0]?.rank).toBeGreaterThan(0);
+  expect(await lexical.search("nothing matches this")).toEqual([]);
+});

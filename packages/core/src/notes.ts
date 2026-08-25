@@ -32,10 +32,10 @@ export function createNoteService({
 
   return {
     async create(input: NoteCreate = {}): Promise<Note> {
-      const { content, folderId } = noteCreateSchema.parse(input);
+      const { id, content, folderId } = noteCreateSchema.parse(input);
       const timestamp = now();
       const note = await repository.insert({
-        id: newId(),
+        id: id ?? newId(),
         workspaceId: DEFAULT_WORKSPACE_ID,
         folderId,
         title: deriveTitle(content),

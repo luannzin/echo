@@ -31,7 +31,27 @@ export interface FolderRepository {
   list(): Promise<Folder[]>;
 }
 
+export type StoredEmbedding = {
+  noteId: string;
+  model: string;
+  values: Float32Array;
+};
+
+export interface EmbeddingRepository {
+  put(embedding: StoredEmbedding): Promise<void>;
+  list(model: string): Promise<StoredEmbedding[]>;
+  /** Notes with no vector, a stale vector, or one from a different model. */
+  pending(model: string): Promise<string[]>;
+}
+
+export type LexicalMatch = { noteId: string; rank: number };
+
+export interface LexicalSearch {
+  search(query: string, limit?: number): Promise<LexicalMatch[]>;
+}
+
 export type Repositories = {
   notes: NoteRepository;
   folders: FolderRepository;
+  embeddings: EmbeddingRepository;
 };

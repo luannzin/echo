@@ -1,5 +1,14 @@
 import { DEFAULT_WORKSPACE_ID } from "@echo/types";
-import { type AnyPgColumn, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  index,
+  integer,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * One schema for both hosts: PGlite locally, PostgreSQL on a server. `workspace_id` is present from
@@ -36,3 +45,21 @@ export const notes = pgTable(
     index("notes_updated_at_idx").on(table.updatedAt),
   ],
 );
+
+/**
+ * Derived data, never the source of truth: a row here can be deleted and rebuilt from the note.
+ * `model` records who produced the vector, so changing models invalidates the old ones instead of
+ * silently comparing incompatible spaces.
+ *
+ * ponytail: `real[]` with similarity computed in TypeScript. PGlite ships no pgvector build today;
+ * on a server this column casts to `vector(384)` and gains an index without touching the domain.
+ */
+export const noteEmbeddings = pgTable("note_embeddings", {
+  noteId: uuid("note_id")
+    .primaryKey()
+    .references(() => notes.id, { onDelete: "cascade" }),
+  model: text("model").notNull(),
+  dimensions: integer("dimensions").notNull(),
+  values: real("values").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

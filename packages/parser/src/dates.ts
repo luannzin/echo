@@ -39,7 +39,8 @@ export function detectDates(content: string, now: Date): DetectedDate[] {
       claimed.push({ start, end });
 
       found.push({
-        text: result.text,
+        // chrono keeps the punctuation it swallowed; the interface shows this text verbatim.
+        text: result.text.replace(/[\s,.;:]+$/, ""),
         date: result.start.date(),
         kind: DEADLINE_MARKERS.test(fold(content.slice(0, start))) ? "deadline" : "date",
       });

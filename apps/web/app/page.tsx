@@ -1,10 +1,13 @@
 "use client";
 
-import type { Note } from "@echo/types";
+import { deriveTitle } from "@echo/core";
+import { relatedTo } from "@echo/search";
+import { DEFAULT_WORKSPACE_ID, type Note } from "@echo/types";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Composer } from "@/components/notes/composer";
 import { NoteEditor } from "@/components/notes/note-editor";
 import { NoteList } from "@/components/notes/note-list";
+import { type Related, RelatedNotes } from "@/components/notes/related-notes";
 import { Stream } from "@/components/notes/stream";
 import { AppShell, Pane } from "@/components/shell/app-shell";
 import { getEcho } from "@/lib/echo";
@@ -18,6 +21,12 @@ export default function Page() {
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<View>("home");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [related, setRelated] = useState<Related[]>([]);
+  /** Read by retrieval so a keystroke never triggers another read of every note. */
+  const notesRef = useRef<Note[]>([]);
+  const [analyzing, setAnalyzing] = useState(0);
+  const [analysisFailed, setAnalysisFailed] = useState(false);
+  const [arrivedId, setArrivedId] = useState<string | null>(null);
   const composerOrigin = useRef<DOMRect | null>(null);
 
   // Opens the local database, loads the notes, and keeps the list in step with domain events.
@@ -33,6 +42,16 @@ export default function Page() {
           if (alive) setNotes(list);
         };
         unsubscribe = echo.events.subscribe(() => void refresh());
+        const stopWatching = echo.onAnalysis((state) => {
+          if (!alive) return;
+          setAnalyzing(state.pending);
+          setAnalysisFailed(state.failed);
+        });
+        const previous = unsubscribe;
+        unsubscribe = () => {
+          previous();
+          stopWatching();
+        };
         await refresh();
         if (alive) setLoading(false);
       })
@@ -52,13 +71,65 @@ export default function Page() {
     if (origin && element) flipFrom(element, origin);
   }, [view]);
 
+  notesRef.current = notes;
+
   const editing = notes.find((note) => note.id === editingId) ?? null;
 
-  /** Writing is never gated on the list finishing its load, so this waits on the database itself. */
-  async function capture(content: string) {
+  /**
+   * Related notes are retrieved for whatever is in focus — the open note, or what is being written.
+   * Retrieval runs after the keystroke, never in front of it.
+   */
+  const findRelated = useCallback(async (text: string, excludeNoteId?: string) => {
+    if (text.trim().length < 12) {
+      setRelated([]);
+      return;
+    }
     const echo = await getEcho();
-    const note = await echo.notes.create({ content });
+    const [embedding, stored] = await Promise.all([echo.embedQuery(text), echo.embeddings.list()]);
+    const byId = new Map(notesRef.current.map((note) => [note.id, note]));
+    const candidates = stored.flatMap((entry) => {
+      const note = byId.get(entry.noteId);
+      return note ? [{ note, embedding: entry.values }] : [];
+    });
+    setRelated(
+      relatedTo(embedding, candidates, { excludeNoteId, limit: 4 }).map(({ note, semantic }) => ({
+        note,
+        semantic,
+      })),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!editing) return;
+    void findRelated(editing.content, editing.id);
+  }, [editing, findRelated]);
+
+  /**
+   * Capture is optimistic all the way: the note exists on screen before the database hears about
+   * it. Writing is local, so the write practically always succeeds — and when it does not, the note
+   * disappears again and the text comes back to the composer.
+   */
+  function capture(content: string): Note {
+    const now = new Date();
+    const note: Note = {
+      id: crypto.randomUUID(),
+      workspaceId: DEFAULT_WORKSPACE_ID,
+      folderId: null,
+      title: deriveTitle(content),
+      content,
+      archivedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setNotes((current) => [note, ...current]);
+    setArrivedId(note.id);
     if (view === "home") changeView("stream");
+
+    void getEcho()
+      .then((echo) => echo.notes.create({ id: note.id, content }))
+      .catch(() => setNotes((current) => current.filter((existing) => existing.id !== note.id)));
+
     return note;
   }
 
@@ -111,18 +182,23 @@ export default function Page() {
             data-stream-scroll
             className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
           >
-            <Stream notes={notes} onEdit={setEditingId} />
+            <Stream notes={notes} arrivedId={arrivedId} onEdit={setEditingId} />
             <div className="sticky bottom-0 bg-background pt-2">
-              <Composer onCapture={capture} docked />
+              <Composer onCapture={capture} onDraft={findRelated} docked />
             </div>
           </div>
         ) : (
-          <Composer onCapture={capture} />
+          <Composer onCapture={capture} onDraft={findRelated} />
         )
       }
       intelligence={
-        <Pane title="Intelligence">
-          <p>Related notes, detected tasks and suggested destinations surface here as you write.</p>
+        <Pane title="Related">
+          <RelatedNotes
+            related={related}
+            analyzing={analyzing}
+            unavailable={analysisFailed}
+            onOpen={setEditingId}
+          />
         </Pane>
       }
     />
