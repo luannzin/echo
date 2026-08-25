@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-25 · Phase: **0 complete** · Checkpoint: **A — waiting on you**
+Last updated: 2026-08-25 · Phase: **0 complete + design system landed** · Next: **Phase 1**
 
 ## Done
 
@@ -25,13 +25,22 @@ errors.
 Installed versions: bun 1.3.14 · turbo 2.10.11 · biome 2.5.10 · typescript 7.0.2 · next 16.3.3 ·
 tailwindcss v4.
 
+### Checkpoint A — design system
+- coss ui installed into `apps/web` via `shadcn@latest init -b base -p nova` + `add @coss/ui
+  @coss/colors-neutral`. All 54 primitives present in `components/ui/`, Base UI under them.
+- Registry files (`components/ui/**`, `hooks/use-media-query.ts`, `lib/utils.ts`) excluded from
+  Biome — the CLI owns them, hand-edits would be overwritten.
+- Brand tokens + dark shell tuning in `app/globals.css`; fonts wired through `next/font`
+  (Geist / Geist Mono / Instrument Serif standing in for Sigurd).
+- Shell rebuilt to the reference direction: 56px icon rail with tooltips, collapsible navigation,
+  quiet top bar, intelligence panel. Unbuilt destinations render disabled and name their phase.
+- `docs/DESIGN.md` records the direction: Hermes energy for marketing, Grok restraint for the app.
+
 ## In progress
-- Nothing. Stopped at Checkpoint A by design.
+- Nothing. Ready for Phase 1.
 
 ## Next
-1. **You:** add `AGENTS.md` / house rules, install COSS UI into `packages/ui`, share any visual
-   references.
-2. **Then Phase 1:** zod contracts in `@echo/types` → PGlite + pgvector + numbered migrations in
+1. **Phase 1:** zod contracts in `@echo/types` → PGlite + pgvector + numbered migrations in
    `@echo/db` → repositories → `@echo/core` services and event bus → note list, textarea editor,
    autosave in `apps/web`. Ends at Checkpoint B (data model review).
 
@@ -46,6 +55,10 @@ tailwindcss v4.
 | 2026-08-25 | Plain textarea editor in Phase 1, rich editor later | capture speed first; Notion-style editor is a later upgrade |
 | 2026-08-25 | Landing page as a route group inside `apps/web` | one deploy, shared UI primitives |
 | 2026-08-25 | Bun's isolated node_modules linker (default in 1.3) | left as-is; Next builds fine under it |
+| 2026-08-25 | coss installed into `apps/web`, not `packages/ui` | only one consumer exists; promoting a primitive is a move, not a rewrite |
+| 2026-08-25 | Instrument Serif as the display face | Sigurd (Hermes reference) is commercially licensed; swap is one line in `layout.tsx` |
+| 2026-08-25 | App is dark-only for now | both app references are dark; light mode is a token swap later |
+| 2026-08-25 | Plain `nav` rail instead of coss `Sidebar` | the rail never expands and has no mobile sheet yet; `Sidebar` returns if that changes |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
@@ -58,3 +71,6 @@ tailwindcss v4.
 - `packages/*/src/index.ts` are `export {}` stubs by design; they fill in from Phase 1 on.
 - App shell is desktop-only so far — the mobile layout is Phase 6, and the panes currently just
   hide below `md`/`lg`.
+- Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,
+  but nothing renders it.
+- `AGENTS.md` still not in the repo — add whenever you want house rules enforced.

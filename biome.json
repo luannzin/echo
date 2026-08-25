@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/.next", "!**/dist", "!**/.turbo", "!**/coverage"]
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/dist",
+      "!**/.turbo",
+      "!**/coverage",
+      "!**/components/ui",
+      "!**/hooks/use-media-query.ts",
+      "!**/lib/utils.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

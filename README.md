@@ -47,7 +47,7 @@ packages/embeddings Local embedding runtime behind a swappable interface
 packages/search     Lexical + semantic retrieval and hybrid ranking
 packages/learning   Learning events in, learned rules out
 packages/sync       Sync protocol and conflict resolution
-packages/ui         Shared UI primitives
+packages/ui         Shared UI primitives (promotion target; coss lives in apps/web for now)
 packages/config     Shared runtime configuration
 packages/test-utils Fixtures and test helpers
 tooling/tsconfig    Shared TypeScript presets
@@ -58,6 +58,7 @@ tooling/tsconfig    Shared TypeScript presets
 - [docs/PLAN.md](docs/PLAN.md) — phased implementation plan and checkpoints
 - [docs/STATE.md](docs/STATE.md) — current state, decisions, open questions
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layering and the rules that hold it together
+- [docs/DESIGN.md](docs/DESIGN.md) — visual direction, tokens, type, shell anatomy
 
 ## License
 
