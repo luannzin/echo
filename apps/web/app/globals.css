@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: oklch(17% 0.006 275);
+  --color-surface: oklch(20% 0.007 275);
+  --color-raised: oklch(24% 0.008 275);
+  --color-line: oklch(30% 0.008 275);
+  --color-ink: oklch(93% 0.004 275);
+  --color-ink-muted: oklch(70% 0.008 275);
+  --color-ink-faint: oklch(55% 0.008 275);
+  --color-accent: oklch(72% 0.13 250);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      /* biome-ignore-start lint/complexity/noImportantStyles: reduced-motion must beat any component animation */
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      /* biome-ignore-end lint/complexity/noImportantStyles: reduced-motion override */
+    }
+  }
+}
