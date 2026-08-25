@@ -33,7 +33,8 @@ default and always will be.
 | `bun run typecheck` | `tsc --noEmit` in every package |
 | `bun run lint` | Biome check (lint + format + import sort) |
 | `bun run lint:fix` | Biome check with safe fixes applied |
-| `bun run test` | Unit tests (arrives with Phase 1) |
+| `bun run test` | Unit and integration tests (`bun test`, real PGlite) |
+| `bun run --cwd packages/db db:generate` | Regenerate migrations after a schema change |
 
 ## Layout
 

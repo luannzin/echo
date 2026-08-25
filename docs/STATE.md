@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-25 · Phase: **0 complete + design system landed** · Next: **Phase 1**
+Last updated: 2026-08-25 · Phase: **1 complete** · Checkpoint: **B — data model review**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -38,13 +38,32 @@ tailwindcss v4.
   quiet top bar, intelligence panel. Unbuilt destinations render disabled and name their phase.
 - `docs/DESIGN.md` records the direction: loud marketing surface, quiet application surface.
 
+### Phase 1 — Local persistence and note CRUD
+- `@echo/types`: zod schemas as the single definition (`Note`, `Folder` + create/update inputs),
+  types inferred. `DEFAULT_WORKSPACE_ID` lives here.
+- `@echo/db`: PGlite + Drizzle. Schema in `src/schema.ts` (`folders`, `notes`), migrations generated
+  by drizzle-kit and inlined into `src/migrations.generated.ts` by `bun run db:generate` so they
+  ship to the browser. `migrate()` is versioned, transactional and idempotent, tracked in
+  `echo_migrations`.
+- `@echo/core`: `createEcho({ repositories })` composition root, typed event bus, note and folder
+  services. Titles are derived from content (`deriveTitle`), never asked for. Clock and id factory
+  are injected so services test deterministically.
+- `apps/web`: `EchoProvider` opens PGlite lazily in the browser (`idb://echo`), note list, textarea
+  editor, 500ms debounced autosave with a save indicator, empty states for loading/error/no-notes.
+- Tests: 13 passing — `bun test`, no runner dependency. Services against an in-memory repository,
+  repositories against a real in-memory PGlite migrated from the real migration files.
+
+Verified in the browser: create note → type → autosave ("Saved") → reload → note and content
+survive from IndexedDB, list ordered newest-first, no console errors.
+
 ## In progress
-- Nothing. Ready for Phase 1.
+- Nothing. Stopped at Checkpoint B.
 
 ## Next
-1. **Phase 1:** zod contracts in `@echo/types` → PGlite + pgvector + numbered migrations in
-   `@echo/db` → repositories → `@echo/core` services and event bus → note list, textarea editor,
-   autosave in `apps/web`. Ends at Checkpoint B (data model review).
+1. **You:** review the data model (`packages/db/src/schema.ts`, `packages/types/src/*.ts`) and the
+   service surface (`packages/core/src/{notes,folders}.ts`).
+2. **Then Phase 2:** rich editor decision, ⌘K command palette, keyboard map, folder explorer with
+   nesting and rename, Recent/Inbox routes.
 
 ## Decisions made
 | Date | Decision | Why |
@@ -61,6 +80,12 @@ tailwindcss v4.
 | 2026-08-25 | Instrument Serif as the display face | free, high-contrast didone; a licensed face swaps in with one line in `layout.tsx` |
 | 2026-08-25 | App is dark-only for now | both app references are dark; light mode is a token swap later |
 | 2026-08-25 | Plain `nav` rail instead of coss `Sidebar` | the rail never expands and has no mobile sheet yet; `Sidebar` returns if that changes |
+| 2026-08-25 | Drizzle ORM (user directive) | typed queries over one schema definition; drizzle-kit generates migrations |
+| 2026-08-25 | Migrations inlined into TS by a script | browsers have no filesystem; regeneration beats hand-copying |
+| 2026-08-25 | `bun test` instead of Vitest | same API, zero dependencies, runs real PGlite |
+| 2026-08-25 | Schema grows per phase (`folders`, `notes` today) | tables nobody reads are speculative; `workspace_id` is already everywhere |
+| 2026-08-25 | Note title derived from first meaningful line | capture must never demand a title dialog |
+| 2026-08-25 | Folder deletion returns notes to the Inbox | notes are the user's; organization is not |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
@@ -68,9 +93,13 @@ tailwindcss v4.
 - License. README says TBD; permissive is the intent.
 
 ## Known gaps / debt
-- No test runner wired yet (Vitest lands with Phase 1's first real logic — nothing to test today).
-- No CI workflow yet. Cheap to add whenever you want it: `typecheck + lint + build` on push.
-- `packages/*/src/index.ts` are `export {}` stubs by design; they fill in from Phase 1 on.
+- No CI workflow yet. Cheap to add whenever you want it: `typecheck + lint + test + build` on push.
+- `search`, `embeddings`, `learning`, `parser`, `sync`, `config`, `ui`, `test-utils` are still
+  `export {}` stubs; they fill in from Phase 3 on.
+- PGlite runs on the main thread. Fine at this size; move to `@electric-sql/pglite/worker` when
+  embeddings start competing for it (marked `ponytail:` in the code).
+- Any domain event reloads the whole note list. Fine to ~200 notes, virtualize in Phase 2.
+- No projects/tasks tables yet — they arrive with Phase 5, on their own migration.
 - App shell is desktop-only so far — the mobile layout is Phase 6, and the panes currently just
   hide below `md`/`lg`.
 - Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,

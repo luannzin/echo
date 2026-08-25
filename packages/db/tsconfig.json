@@ -1,4 +1,7 @@
 {
   "extends": "@echo/tsconfig/library.json",
-  "include": ["src"]
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src", "scripts", "drizzle.config.ts"]
 }

@@ -66,4 +66,7 @@ permanently stale.
 | Biome over ESLint + Prettier | One binary, one config, ~zero-config formatting and linting |
 | PGlite + pgvector locally | Same SQL and same vector search as the server; no dialect fork |
 | Multilingual embeddings | Notes are written in pt-BR and other languages, not English only |
+| Drizzle ORM over raw SQL | Typed queries against one schema definition, and drizzle-kit generates the migrations |
+| Migrations inlined into TypeScript | The browser has no filesystem; `bun run db:generate` regenerates them, so there is no hand-copied drift |
+| `bun test` instead of Vitest | Same API, zero dependencies, and it runs real PGlite in-process |
 | Plain textarea editor in Phase 1 | Rich text is a Phase 2 concern; capture speed comes first |

@@ -1,1 +1,37 @@
-export {};
+import { type Clock, type IdFactory, systemClock, uuid } from "./clock";
+import { createEventBus, type EventBus } from "./events";
+import { createFolderService } from "./folders";
+import { createNoteService } from "./notes";
+import type { Repositories } from "./ports";
+
+export * from "./clock";
+export * from "./events";
+export * from "./folders";
+export * from "./notes";
+export * from "./ports";
+export * from "./title";
+
+export type Echo = {
+  notes: ReturnType<typeof createNoteService>;
+  folders: ReturnType<typeof createFolderService>;
+  events: EventBus;
+};
+
+/** Composition root for the domain: repositories in, services out. */
+export function createEcho({
+  repositories,
+  events = createEventBus(),
+  now = systemClock,
+  newId = uuid,
+}: {
+  repositories: Repositories;
+  events?: EventBus;
+  now?: Clock;
+  newId?: IdFactory;
+}): Echo {
+  return {
+    notes: createNoteService({ repository: repositories.notes, events, now, newId }),
+    folders: createFolderService({ repository: repositories.folders, events, now, newId }),
+    events,
+  };
+}

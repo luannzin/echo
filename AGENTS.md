@@ -90,7 +90,10 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
 - Work in phases with checkpoints; update `docs/STATE.md` at the end of every phase
-- Stack is fixed: bun workspaces, Turborepo, Biome, Next.js, Tailwind, coss ui
+- Stack is fixed: bun workspaces, Turborepo, Biome, Next.js, Tailwind, coss ui, Drizzle + PGlite
+- Tests run on `bun test`; no separate test-runner dependency
+- Schema changes go through `bun run --cwd packages/db db:generate` — never hand-edit generated SQL
+  or `src/migrations.generated.ts`
 - coss registry files (`apps/web/components/ui/**`) are CLI-owned — compose, never hand-edit
 
 ## Child DOX Index

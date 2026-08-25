@@ -14,7 +14,7 @@ const display = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Echo",
+  title: "echo - open source no-ai note taker that learns with you",
   description: "The note taker that learns with you. Local-first, private, open source.",
 };
 
