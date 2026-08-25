@@ -11,14 +11,18 @@ import { Fragment, memo, useEffect, useRef } from "react";
 export const Stream = memo(function Stream({
   notes,
   arrivedId,
+  previewId,
   onEdit,
 }: {
   notes: Note[];
   /** The note just written, briefly lit so the eye can follow where it landed. */
   arrivedId: string | null;
+  /** A note being pointed at somewhere else — the list — which this view brings into view. */
+  previewId: string | null;
   onEdit: (noteId: string) => void;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
+  const rows = useRef(new Map<string, HTMLElement>());
   const settled = useRef(false);
   const count = notes.length;
 
@@ -34,6 +38,24 @@ export const Stream = memo(function Stream({
   useEffect(() => {
     settled.current = true;
   }, []);
+
+  // Pointing at a note in the list walks the stream to it — but only when it is actually out of
+  // sight, so a note already on screen is never yanked around under the reader's eyes.
+  useEffect(() => {
+    if (!previewId) return;
+    const row = rows.current.get(previewId);
+    const scroller = row?.closest("[data-stream-scroll]");
+    if (!row || !scroller) return;
+
+    const rowBox = row.getBoundingClientRect();
+    const viewBox = scroller.getBoundingClientRect();
+    if (rowBox.top >= viewBox.top && rowBox.bottom <= viewBox.bottom) return;
+
+    row.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "center",
+    });
+  }, [previewId]);
 
   const chronological = [...notes].reverse();
 
@@ -51,18 +73,23 @@ export const Stream = memo(function Stream({
               </p>
             ) : null}
             <article
+              ref={(element) => {
+                if (element) rows.current.set(note.id, element);
+                else rows.current.delete(note.id);
+              }}
+              data-targeted={note.id === previewId ? "true" : undefined}
               style={{ animationDelay: settled.current ? "0ms" : `${Math.min(index, 8) * 28}ms` }}
               // The pointer moves a target down the stream: the row under it lifts out of the page
               // slightly, and its marker appears on the leading edge. Focus does the same thing, so
               // the target is not something only a mouse can move.
-              className={`group relative border-border/70 border-b py-4 transition-colors duration-150 ease-[var(--ease-out-quart)] last:border-b-0 hover:bg-card/40 has-[:focus-visible]:bg-card/40 ${
+              className={`group relative border-border/70 border-b py-4 transition-colors duration-150 ease-[var(--ease-out-quart)] last:border-b-0 hover:bg-card/40 has-[:focus-visible]:bg-card/40 data-[targeted]:bg-card/40 ${
                 note.id === arrivedId ? "animate-arrive" : "animate-rise"
               }`}
             >
               <span
                 aria-hidden="true"
                 // Sits outside the text column, so the target marker never nudges the writing sideways.
-                className="-start-3 absolute inset-y-3 w-px origin-center scale-y-0 bg-brand-bright/70 transition-transform duration-200 ease-[var(--ease-out-quart)] group-hover:scale-y-100 group-has-[:focus-visible]:scale-y-100"
+                className="-start-3 absolute inset-y-3 w-px origin-center scale-y-0 bg-brand-bright/70 transition-transform duration-200 ease-[var(--ease-out-quart)] group-hover:scale-y-100 group-has-[:focus-visible]:scale-y-100 group-data-[targeted]:scale-y-100"
               />
               <div className="flex items-baseline gap-2">
                 <time

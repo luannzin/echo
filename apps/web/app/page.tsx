@@ -27,6 +27,8 @@ export default function Page() {
   const [analyzing, setAnalyzing] = useState(0);
   const [analysisFailed, setAnalysisFailed] = useState(false);
   const [arrivedId, setArrivedId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const composerOrigin = useRef<DOMRect | null>(null);
 
   // Opens the local database, loads the notes, and keeps the list in step with domain events.
@@ -72,6 +74,19 @@ export default function Page() {
   }, [view]);
 
   notesRef.current = notes;
+
+  /**
+   * Pointing at a note waits a moment before the stream follows: sweeping the pointer down the list
+   * on the way somewhere else should not drag the view along with it.
+   */
+  const previewNote = useCallback((noteId: string | null) => {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    if (noteId === null) {
+      setPreviewId(null);
+      return;
+    }
+    previewTimer.current = setTimeout(() => setPreviewId(noteId), 150);
+  }, []);
 
   const editing = notes.find((note) => note.id === editingId) ?? null;
 
@@ -164,6 +179,7 @@ export default function Page() {
           failed={failed}
           selectedId={editingId}
           onSelect={setEditingId}
+          onPreview={previewNote}
         />
       }
       workspace={
@@ -181,7 +197,12 @@ export default function Page() {
             data-stream-scroll
             className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
           >
-            <Stream notes={notes} arrivedId={arrivedId} onEdit={setEditingId} />
+            <Stream
+              notes={notes}
+              arrivedId={arrivedId}
+              previewId={previewId}
+              onEdit={setEditingId}
+            />
             <div className="sticky bottom-0 bg-background pt-2">
               <Composer onCapture={capture} onDraft={findRelated} docked />
             </div>

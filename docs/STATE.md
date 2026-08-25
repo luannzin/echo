@@ -81,6 +81,9 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   bottom and the view follows it.
 - The note list follows one rule in every view: the reader's collapse preference. The stream no
   longer force-hides it.
+- Pointing at a note in the list targets it in the stream and walks the view to it: 150ms of intent
+  before it moves, smooth scroll to centre, and no movement at all when the note is already on
+  screen. Focus does the same, and `prefers-reduced-motion` gets an instant jump instead.
 - Hovering moves a target down the stream: the row under the pointer takes a soft background and a
   marker on the leading edge, outside the text column so the writing never shifts. Focus does the
   same, so the target is not something only a mouse can move.

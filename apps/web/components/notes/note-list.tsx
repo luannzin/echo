@@ -10,12 +10,15 @@ export function NoteList({
   failed,
   selectedId,
   onSelect,
+  onPreview,
 }: {
   notes: Note[];
   loading: boolean;
   failed: boolean;
   selectedId: string | null;
   onSelect: (noteId: string) => void;
+  /** Announces the note under the pointer or focus, so other views can follow along. */
+  onPreview: (noteId: string | null) => void;
 }) {
   return (
     <section className="flex h-full flex-col">
@@ -48,6 +51,10 @@ export function NoteList({
                 <button
                   type="button"
                   onClick={() => onSelect(note.id)}
+                  onMouseEnter={() => onPreview(note.id)}
+                  onMouseLeave={() => onPreview(null)}
+                  onFocus={() => onPreview(note.id)}
+                  onBlur={() => onPreview(null)}
                   aria-current={note.id === selectedId ? "page" : undefined}
                   className={`w-full truncate rounded-md px-2 py-1.5 text-start text-sm transition-colors duration-150 ${
                     note.id === selectedId
