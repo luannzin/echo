@@ -13,7 +13,6 @@ export function AppShell({
   intelligence,
   atHome,
   onHome,
-  showNavigation,
   view,
   onViewChange,
   streamAvailable,
@@ -23,8 +22,6 @@ export function AppShell({
   intelligence: ReactNode;
   atHome: boolean;
   onHome: () => void;
-  /** The stream is a single column: the note list would only compete with it. */
-  showNavigation: boolean;
   view: "home" | "stream";
   onViewChange: (view: "home" | "stream") => void;
   streamAvailable: boolean;
@@ -71,15 +68,12 @@ export function AppShell({
       />
       <aside
         aria-label="Navigation"
-        // Width carries the open/closed preference; opacity carries the view. Keeping its width in
-        // the stream is what stops the workspace sliding sideways mid-transition.
-        inert={!showNavigation || !navigationOpen}
+        // One rule governs the panel in every view: the reader's own preference.
+        inert={!navigationOpen}
         className={`hidden shrink-0 overflow-hidden border-e md:block ${
-          navigationOpen ? "w-60" : "w-0"
-        } ${
-          showNavigation && navigationOpen
-            ? "border-border opacity-100"
-            : "pointer-events-none border-transparent opacity-0"
+          navigationOpen
+            ? "w-60 border-border opacity-100"
+            : "pointer-events-none w-0 border-transparent opacity-0"
         } transition-[width,opacity,border-color] duration-260 ease-[var(--ease-out-quart)]`}
       >
         <div className="h-full w-60">{navigation}</div>

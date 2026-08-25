@@ -79,8 +79,12 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   the bottom (FLIP, 340ms, `lib/flip.ts`) and every note appears as an entry, oldest first, with day
   separators and times. Writing continues from the docked composer; each new note lands at the
   bottom and the view follows it.
-- The note list is hidden in the stream — one column, no competition. It comes back on home.
-- Notes are editable from either side: the sidebar on home, or the pencil that appears on hover
+- The note list follows one rule in every view: the reader's collapse preference. The stream no
+  longer force-hides it.
+- Hovering moves a target down the stream: the row under the pointer takes a soft background and a
+  marker on the leading edge, outside the text column so the writing never shifts. Focus does the
+  same, so the target is not something only a mouse can move.
+- Notes are editable from either side: the sidebar, or the pencil that appears on hover
   (and on keyboard focus) over an entry in the stream. Closing the editor returns to whichever
   screen opened it.
 - Opening a note puts the caret after the last character and scrolls to it — opening means
@@ -168,7 +172,9 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 - `@echo/embeddings`: `Embedder` interface (`embed` / `embedMany` / `embedQuery`) plus a local
   runtime — `Xenova/multilingual-e5-small` through transformers.js, so notes in any language land in
   one space. The ONNX runtime is **served by the app itself** (`public/ort`, synced by
-  `scripts/sync-onnx-runtime.ts`), never a CDN. The model runs in a Web Worker, so it cannot cost a
+  `scripts/sync-onnx-runtime.ts`), never a CDN. All eight build variants are synced — the runtime
+  picks between the plain, jsep, asyncify and jspi builds at load time based on what the browser
+  supports, and a missing one fails as "no available backend". Only the chosen pair is downloaded. The model runs in a Web Worker, so it cannot cost a
   keystroke. A failed load is forgotten rather than cached, so a dropped connection costs one retry.
 - `@echo/search`: hybrid ranking — semantic 0.6, lexical 0.3, recency 0.1, coefficients as
   configuration. Recency halves every 14 days. `relatedTo` deliberately ignores recency: relatedness
@@ -202,6 +208,8 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   related-notes retrieval is verified only against a stub model (3 integration tests over real
   PGlite). Everything around it — queue, storage, ranking, UI states — is tested; the download needs
   one run on a real machine to confirm.
+- `public/ort` is ~80MB of runtime variants and ships in the static export. Trimming it to the
+  variants a target browser actually loads is a deployment-time optimisation, not a correctness one.
 - Model weights come from Hugging Face on first use and are then cached by the browser. Self-hosting
   the weights is the obvious follow-up for a fully offline install.
 - No CI workflow yet. Cheap to add whenever you want it: `typecheck + lint + test + build` on push.

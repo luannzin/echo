@@ -52,10 +52,18 @@ export const Stream = memo(function Stream({
             ) : null}
             <article
               style={{ animationDelay: settled.current ? "0ms" : `${Math.min(index, 8) * 28}ms` }}
-              className={`group border-border/70 border-b py-4 last:border-b-0 ${
+              // The pointer moves a target down the stream: the row under it lifts out of the page
+              // slightly, and its marker appears on the leading edge. Focus does the same thing, so
+              // the target is not something only a mouse can move.
+              className={`group relative border-border/70 border-b py-4 transition-colors duration-150 ease-[var(--ease-out-quart)] last:border-b-0 hover:bg-card/40 has-[:focus-visible]:bg-card/40 ${
                 note.id === arrivedId ? "animate-arrive" : "animate-rise"
               }`}
             >
+              <span
+                aria-hidden="true"
+                // Sits outside the text column, so the target marker never nudges the writing sideways.
+                className="-start-3 absolute inset-y-3 w-px origin-center scale-y-0 bg-brand-bright/70 transition-transform duration-200 ease-[var(--ease-out-quart)] group-hover:scale-y-100 group-has-[:focus-visible]:scale-y-100"
+              />
               <div className="flex items-baseline gap-2">
                 <time
                   dateTime={note.createdAt.toISOString()}

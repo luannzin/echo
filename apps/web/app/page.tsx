@@ -154,7 +154,6 @@ export default function Page() {
     <AppShell
       atHome={view === "home" && editing === null}
       onHome={() => changeView("home")}
-      showNavigation={view === "home"}
       view={view}
       onViewChange={changeView}
       streamAvailable={notes.length > 0}
