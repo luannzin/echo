@@ -64,6 +64,21 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   the composer.
 - `apps/web` is a **static export** (`output: "export"`) — no server, no hydration mismatch, and
   self-hosting is copying `out/`.
+- Writing is never gated on loading: the composer is focused and writable from first paint, and
+  `capture` awaits the database itself rather than React state. Committing during a cold start
+  works. The note list carries that latency instead, with coss `Skeleton` rows matching the real
+  row geometry.
+- A prompt is drawn at random per visit and fixed for that visit, so nothing shifts under the
+  cursor.
+- Saving keeps the writer on the composer and drops a neutral inline alert above it — note title,
+  word count, **Continue** to open it, dismiss to ignore. No toast: the confirmation waits to be
+  read instead of expiring.
+- Opening a note puts the caret after the last character and scrolls to it — opening means
+  continuing.
+- The rail's pen is Write: it returns home from anywhere and marks itself current.
+- No context and no custom hooks: `app/page.tsx` owns notes, selection and the database handle, and
+  every component takes plain props. The editor owns its own save state, because nothing else needs
+  to know about it.
 - Motion tokens (`--ease-out-quart`, `--ease-in-out-quart`, `rise`, `settle`) live in the theme.
   Applied to: heading entrance, list stagger (28ms, first 8 items), save-button scale+fade,
   save-state indicator, focus ring, press feedback. Reduced motion still collapses all of it.
@@ -101,6 +116,9 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 | 2026-08-25 | Composer + Enter to commit, no "New" button | capture must be felt, not clicked; nothing is stored until the writer commits |
 | 2026-08-25 | Next static export (`output: "export"`) | user directive; the whole app is client-side, so a server only adds hydration risk |
 | 2026-08-25 | No view-transition morph between composer and note | tried and dropped on request; the swap stays instant |
+| 2026-08-25 | Saving stays on the composer, with an inline alert offering "Continue" | writing sessions are usually a burst of separate thoughts; opening each note would interrupt the next one |
+| 2026-08-25 | Inline alert instead of a toast | the confirmation carries an action, so it must not expire on its own |
+| 2026-08-25 | No React context, no custom hooks | one owner component and props are enough at this size; state managers stay out until something actually needs them |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not

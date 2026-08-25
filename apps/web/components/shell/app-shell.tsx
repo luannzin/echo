@@ -2,17 +2,20 @@
 
 import { type ReactNode, useState } from "react";
 import { Rail } from "@/components/shell/rail";
-import { Kbd } from "@/components/ui/kbd";
 
 /** Shell frame: rail | navigation | workspace | intelligence. */
 export function AppShell({
   navigation,
   workspace,
   intelligence,
+  atHome,
+  onHome,
 }: {
   navigation: ReactNode;
   workspace: ReactNode;
   intelligence: ReactNode;
+  atHome: boolean;
+  onHome: () => void;
 }) {
   const [navigationOpen, setNavigationOpen] = useState(true);
 
@@ -21,6 +24,8 @@ export function AppShell({
       <Rail
         navigationOpen={navigationOpen}
         onToggleNavigation={() => setNavigationOpen((open) => !open)}
+        atHome={atHome}
+        onHome={onHome}
       />
       {navigationOpen ? (
         <aside
@@ -46,15 +51,9 @@ export function AppShell({
 
 function TopBar() {
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 px-4">
+    <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4">
       <Label>echo</Label>
-      <div className="ml-auto flex items-center gap-3">
-        <Label>Local · private</Label>
-        <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
-          Search
-          <Kbd>⌘K</Kbd>
-        </span>
-      </div>
+      <Label>Local · private</Label>
     </header>
   );
 }

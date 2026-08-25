@@ -1,7 +1,7 @@
 import { type Clock, type IdFactory, systemClock, uuid } from "./clock";
 import { createEventBus, type EventBus } from "./events";
-import { createFolderService } from "./folders";
-import { createNoteService } from "./notes";
+import { createFolderService, type FolderService } from "./folders";
+import { createNoteService, type NoteService } from "./notes";
 import type { Repositories } from "./ports";
 
 export * from "./clock";
@@ -12,8 +12,8 @@ export * from "./ports";
 export * from "./title";
 
 export type Echo = {
-  notes: ReturnType<typeof createNoteService>;
-  folders: ReturnType<typeof createFolderService>;
+  notes: NoteService;
+  folders: FolderService;
   events: EventBus;
 };
 

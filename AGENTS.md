@@ -95,6 +95,8 @@ When the user requests a durable behavior change, record it here or in the relev
 - Schema changes go through `bun run --cwd packages/db db:generate` — never hand-edit generated SQL
   or `src/migrations.generated.ts`
 - coss registry files (`apps/web/components/ui/**`) are CLI-owned — compose, never hand-edit
+- Keep UI state plain: no React context, no custom hooks, no state library unless prop passing has
+  actually broken down. One owner component, props downward
 
 ## Child DOX Index
 

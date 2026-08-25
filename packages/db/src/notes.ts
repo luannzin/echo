@@ -1,5 +1,4 @@
 import type { NoteListOptions, NotePatch, NoteRepository } from "@echo/core";
-import type { Note } from "@echo/types";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client";
 import { notes } from "./schema";
@@ -8,7 +7,8 @@ export function createNoteRepository(db: Database): NoteRepository {
   return {
     async insert(note) {
       const [row] = await db.insert(notes).values(note).returning();
-      return required(row);
+      if (!row) throw new Error("Insert returned no row");
+      return row;
     },
 
     async update(id, patch: NotePatch) {
@@ -44,9 +44,4 @@ export function createNoteRepository(db: Database): NoteRepository {
         .limit(options.limit ?? 200);
     },
   };
-}
-
-function required(row: Note | undefined): Note {
-  if (!row) throw new Error("Insert returned no row");
-  return row;
 }

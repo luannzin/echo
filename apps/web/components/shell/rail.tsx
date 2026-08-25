@@ -13,26 +13,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-type RailItem = {
-  label: string;
-  icon: LucideIcon;
-  soon?: true;
-};
-
-const items: RailItem[] = [
-  { label: "Capture", icon: PenLine },
-  { label: "Search", icon: Search, soon: true },
-  { label: "Explorer", icon: FolderTree, soon: true },
-  { label: "Tasks", icon: SquareCheck, soon: true },
-  { label: "Recent", icon: History, soon: true },
+/** Destinations that exist in the product but not yet in the code. */
+const planned: { label: string; icon: LucideIcon }[] = [
+  { label: "Search", icon: Search },
+  { label: "Explorer", icon: FolderTree },
+  { label: "Tasks", icon: SquareCheck },
+  { label: "Recent", icon: History },
 ];
 
 export function Rail({
   onToggleNavigation,
   navigationOpen,
+  atHome,
+  onHome,
 }: {
   onToggleNavigation: () => void;
   navigationOpen: boolean;
+  atHome: boolean;
+  onHome: () => void;
 }) {
   return (
     <TooltipProvider>
@@ -46,14 +44,9 @@ export function Rail({
           onClick={onToggleNavigation}
         />
         <div className="my-1 h-px w-6 bg-sidebar-border" />
-        {items.map((item) => (
-          <RailButton
-            key={item.label}
-            label={item.soon ? `${item.label} — soon` : item.label}
-            icon={item.icon}
-            active={!item.soon}
-            disabled={item.soon}
-          />
+        <RailButton label="Write" icon={PenLine} active={atHome} onClick={onHome} />
+        {planned.map((item) => (
+          <RailButton key={item.label} label={`${item.label} — soon`} icon={item.icon} disabled />
         ))}
         <div className="mt-auto">
           <RailButton label="Settings — soon" icon={Settings} disabled />
