@@ -1,74 +1,78 @@
 "use client";
 
+import type { Note } from "@echo/types";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useEcho } from "@/components/notes/echo-provider";
 import { Label } from "@/components/shell/app-shell";
-import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 
 const AUTOSAVE_DELAY_MS = 500;
 
-export function NoteEditor() {
-  const { selectedNote, saveContent, saveState, createNote, ready } = useEcho();
-  const [draft, setDraft] = useState("");
+/** An existing note, open for editing. Autosave here, because the note already exists. */
+export function NoteEditor({ note }: { note: Note }) {
+  const { saveContent, saveState, select } = useEcho();
+  const [draft, setDraft] = useState(note.content);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unsaved = useRef<{ id: string; content: string } | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const loadedId = useRef<string | null>(null);
-  const noteId = selectedNote?.id ?? null;
 
-  // The draft is loaded once per note. Re-seeding it from the store would let a save that lands
-  // mid-sentence overwrite the characters typed while it was in flight.
+  // The draft loads once per note. Re-seeding it from the store would let a save landing
+  // mid-sentence overwrite characters typed while it was in flight.
   useEffect(() => {
-    if (!selectedNote || loadedId.current === selectedNote.id) return;
-    loadedId.current = selectedNote.id;
-    setDraft(selectedNote.content);
+    if (loadedId.current === note.id) return;
+    loadedId.current = note.id;
+    setDraft(note.content);
     textarea.current?.focus();
-  }, [selectedNote]);
+  }, [note.id, note.content]);
 
-  // Autosave never blocks a keystroke: state updates immediately, persistence trails it.
   useEffect(() => {
-    if (!noteId) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => saveContent(noteId, draft), AUTOSAVE_DELAY_MS);
+    if (draft === note.content) return;
+    unsaved.current = { id: note.id, content: draft };
+    timer.current = setTimeout(() => {
+      unsaved.current = null;
+      void saveContent(note.id, draft);
+    }, AUTOSAVE_DELAY_MS);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [draft, noteId, saveContent]);
+  }, [draft, note.id, note.content, saveContent]);
 
-  if (!selectedNote) {
-    return (
-      <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-5 px-6 pb-16">
-        <Label>Local · no account · no AI</Label>
-        <h1 className="text-balance font-display text-5xl leading-[0.95] tracking-tight">
-          The note taker that learns with you.
-        </h1>
-        <p className="max-w-prose text-muted-foreground leading-relaxed">
-          Start writing and echo keeps up: it saves as you type, and learns where your thinking
-          belongs.
-        </p>
-        <div>
-          <Button onClick={createNote} disabled={!ready}>
-            New note
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // Leaving the note — closing it or opening another — flushes whatever the debounce still holds.
+  useEffect(() => {
+    return () => {
+      const pending = unsaved.current;
+      if (!pending) return;
+      unsaved.current = null;
+      void saveContent(pending.id, pending.content);
+    };
+  }, [saveContent]);
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col px-8 py-6">
-      <div className="flex h-5 items-center justify-between">
-        <Label>{selectedNote.title || "Untitled"}</Label>
+      <div className="flex h-6 items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={() => select(null)}
+          className="-ml-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground text-xs transition-colors duration-150 hover:text-foreground"
+        >
+          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          Back to writing
+          <Kbd className="ml-1">Esc</Kbd>
+        </button>
         <SaveIndicator state={saveState} />
       </div>
       <textarea
         ref={textarea}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => saveContent(selectedNote.id, draft)}
+        onKeyDown={(event) => event.key === "Escape" && select(null)}
         aria-label="Note content"
         placeholder="Write anything…"
         spellCheck={false}
-        className="mt-4 min-h-0 flex-1 resize-none bg-transparent text-[0.95rem] leading-7 outline-none placeholder:text-muted-foreground"
+        className="mt-5 min-h-0 flex-1 resize-none bg-transparent text-[0.975rem] leading-7 outline-none placeholder:text-muted-foreground"
       />
     </div>
   );
@@ -76,6 +80,9 @@ export function NoteEditor() {
 
 function SaveIndicator({ state }: { state: ReturnType<typeof useEcho>["saveState"] }) {
   if (state === "idle") return null;
-  const text = state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Save failed";
-  return <Label>{text}</Label>;
+  return (
+    <span key={state} className="animate-settle">
+      <Label>{state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Save failed"}</Label>
+    </span>
+  );
 }

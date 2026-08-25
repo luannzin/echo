@@ -13,8 +13,8 @@ type EchoContextValue = {
   notes: Note[];
   selectedNote: Note | null;
   saveState: SaveState;
-  select: (noteId: string) => void;
-  createNote: () => Promise<void>;
+  select: (noteId: string | null) => void;
+  capture: (content: string) => Promise<Note | null>;
   saveContent: (noteId: string, content: string) => Promise<void>;
 };
 
@@ -49,11 +49,14 @@ export function EchoProvider({ children }: { children: ReactNode }) {
     });
   }, [echo]);
 
-  const createNote = useCallback(async () => {
-    if (!echo) return;
-    const note = await echo.notes.create();
-    setSelectedId(note.id);
-  }, [echo]);
+  /** Capture commits the composer's text as a note. Nothing is written before that. */
+  const capture = useCallback(
+    async (content: string) => {
+      if (!echo || content.trim().length === 0) return null;
+      return echo.notes.create({ content });
+    },
+    [echo],
+  );
 
   const saveContent = useCallback(
     async (noteId: string, content: string) => {
@@ -81,7 +84,7 @@ export function EchoProvider({ children }: { children: ReactNode }) {
         selectedNote,
         saveState,
         select: setSelectedId,
-        createNote,
+        capture,
         saveContent,
       }}
     >

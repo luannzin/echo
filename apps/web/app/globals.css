@@ -5,6 +5,27 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
+  /* Motion. Built-in easings are too soft; these carry the whole interface. */
+  --ease-out-quart: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --animate-rise: rise 240ms var(--ease-out-quart) both;
+  --animate-settle: settle 180ms var(--ease-out-quart) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @keyframes settle {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
   /* Brand. Electric blue carries the marketing surfaces and accents the app. */
   --color-brand: oklch(45.5% 0.305 264);
   --color-brand-bright: oklch(58% 0.26 264);

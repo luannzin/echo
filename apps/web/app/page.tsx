@@ -1,6 +1,6 @@
 import { EchoProvider } from "@/components/notes/echo-provider";
-import { NoteEditor } from "@/components/notes/note-editor";
 import { NoteList } from "@/components/notes/note-list";
+import { Workspace } from "@/components/notes/workspace";
 import { AppShell, Pane } from "@/components/shell/app-shell";
 
 export default function Page() {
@@ -8,7 +8,7 @@ export default function Page() {
     <EchoProvider>
       <AppShell
         navigation={<NoteList />}
-        workspace={<NoteEditor />}
+        workspace={<Workspace />}
         intelligence={
           <Pane title="Intelligence">
             <p>

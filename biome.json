@@ -12,6 +12,7 @@
       "!**/.next",
       "!**/dist",
       "!**/.turbo",
+      "!**/out",
       "!**/coverage",
       "!**/components/ui",
       "!**/hooks/use-media-query.ts",

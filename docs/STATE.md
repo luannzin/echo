@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-25 · Phase: **1 complete** · Checkpoint: **B — data model review**
+Last updated: 2026-08-25 · Phase: **1 complete + capture UX reshaped** · Checkpoint: **B**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -56,6 +56,18 @@ tailwindcss v4.
 Verified in the browser: create note → type → autosave ("Saved") → reload → note and content
 survive from IndexedDB, list ordered newest-first, no console errors.
 
+### Capture UX
+- Home is a composer, not a document: a big always-focused text area, no "New note" button
+  anywhere. Enter commits, Shift+Enter is a new line, and nothing is written to the database before
+  the writer commits — no empty notes accumulate.
+- Committing opens the saved note in the editor with autosave; Esc or "Back to writing" returns to
+  the composer.
+- `apps/web` is a **static export** (`output: "export"`) — no server, no hydration mismatch, and
+  self-hosting is copying `out/`.
+- Motion tokens (`--ease-out-quart`, `--ease-in-out-quart`, `rise`, `settle`) live in the theme.
+  Applied to: heading entrance, list stagger (28ms, first 8 items), save-button scale+fade,
+  save-state indicator, focus ring, press feedback. Reduced motion still collapses all of it.
+
 ## In progress
 - Nothing. Stopped at Checkpoint B.
 
@@ -86,6 +98,9 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 | 2026-08-25 | Schema grows per phase (`folders`, `notes` today) | tables nobody reads are speculative; `workspace_id` is already everywhere |
 | 2026-08-25 | Note title derived from first meaningful line | capture must never demand a title dialog |
 | 2026-08-25 | Folder deletion returns notes to the Inbox | notes are the user's; organization is not |
+| 2026-08-25 | Composer + Enter to commit, no "New" button | capture must be felt, not clicked; nothing is stored until the writer commits |
+| 2026-08-25 | Next static export (`output: "export"`) | user directive; the whole app is client-side, so a server only adds hydration risk |
+| 2026-08-25 | No view-transition morph between composer and note | tried and dropped on request; the swap stays instant |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
@@ -99,6 +114,10 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 - PGlite runs on the main thread. Fine at this size; move to `@electric-sql/pglite/worker` when
   embeddings start competing for it (marked `ponytail:` in the code).
 - Any domain event reloads the whole note list. Fine to ~200 notes, virtualize in Phase 2.
+- The composer's grow-to-fit uses a measure-and-set effect. `field-sizing: content` would delete it,
+  but Firefox lacks support — revisit when it lands.
+- Composer metadata row shows word count today; it is the slot detected categories, tasks and dates
+  plug into from Phase 3.
 - No projects/tasks tables yet — they arrive with Phase 5, on their own migration.
 - App shell is desktop-only so far — the mobile layout is Phase 6, and the panes currently just
   hide below `md`/`lg`.
