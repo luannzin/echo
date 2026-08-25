@@ -1,8 +1,9 @@
 "use client";
 
+import { parse } from "@echo/parser";
 import type { Note } from "@echo/types";
 import { CornerDownLeft } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Kbd } from "@/components/ui/kbd";
 
 const MAX_HEIGHT = 420;
@@ -42,7 +43,18 @@ export function Composer({
     element.style.height = `${Math.min(element.scrollHeight, MAX_HEIGHT)}px`;
   }, [draft]);
 
+  // Focused on mount rather than through `autoFocus`, which the browser skips in some hydration and
+  // background-tab cases — and the cursor being ready is the whole promise of this screen.
+  useEffect(() => {
+    textarea.current?.focus();
+  }, []);
+
   const filled = draft.trim().length > 0;
+
+  // Local, synchronous and cheap: no worker, no network, nothing to wait for. The editor is never
+  // blocked because there is nothing to block on.
+  // ponytail: parses the whole draft on every keystroke. Cap or debounce if long notes ever lag.
+  const signals = useMemo(() => parse(draft), [draft]);
 
   async function commit() {
     if (!filled || committing) return;
@@ -89,8 +101,6 @@ export function Composer({
           id="composer"
           ref={textarea}
           value={draft}
-          // biome-ignore lint/a11y/noAutofocus: writing is the single purpose of this screen
-          autoFocus
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -104,9 +114,13 @@ export function Composer({
         />
 
         <div className="flex items-center justify-between gap-3 px-5 pb-3">
-          <p className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">
-            {filled ? `${countWords(draft)} words` : "Local · private"}
-          </p>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">
+              {filled ? `${countWords(draft)} words` : "Local · private"}
+            </p>
+            {signals.tasks.length > 0 ? <Signal>Task</Signal> : null}
+            {signals.deadline ? <Signal>Due {signals.deadline.text}</Signal> : null}
+          </div>
           <button
             type="button"
             onClick={commit}
@@ -128,6 +142,15 @@ export function Composer({
         </p>
       )}
     </div>
+  );
+}
+
+/** Detected, not decided: a quiet read-out of what echo noticed, changing nothing about the note. */
+function Signal({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="animate-settle rounded-full bg-brand-bright/12 px-2 py-0.5 font-mono text-[0.6875rem] text-brand-bright uppercase tracking-[0.14em]">
+      {children}
+    </span>
   );
 }
 

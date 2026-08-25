@@ -1,9 +1,10 @@
 "use client";
 
 import { MessageSquareText, PenLine } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Rail } from "@/components/shell/rail";
 import { Button } from "@/components/ui/button";
+import { readPreference, writePreference } from "@/lib/preferences";
 
 /** Shell frame: rail | navigation | workspace | intelligence. */
 export function AppShell({
@@ -28,7 +29,29 @@ export function AppShell({
   onViewChange: (view: "home" | "stream") => void;
   streamAvailable: boolean;
 }) {
-  const [navigationOpen, setNavigationOpen] = useState(true);
+  // Both panels render closed, then open to the stored preference on mount. The first paint always
+  // matches the prerendered markup, so nothing jumps — the panels animate into place instead.
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const [intelligenceOpen, setIntelligenceOpen] = useState(false);
+
+  useEffect(() => {
+    setNavigationOpen(readPreference("notes-panel", true));
+    setIntelligenceOpen(readPreference("intelligence-panel", true));
+  }, []);
+
+  function toggleNavigation() {
+    setNavigationOpen((open) => {
+      writePreference("notes-panel", !open);
+      return !open;
+    });
+  }
+
+  function toggleIntelligence() {
+    setIntelligenceOpen((open) => {
+      writePreference("intelligence-panel", !open);
+      return !open;
+    });
+  }
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
@@ -40,25 +63,27 @@ export function AppShell({
       </a>
       <Rail
         navigationOpen={navigationOpen}
-        onToggleNavigation={() => setNavigationOpen((open) => !open)}
+        onToggleNavigation={toggleNavigation}
         atHome={atHome}
         onHome={onHome}
+        intelligenceOpen={intelligenceOpen}
+        onToggleIntelligence={toggleIntelligence}
       />
-      {navigationOpen ? (
-        <aside
-          aria-label="Navigation"
-          // The panel keeps its width in the stream and only fades: unmounting it would drag the
-          // whole workspace sideways mid-transition.
-          inert={!showNavigation}
-          className={`hidden w-60 shrink-0 border-e md:block ${
-            showNavigation
-              ? "border-border opacity-100"
-              : "pointer-events-none border-transparent opacity-0"
-          } transition-[opacity,border-color] duration-200 ease-[var(--ease-out-quart)]`}
-        >
-          {navigation}
-        </aside>
-      ) : null}
+      <aside
+        aria-label="Navigation"
+        // Width carries the open/closed preference; opacity carries the view. Keeping its width in
+        // the stream is what stops the workspace sliding sideways mid-transition.
+        inert={!showNavigation || !navigationOpen}
+        className={`hidden shrink-0 overflow-hidden border-e md:block ${
+          navigationOpen ? "w-60" : "w-0"
+        } ${
+          showNavigation && navigationOpen
+            ? "border-border opacity-100"
+            : "pointer-events-none border-transparent opacity-0"
+        } transition-[width,opacity,border-color] duration-260 ease-[var(--ease-out-quart)]`}
+      >
+        <div className="h-full w-60">{navigation}</div>
+      </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar view={view} onViewChange={onViewChange} streamAvailable={streamAvailable} />
         <main id="workspace" className="min-h-0 flex-1 overflow-y-auto">
@@ -67,9 +92,12 @@ export function AppShell({
       </div>
       <aside
         aria-label="Intelligence"
-        className="hidden w-80 shrink-0 border-s border-border lg:block"
+        inert={!intelligenceOpen}
+        className={`hidden shrink-0 overflow-hidden border-s lg:block ${
+          intelligenceOpen ? "w-80 border-border opacity-100" : "w-0 border-transparent opacity-0"
+        } transition-[width,opacity,border-color] duration-260 ease-[var(--ease-out-quart)]`}
       >
-        {intelligence}
+        <div className="h-full w-80">{intelligence}</div>
       </aside>
     </div>
   );

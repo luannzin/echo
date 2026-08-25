@@ -69,4 +69,5 @@ permanently stale.
 | Drizzle ORM over raw SQL | Typed queries against one schema definition, and drizzle-kit generates the migrations |
 | Migrations inlined into TypeScript | The browser has no filesystem; `bun run db:generate` regenerates them, so there is no hand-copied drift |
 | `bun test` instead of Vitest | Same API, zero dependencies, and it runs real PGlite in-process |
+| chrono-node for date detection | Dates people write ("in two weeks", "até sexta") are a deep problem; the regex version handled a fraction of it |
 | Plain textarea editor in Phase 1 | Rich text is a Phase 2 concern; capture speed comes first |

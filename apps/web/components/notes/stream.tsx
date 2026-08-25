@@ -10,6 +10,7 @@ import { Fragment, useEffect, useRef } from "react";
  */
 export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: string) => void }) {
   const bottom = useRef<HTMLDivElement>(null);
+  const settled = useRef(false);
   const count = notes.length;
 
   // A new note lands at the bottom, so the view follows it there. The composer is the last thing
@@ -18,6 +19,12 @@ export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: stri
     const scroller = bottom.current?.closest("[data-stream-scroll]");
     if (scroller) scroller.scrollTop = scroller.scrollHeight;
   }, [count]);
+
+  // The cascade belongs to the first paint. A note added later is the only thing entering, so it
+  // enters immediately instead of waiting out a queue it was never part of.
+  useEffect(() => {
+    settled.current = true;
+  }, []);
 
   const chronological = [...notes].reverse();
 
@@ -30,13 +37,13 @@ export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: stri
         return (
           <Fragment key={note.id}>
             {startsDay ? (
-              <p className="px-5 pt-6 pb-2 font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.16em] first:pt-0">
+              <p className="pt-6 pb-2 font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.16em] first:pt-0">
                 {formatDay(note.createdAt)}
               </p>
             ) : null}
             <article
-              style={{ animationDelay: `${Math.min(index, 8) * 28}ms` }}
-              className="animate-rise group border-border/70 border-b px-5 py-4 last:border-b-0"
+              style={{ animationDelay: settled.current ? "0ms" : `${Math.min(index, 8) * 28}ms` }}
+              className="animate-rise group border-border/70 border-b py-4 last:border-b-0"
             >
               <div className="flex items-baseline gap-2">
                 <time
@@ -45,6 +52,14 @@ export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: stri
                 >
                   {formatStamp(note.createdAt)}
                 </time>
+                {wasEdited(note) ? (
+                  <time
+                    dateTime={note.updatedAt.toISOString()}
+                    className="font-mono text-[0.6875rem] text-muted-foreground/80 uppercase tracking-[0.14em] tabular-nums"
+                  >
+                    · edited {formatStamp(note.updatedAt)}
+                  </time>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => onEdit(note.id)}
@@ -69,6 +84,14 @@ export function Stream({ notes, onEdit }: { notes: Note[]; onEdit: (noteId: stri
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
+}
+
+/**
+ * A note keeps its place in the stream by when it was written, but the note list is ordered by when
+ * it was last touched. Showing both stamps is what makes those two orders agree with each other.
+ */
+function wasEdited(note: Note): boolean {
+  return note.updatedAt.getTime() - note.createdAt.getTime() > 60_000;
 }
 
 /** Recent notes read better as an age; older ones need their date back. */

@@ -15,6 +15,7 @@
     "@daypicker/react": "^10.0.1",
     "@echo/core": "workspace:*",
     "@echo/db": "workspace:*",
+    "@echo/parser": "workspace:*",
     "@echo/types": "workspace:*",
     "@echo/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",

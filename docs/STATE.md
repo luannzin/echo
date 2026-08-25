@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-25 · Phase: **1 complete + capture UX reshaped** · Checkpoint: **B**
+Last updated: 2026-08-25 · Phase: **1 complete · 3 started (parser)** · Checkpoint: **B**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -95,7 +95,8 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   date turns over. No bubbles, no ragged right edge.
 - Stream rows and the composer share one scroll container, which is what keeps their widths
   identical — a separate scroller made the column 15px narrower than the composer via its scrollbar.
-  Row text lines up with the composer's own text, and the hairlines run the full column.
+  Rows carry no horizontal padding of their own, so text, timestamps, day labels, hairlines and the
+  composer's edge all sit on one line at the column edge.
 - No context and no custom hooks: `app/page.tsx` owns notes, selection and the database handle, and
   every component takes plain props. The editor owns its own save state, because nothing else needs
   to know about it.
@@ -146,6 +147,25 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
   needed until after Phase 2.
 - License. README says TBD; permissive is the intent.
+
+### Phase 3 — Intelligence (started)
+- `@echo/parser`: deterministic, offline content analysis with no model and no API key.
+  - Dates via **chrono-node**: `tomorrow` / `amanhã`, weekday names, `in two weeks`, day-first
+    numerics (`03/12` is 3 December). Portuguese parses first so numerics stay day-first, English
+    covers the rest, and one phrase never yields two dates.
+  - Deadlines: a date framed as a limit (`before Friday`, `até sexta`, `by`, `prazo`) is a deadline;
+    a mention is not.
+  - Tasks: checkboxes score 1.0, phrasing (`need to`, `preciso`, `tenho que`, `lembrar de`, `TODO`)
+    scores lower. Nothing mutates the note.
+  - Keywords: frequency ranking with English + Portuguese stopwords, ties broken alphabetically so
+    the same note always parses the same way. `now` is injected for determinism.
+  - 7 tests covering both languages, deadline vs mention, invalid dates and reproducibility.
+- Wired into the composer: as you type, quiet `Task` and `Due <word>` chips appear in the meta row.
+  Local, synchronous, nothing to wait for. Only deadlines get a chip — a date merely mentioned stays
+  silent, because one good suggestion beats three noisy ones.
+- Panel preferences (notes, intelligence) persist in `localStorage` under `echo:*`. Both panels
+  render **closed**, matching the prerendered markup exactly, then animate open to the stored
+  preference on mount (width + opacity, 260ms). Nothing jumps on first paint; the panels arrive.
 
 ## Fixed
 

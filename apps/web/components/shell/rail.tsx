@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Brain,
   FolderTree,
   History,
   type LucideIcon,
@@ -26,11 +27,15 @@ export function Rail({
   navigationOpen,
   atHome,
   onHome,
+  intelligenceOpen,
+  onToggleIntelligence,
 }: {
   onToggleNavigation: () => void;
   navigationOpen: boolean;
   atHome: boolean;
   onHome: () => void;
+  intelligenceOpen: boolean;
+  onToggleIntelligence: () => void;
 }) {
   return (
     <TooltipProvider>
@@ -43,6 +48,7 @@ export function Rail({
           <RailButton
             label={navigationOpen ? "Hide notes" : "Show notes"}
             icon={PanelLeft}
+            pressed={navigationOpen}
             onClick={onToggleNavigation}
           />
         </div>
@@ -56,7 +62,16 @@ export function Rail({
             unavailable
           />
         ))}
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col items-center gap-1">
+          {/* The intelligence panel only exists from lg up, so its toggle follows the same rule. */}
+          <div className="hidden lg:block">
+            <RailButton
+              label={intelligenceOpen ? "Hide intelligence" : "Show intelligence"}
+              icon={Brain}
+              pressed={intelligenceOpen}
+              onClick={onToggleIntelligence}
+            />
+          </div>
           <RailButton label="Settings — soon" icon={Settings} unavailable />
         </div>
       </nav>
@@ -68,12 +83,15 @@ function RailButton({
   label,
   icon: Icon,
   active = false,
+  pressed,
   unavailable = false,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
+  /** `active` marks the current destination; `pressed` marks a panel toggle's on state. */
   active?: boolean;
+  pressed?: boolean;
   /** Kept focusable rather than `disabled`, so its tooltip can still be read from the keyboard. */
   unavailable?: boolean;
   onClick?: () => void;
@@ -87,10 +105,11 @@ function RailButton({
             size="icon"
             aria-label={label}
             aria-current={active ? "page" : undefined}
+            aria-pressed={pressed}
             aria-disabled={unavailable || undefined}
             onClick={unavailable ? undefined : onClick}
             className={
-              active
+              active || pressed
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground"
             }
