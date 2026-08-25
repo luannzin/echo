@@ -6,11 +6,7 @@ import "./globals.css";
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
-/**
- * Display face for marketing surfaces and hero type.
- * Instrument Serif stands in for Sigurd, which is commercially licensed — swapping it later is
- * this one declaration plus the `--font-display` variable name.
- */
+/** Display face, hero type only. Swapping it is this declaration and nothing else. */
 const display = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",

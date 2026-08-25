@@ -1,10 +1,10 @@
-# Note Taker
+# echo
 
-> **THE NOTE TAKER THAT GROWS WITH YOU.**
+> **THE NOTE TAKER THAT LEARNS WITH YOU.**
 > It doesn't think for you. It learns how you think.
 
-Local-first, open-source, smart note-taking. Semantic search, automatic organization and adaptive
-learning that run **on your machine** — no AI API key required for any core feature.
+Open source, no-AI, local-first note taking. Semantic search, automatic organization and adaptive
+learning that run **on your machine** — no AI API key required for any core feature, ever.
 
 Status: **Phase 0 — monorepo skeleton.** See [docs/PLAN.md](docs/PLAN.md) for the roadmap and
 [docs/STATE.md](docs/STATE.md) for exactly where the build stands right now.

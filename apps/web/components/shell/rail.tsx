@@ -16,17 +16,15 @@ import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/compon
 type RailItem = {
   label: string;
   icon: LucideIcon;
-  /** Unavailable items say which phase brings them, instead of pretending to work. */
-  available: boolean;
-  hint?: string;
+  soon?: true;
 };
 
 const items: RailItem[] = [
-  { label: "Capture", icon: PenLine, available: true },
-  { label: "Search", icon: Search, available: false, hint: "Arrives with search (Phase 3)" },
-  { label: "Explorer", icon: FolderTree, available: false, hint: "Arrives with folders (Phase 1)" },
-  { label: "Tasks", icon: SquareCheck, available: false, hint: "Arrives with tasks (Phase 5)" },
-  { label: "Recent", icon: History, available: false, hint: "Arrives with notes (Phase 1)" },
+  { label: "Capture", icon: PenLine },
+  { label: "Search", icon: Search, soon: true },
+  { label: "Explorer", icon: FolderTree, soon: true },
+  { label: "Tasks", icon: SquareCheck, soon: true },
+  { label: "Recent", icon: History, soon: true },
 ];
 
 export function Rail({
@@ -51,14 +49,14 @@ export function Rail({
         {items.map((item) => (
           <RailButton
             key={item.label}
-            label={item.available ? item.label : `${item.label} — ${item.hint}`}
+            label={item.soon ? `${item.label} — soon` : item.label}
             icon={item.icon}
-            active={item.available && item.label === "Capture"}
-            disabled={!item.available}
+            active={!item.soon}
+            disabled={item.soon}
           />
         ))}
         <div className="mt-auto">
-          <RailButton label="Settings — arrives with Phase 8" icon={Settings} disabled />
+          <RailButton label="Settings — soon" icon={Settings} disabled />
         </div>
       </nav>
     </TooltipProvider>
@@ -91,7 +89,7 @@ function RailButton({
             onClick={onClick}
             className={
               active
-                ? "text-sidebar-accent-foreground bg-sidebar-accent"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground"
             }
           />

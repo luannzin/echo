@@ -4,10 +4,7 @@ import { type ReactNode, useState } from "react";
 import { Rail } from "@/components/shell/rail";
 import { Kbd } from "@/components/ui/kbd";
 
-/**
- * Shell frame: rail | navigation | workspace | intelligence.
- * Phase 0 renders structure and honest empty states — the data layer arrives in Phase 1.
- */
+/** Shell frame: rail | navigation | workspace | intelligence. */
 export function AppShell({
   navigation,
   workspace,
@@ -50,7 +47,7 @@ export function AppShell({
 function TopBar() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 px-4">
-      <Label>Note Taker</Label>
+      <Label>echo</Label>
       <div className="ml-auto flex items-center gap-3">
         <Label>Local · private</Label>
         <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
@@ -62,7 +59,6 @@ function TopBar() {
   );
 }
 
-/** Mono uppercase micro-label: the one typographic signature shared with the marketing surface. */
 export function Label({ children }: { children: ReactNode }) {
   return (
     <span className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">

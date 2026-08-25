@@ -5,7 +5,8 @@ Stack deltas from spec: **bun workspaces** (not pnpm), **Biome** (not ESLint+Pre
 
 ## Naming
 
-Packages scoped `@echo/*`. Product name in UI copy stays "Note Taker" until decided otherwise.
+The product is **echo** — open source, no-AI note taker that learns with you. Lowercase in prose and
+UI, `@echo/*` for package scope.
 
 ## Non-negotiable architecture rules (spec §35, enforced by lint boundaries + review)
 

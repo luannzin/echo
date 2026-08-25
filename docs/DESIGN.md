@@ -1,11 +1,11 @@
 # Design direction
 
-Two surfaces, one brand. The references split cleanly along that line and the system follows them.
+Two surfaces, one brand.
 
-| Surface | Reference | Character |
-| --- | --- | --- |
-| Marketing (landing, docs) | Hermes Agent | Electric blue field, oversized high-contrast serif caps, mono micro-labels, engraved/halftone imagery. Loud on purpose. |
-| Application (shell, editor) | Grok desktop + mobile | Near-black canvas, icon rail, generous void, content centred, chrome almost invisible. Quiet on purpose. |
+| Surface | Character |
+| --- | --- |
+| Marketing (landing, docs) | Electric blue field, oversized high-contrast serif caps, mono micro-labels, engraved imagery. Loud on purpose. |
+| Application (shell, editor) | Near-black canvas, icon rail, generous void, content centred, chrome almost invisible. Quiet on purpose. |
 
 The two are held together by three shared elements: the electric blue, the mono uppercase
 micro-label, and the display serif used for hero-scale type only.
@@ -34,10 +34,9 @@ blue in three places, two of them are wrong.
 | Micro-labels, code, shortcuts | Geist Mono, uppercase, `0.14em` tracking | `--font-mono` |
 | Hero and marketing display | Instrument Serif | `--font-display` |
 
-**Sigurd** is the face in the Hermes reference and is commercially licensed — it is not in the
-repository. Instrument Serif stands in: same didone-ish high contrast, free, and loadable through
-`next/font`. Swapping it later is one declaration in `apps/web/app/layout.tsx`; nothing else
-references the face by name.
+Instrument Serif is the display face today: high didone contrast, free, loadable through
+`next/font`. A licensed face can replace it with one declaration in `apps/web/app/layout.tsx` —
+nothing else names a font.
 
 ## Shell anatomy
 

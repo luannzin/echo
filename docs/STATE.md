@@ -2,6 +2,8 @@
 
 Last updated: 2026-08-25 · Phase: **0 complete + design system landed** · Next: **Phase 1**
 
+Product: **echo** — open source, no-AI note taker that learns with you.
+
 ## Done
 
 ### Phase 0 — Skeleton
@@ -31,10 +33,10 @@ tailwindcss v4.
 - Registry files (`components/ui/**`, `hooks/use-media-query.ts`, `lib/utils.ts`) excluded from
   Biome — the CLI owns them, hand-edits would be overwritten.
 - Brand tokens + dark shell tuning in `app/globals.css`; fonts wired through `next/font`
-  (Geist / Geist Mono / Instrument Serif standing in for Sigurd).
+  (Geist / Geist Mono / Instrument Serif for display).
 - Shell rebuilt to the reference direction: 56px icon rail with tooltips, collapsible navigation,
   quiet top bar, intelligence panel. Unbuilt destinations render disabled and name their phase.
-- `docs/DESIGN.md` records the direction: Hermes energy for marketing, Grok restraint for the app.
+- `docs/DESIGN.md` records the direction: loud marketing surface, quiet application surface.
 
 ## In progress
 - Nothing. Ready for Phase 1.
@@ -50,13 +52,13 @@ tailwindcss v4.
 | 2026-08-25 | bun workspaces instead of pnpm | user directive |
 | 2026-08-25 | Biome instead of ESLint + Prettier | user directive |
 | 2026-08-25 | Turborepo kept | user directive, spec §3 |
-| 2026-08-25 | Package scope `@echo/*` | project directory is `echo-note` |
+| 2026-08-25 | Product is **echo**, lowercase in prose and UI | user directive; tagline: open source, no-AI note taker that learns with you |
 | 2026-08-25 | Multilingual embeddings (`multilingual-e5-small`, ~120MB, 384-dim) | notes in pt-BR and any other language; English-only model rejected |
 | 2026-08-25 | Plain textarea editor in Phase 1, rich editor later | capture speed first; Notion-style editor is a later upgrade |
 | 2026-08-25 | Landing page as a route group inside `apps/web` | one deploy, shared UI primitives |
 | 2026-08-25 | Bun's isolated node_modules linker (default in 1.3) | left as-is; Next builds fine under it |
 | 2026-08-25 | coss installed into `apps/web`, not `packages/ui` | only one consumer exists; promoting a primitive is a move, not a rewrite |
-| 2026-08-25 | Instrument Serif as the display face | Sigurd (Hermes reference) is commercially licensed; swap is one line in `layout.tsx` |
+| 2026-08-25 | Instrument Serif as the display face | free, high-contrast didone; a licensed face swaps in with one line in `layout.tsx` |
 | 2026-08-25 | App is dark-only for now | both app references are dark; light mode is a token swap later |
 | 2026-08-25 | Plain `nav` rail instead of coss `Sidebar` | the rail never expands and has no mobile sheet yet; `Sidebar` returns if that changes |
 
@@ -73,4 +75,5 @@ tailwindcss v4.
   hide below `md`/`lg`.
 - Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,
   but nothing renders it.
-- `AGENTS.md` still not in the repo — add whenever you want house rules enforced.
+- Product copy carries no roadmap/phase references any more; empty states describe the product,
+  not the build order.

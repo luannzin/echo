@@ -1,3 +1,14 @@
+# echo
+
+Open source, no-AI note taker that learns with you. Local-first: notes, search, organization and
+learning all run on the user's machine, and no core feature may require an AI API key.
+
+- Write the product name lowercase in prose, docs and UI copy: `echo`
+- Package scope is `@echo/*`
+- Product copy describes the product, never the build order — no phase numbers in the UI
+- Roadmap lives in `docs/PLAN.md`, current state in `docs/STATE.md`, boundaries in
+  `docs/ARCHITECTURE.md`, visual system in `docs/DESIGN.md`
+
 # DOX framework
 
 - DOX is highly performant AGENTS.md hierarchy installed here
@@ -78,7 +89,12 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+- Work in phases with checkpoints; update `docs/STATE.md` at the end of every phase
+- Stack is fixed: bun workspaces, Turborepo, Biome, Next.js, Tailwind, coss ui
+- coss registry files (`apps/web/components/ui/**`) are CLI-owned — compose, never hand-edit
+
 ## Child DOX Index
 
 - No child AGENTS.md files are needed for the current repository structure.
-- Root-owned files: `README.md`, `LICENSE`, `banner.jpg`, `video-thumbnail.jpg`, and root-level project documentation.
+- Root-owned files: `README.md`, `docs/**`, and root-level tooling config (`package.json`,
+  `turbo.json`, `biome.json`, `tooling/**`).
