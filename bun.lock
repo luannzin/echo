@@ -55,6 +55,23 @@
         "tailwindcss": "latest",
       },
     },
+    "apps/www": {
+      "name": "@echo/www",
+      "version": "0.0.0",
+      "dependencies": {
+        "next": "latest",
+        "react": "latest",
+        "react-dom": "latest",
+      },
+      "devDependencies": {
+        "@echo/tsconfig": "workspace:*",
+        "@tailwindcss/postcss": "latest",
+        "@types/node": "latest",
+        "@types/react": "latest",
+        "@types/react-dom": "latest",
+        "tailwindcss": "latest",
+      },
+    },
     "packages/config": {
       "name": "@echo/config",
       "version": "0.0.0",
@@ -299,6 +316,8 @@
     "@echo/ui": ["@echo/ui@workspace:packages/ui"],
 
     "@echo/web": ["@echo/web@workspace:apps/web"],
+
+    "@echo/www": ["@echo/www@workspace:apps/www"],
 
     "@electric-sql/pglite": ["@electric-sql/pglite@0.5.7", "", {}, "sha512-6WBks0NFO6YUhGP03mCNkbJuVFWwrZPrzZ/vsnAPnsCD28pybdZ+yoTrlLlWFoZst3kdaju5pxIslV/jrr36nQ=="],
 

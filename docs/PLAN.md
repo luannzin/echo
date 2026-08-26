@@ -136,7 +136,7 @@ decisions recorded in `docs/STATE.md`.
 
 ## Phase 8 — Product polish
 
-Landing page (§48), onboarding storage choice (§49), animations with reduced-motion, a11y pass, perf pass against a 10k-note seeded corpus, docs (local / self-host / Postgres / desktop / deploy).
+Landing page (§48, built — `apps/www`), onboarding storage choice (§49), animations with reduced-motion, a11y pass, perf pass against a 10k-note seeded corpus, docs (local / self-host / Postgres / desktop / deploy).
 
 ---
 
@@ -150,7 +150,7 @@ Landing page (§48), onboarding storage choice (§49), animations with reduced-m
 
 1. **Editor engine.** Default: markdown textarea in Phase 1 → Tiptap in Phase 2 (ProseMirror, has the selection/decoration API the inline suggestions need). Alternative: stay plain markdown the whole MVP, cheaper and faster, less "premium".
 2. **Embedding model.** Default `bge-small-en-v1.5` (~33M params, ~35MB quantized, 384-dim). Multilingual (pt-BR notes) needs `multilingual-e5-small` instead — ~120MB. Which matters to you?
-3. **Landing page location.** Default: route group inside `apps/web`. Separate app if you want independent deploy.
+3. ~~**Landing page location.**~~ Decided: separate app, `apps/www`, deployed on its own.
 
 ## Risks I'm flagging now
 

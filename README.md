@@ -30,6 +30,7 @@ default and always will be.
 | --- | --- |
 | `bun run dev` | Start the web dev server (the desktop window is opened on purpose, not here) |
 | `bun run dev:web` | Web app only |
+| `bun run dev:www` | Marketing site only (port 3001) |
 | `bun run dev:desktop` | Desktop app (builds the web app, then opens the Tauri window) |
 | `bun run build:desktop` | Package the desktop app |
 | `bun run build` | Build everything through Turborepo (the web app builds with webpack — see below) |
@@ -67,6 +68,7 @@ first use, once, and then cached by the browser.
 ## Layout
 
 ```text
+apps/www            Marketing site — its own Next app, its own deploy, no domain code
 apps/web            Next.js application (PWA)
   app/              route entry and the component that owns application state
   modules/          one folder per feature, each with its own _components

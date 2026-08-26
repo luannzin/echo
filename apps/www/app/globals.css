@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+@theme {
+  /* The marketing surface is the loud half of the brand: one blue field, one paper, one ink. */
+  --color-brand: oklch(45.5% 0.305 264);
+  --color-brand-bright: oklch(58% 0.26 264);
+  --color-brand-deep: oklch(31% 0.24 264);
+  --color-ink: oklch(97% 0.012 264);
+  --color-paper: oklch(97.6% 0.005 264);
+  --color-carbon: oklch(16% 0.02 264);
+
+  --ease-out-quart: cubic-bezier(0.23, 1, 0.32, 1);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-instrument-serif);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-brand);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    scrollbar-color: color-mix(in oklab, var(--color-ink) 40%, transparent) transparent;
+  }
+
+  body {
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background-color: var(--color-ink);
+    color: var(--color-brand);
+  }
+
+  :focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+  }
+}
+
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+/*
+ * Display caps are drawn for posters, not paragraphs: the metrics leave a gap above and below that
+ * reads as a mistake at 8rem, so the line box is pulled back to the letters themselves.
+ */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 0.86;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+/*
+ * Film grain over the whole page. One turbulence tile, blended so it darkens the blue field and
+ * lifts the paper — the same grain the engravings are dithered with, one layer up.
+ */
+@utility grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.58;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.5'/></svg>");
+  background-size: 140px 140px;
+}
+
+/* Hairline the whole site is ruled with: ink at a fifth, or brand on paper. */
+@utility rule-ink {
+  border-color: color-mix(in oklab, var(--color-ink) 22%, transparent);
+}
+
+@utility rule-brand {
+  border-color: color-mix(in oklab, var(--color-brand) 26%, transparent);
+}
+
+/* 1-bit ordered dither, defined once in the SVG the layout drops at the top of the body. */
+@utility dither {
+  filter: url("#echo-dither");
+}
+
+@utility dither-paper {
+  filter: url("#echo-dither-paper");
+}
+
+@utility halftone {
+  filter: url("#echo-halftone");
+}
+
+@layer components {
+  /*
+   * Scroll-driven, so there is no listener, no observer and no hydration cost: the compositor reads
+   * the element's own progress through the viewport. Browsers without view() timelines simply get
+   * the finished state, which is the design either way.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .parallax {
+        animation: parallax linear both;
+        animation-timeline: view();
+        animation-range: cover 0% cover 100%;
+        will-change: transform;
+      }
+
+      @keyframes parallax {
+        from {
+          transform: translate3d(0, var(--parallax, 7%), 0) scale(var(--parallax-scale, 1.16));
+        }
+        to {
+          transform: translate3d(0, calc(var(--parallax, 7%) * -1), 0)
+            scale(var(--parallax-scale, 1.16));
+        }
+      }
+
+      .reveal {
+        animation: reveal linear both;
+        animation-timeline: view();
+        animation-range: entry 5% cover 26%;
+      }
+
+      @keyframes reveal {
+        from {
+          opacity: 0;
+          transform: translate3d(0, 28px, 0);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      /* The wordmark drifts sideways across its own band — the one horizontal motion on the page. */
+      .drift {
+        animation: drift linear both;
+        animation-timeline: view();
+        animation-range: cover 0% cover 100%;
+      }
+
+      @keyframes drift {
+        from {
+          transform: translate3d(4%, 0, 0);
+        }
+        to {
+          transform: translate3d(-4%, 0, 0);
+        }
+      }
+    }
+
+    .rise {
+      animation: rise 900ms var(--ease-out-quart) both;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translate3d(0, 22px, 0);
+      }
+    }
+
+    .caret {
+      animation: caret 1s steps(1) infinite;
+    }
+
+    @keyframes caret {
+      50% {
+        opacity: 0;
+      }
+    }
+  }
+}

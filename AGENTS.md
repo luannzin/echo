@@ -123,6 +123,9 @@ A module never reaches into another module's `_components`; anything two of them
 `apps/desktop` is a Tauri shell around `apps/web/out`. No business logic in Rust — the domain runs
 in the web app on every host.
 
+`apps/www` is the marketing site: its own Next app, its own tokens, no `@echo/*` dependency, and its
+own deploy. Its rules live in `apps/www/AGENTS.md`.
+
 ## Code style
 
 - TypeScript only, `.ts` / `.tsx`
@@ -134,6 +137,7 @@ in the web app on every host.
 
 ## Child DOX Index
 
-- No child AGENTS.md files are needed for the current repository structure.
+- `apps/www/AGENTS.md` — the marketing site: its sections, its generated imagery, and the rules that
+  keep it separate from the application.
 - Root-owned files: `README.md`, `docs/**`, and root-level tooling config (`package.json`,
   `turbo.json`, `biome.json`, `tooling/**`).

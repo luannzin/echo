@@ -449,6 +449,31 @@ the Inbox" — the plan was rebuilt from an override map that had never been see
 just moved had an entry. `planFiling` now takes where a note is bound rather than a whole
 `Destination`, and the map is seeded when the plan is made.
 
+### Landing page — `apps/www`
+- A second Next app, static export, port 3001. No `@echo/*` dependency: the site has no database, no
+  parser and nothing to compile from the domain. Its brand tokens are re-declared in its own
+  `app/globals.css` rather than imported, so the app's chrome and the site's field move apart.
+- The imagery is generated, not photographed: `components/engraving.tsx` draws six greyscale plates
+  from loops (rays, latitudes, a spiral, a ruled field, a mesh, a wave) and `components/filters.tsx`
+  prints them through an ordered 8x8 Bayer threshold — `feImage` + `feTile` + a discrete transfer —
+  or a dot screen for halftone. Both colours come out of `feFlood` reading the same custom properties
+  the page is painted with, so no filter or component holds a hex value.
+- Motion is scroll-driven CSS (`animation-timeline: view()`): plate parallax inside the feature and
+  platform cards, a reveal on each card, and a horizontal drift on the wordmark band. No scroll
+  listener, no observer, no motion library, and all of it inside
+  `@media (prefers-reduced-motion: no-preference)` — a browser without view timelines gets the
+  finished state, which is the design either way.
+- Film grain over the whole page: one turbulence tile, `mix-blend-mode: overlay`.
+- One client component (`install-box.tsx`) for the tab state and the clipboard; everything else is a
+  server component. Every claim on the page is something the app already does, and the only external
+  link is the repository.
+
+Verified: `bun run lint` clean, `bun run --cwd apps/www typecheck` clean, `bun run --cwd apps/www
+build` exports three static routes. Read at 1440px and 390px — no horizontal scroll on the phone
+(the hero column needs `min-w-0` or the longest install command sets the page width), and the
+platform card labels measure 5.6:1 against the brightest part of the plate behind them, display type
+4.3:1.
+
 ## In progress
 - Nothing. All four sub-projects are done. Still open from Phase 5: whether projects should be their
   own entity — the brief is the first thing in the product that treats a folder as a project, so
@@ -472,7 +497,9 @@ just moved had an entry. `planFiling` now takes where a note is bound rather tha
 | 2026-08-25 | Product is **echo**, lowercase in prose and UI | user directive; tagline: open source, no-AI note taker that learns with you |
 | 2026-08-25 | Multilingual embeddings (`multilingual-e5-small`, ~120MB, 384-dim) | notes in pt-BR and any other language; English-only model rejected |
 | 2026-08-25 | Plain textarea editor in Phase 1, rich editor later | capture speed first; Notion-style editor is a later upgrade |
-| 2026-08-25 | Landing page as a route group inside `apps/web` | one deploy, shared UI primitives |
+| 2026-08-26 | Landing page is its own app, `apps/www` | the site deploys, breaks and gets rebuilt on its own schedule; the app should not ship a marketing bundle, and the site should not compile a database |
+| 2026-08-26 | Site imagery is generated SVG, dithered by filter | a folder of engravings would be megabytes and would resample; a plate drawn from a loop prints at the size it is shown |
+| 2026-08-26 | Parallax is `animation-timeline: view()`, not JavaScript | the compositor already knows where an element is in the viewport; a listener would only re-derive it, and reduced-motion is one media query away |
 | 2026-08-25 | Bun's isolated node_modules linker (default in 1.3) | left as-is; Next builds fine under it |
 | 2026-08-25 | coss installed into `apps/web`, not `packages/ui` | only one consumer exists; promoting a primitive is a move, not a rewrite |
 | 2026-08-25 | Instrument Serif as the display face | free, high-contrast didone; a licensed face swaps in with one line in `layout.tsx` |
@@ -826,7 +853,9 @@ production app still opens its database, files a note from the Inbox and moves o
   generates. The repo carries the PNGs and the `.ico` because those are what Linux and Windows want.
 - No offline indicator, deliberately: there is nothing to say. If the model has not been downloaded
   before the first offline session, search falls back to words and says so already.
-- Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,
-  but nothing renders it.
+- The landing site names no licence: the repository has not chosen one yet. When it does, the footer
+  and the hero eyebrow are where it goes.
+- Scroll-driven animation needs `animation-timeline: view()`. Browsers without it show the finished
+  state — nothing is hidden, but the page loses its parallax rather than falling back to a listener.
 - Product copy carries no roadmap/phase references any more; empty states describe the product,
   not the build order.

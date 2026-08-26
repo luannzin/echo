@@ -4,7 +4,7 @@ Two surfaces, one brand.
 
 | Surface | Character |
 | --- | --- |
-| Marketing (landing, docs) | Electric blue field, oversized high-contrast serif caps, mono micro-labels, engraved imagery. Loud on purpose. |
+| Marketing (`apps/www`) | Electric blue field, oversized high-contrast serif caps, mono micro-labels, dithered engravings. Loud on purpose. |
 | Application (shell, editor) | Near-black canvas, icon rail, generous void, content centred, chrome almost invisible. Quiet on purpose. |
 
 The two are held together by three shared elements: the electric blue, the mono uppercase
@@ -12,7 +12,8 @@ micro-label, and the display serif used for hero-scale type only.
 
 ## Colour
 
-Tokens live in `apps/web/app/globals.css`.
+Tokens live in `apps/web/app/globals.css`, and the marketing site re-declares the same three brand
+values in `apps/www/app/globals.css` — the two surfaces share a palette, not a stylesheet.
 
 | Token | Value | Use |
 | --- | --- | --- |
@@ -71,9 +72,28 @@ only. Nothing bounces. Two motions carry the product:
 `prefers-reduced-motion` collapses every duration to ~0 in `globals.css` and FLIP checks it before
 animating, so a component cannot opt out of that promise.
 
+## The marketing surface
+
+Everything on the site is drawn rather than photographed. `apps/www/components/engraving.tsx` emits
+greyscale plates from loops, and `apps/www/components/filters.tsx` reduces them to one bit through an
+ordered 8x8 Bayer threshold (`feImage` + `feTile` + a discrete transfer) or a dot screen. Both output
+colours come from `feFlood` reading the brand custom properties, so the plates repaint with the
+tokens and no filter carries a hex value.
+
+Three effects carry the page and none of them is JavaScript:
+
+- **Grain.** One turbulence tile over the whole document, `mix-blend-mode: overlay`.
+- **Parallax.** Plates drift inside their frames on `animation-timeline: view()`.
+- **Reveal.** Cards rise as they enter, on the same timeline.
+
+All three sit inside `@media (prefers-reduced-motion: no-preference)`, and a browser with no view
+timelines renders the finished state instead of a fallback.
+
 ## Contrast
 
-Body text sits at ~15.8:1. Secondary text (`--muted-foreground`) is neutral-400, measured at 6.7:1
+On the site, type sits on top of bright plates, so it is measured against the plate: platform card
+labels come in at 5.6:1 against the lightest part of the engraving behind them and display type at
+4.3:1. In the app, body text sits at ~15.8:1. Secondary text (`--muted-foreground`) is neutral-400, measured at 6.7:1
 on the composer surface and 7:1 on the canvas — neutral-500 came in at 4.4:1, under the 4.5 floor,
 which is why the token moved. Anything added here gets measured, not eyeballed.
 
