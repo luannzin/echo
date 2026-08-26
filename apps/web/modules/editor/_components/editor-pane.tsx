@@ -63,7 +63,7 @@ export const EditorPane = ({
         aria-label="Note content"
         placeholder="Write anything…"
         spellCheck={false}
-        className="mx-auto min-h-full w-full max-w-[68ch] flex-1 resize-none bg-transparent px-8 py-10 text-base leading-7 outline-none placeholder:text-muted-foreground sm:text-[0.975rem]"
+        className="min-h-full w-full flex-1 resize-none bg-transparent px-6 py-5 text-base leading-7 outline-none placeholder:text-muted-foreground sm:text-[0.975rem]"
       />
     </section>
   );

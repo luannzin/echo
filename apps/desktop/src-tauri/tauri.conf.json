@@ -12,8 +12,8 @@
     "windows": [
       {
         "title": "echo",
-        "width": 1280,
-        "height": 820,
+        "width": 960,
+        "height": 700,
         "minWidth": 480,
         "minHeight": 480,
         "theme": "Dark",

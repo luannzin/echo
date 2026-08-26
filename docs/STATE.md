@@ -193,6 +193,17 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   debounce, one flush-on-unmount, one definition of "saved".
 - `apps/web` has a `test` script and bun types now, so `session.ts` is covered (3 tests).
 
+- **It is a window, not a page.** The header carries `data-tauri-drag-region`, so the empty stretch
+  of the tab strip drags the window the way a native title bar does (children with their own
+  handlers keep them, and outside Tauri the attribute means nothing). `overscroll-behavior: none`
+  stops the rubber-band at the end of a list, and chrome — buttons, headers, asides, menus — is
+  `user-select: none`, with the writing surfaces and note bodies put back to `text`. A caret
+  blinking in the chrome and a bouncing scroll are the two things that give a desktop build away as
+  a browser.
+- **The note fills the pane.** No measure: a 68ch column is right for reading a stream, and a text
+  editor is a page you write on, so the window's own width is the measure.
+- The desktop window opens at 960×700 rather than 1280×820.
+
 Deliberately not built: tab overflow menu, drag-to-resize the split, more than two panes, per-tab
 unsaved dots (autosave means nothing is ever unsaved), editor mode on phones.
 

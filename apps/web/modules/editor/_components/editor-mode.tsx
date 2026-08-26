@@ -131,7 +131,12 @@ export const EditorMode = ({
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex shrink-0 items-center gap-2 px-2 pt-2">
+      {/*
+        The window's title bar, with the tabs in it. `data-tauri-drag-region` only claims the empty
+        stretch of the header — a child with its own handler keeps them — so the strip drags the
+        window the way a native title bar does, and outside Tauri the attribute means nothing.
+      */}
+      <header data-tauri-drag-region className="flex shrink-0 items-center gap-2 px-2 pt-2">
         <Button
           variant="ghost"
           size="icon-sm"

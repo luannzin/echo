@@ -57,7 +57,28 @@
 
   body {
     -webkit-font-smoothing: antialiased;
+    /*
+     * A window, not a page. Rubber-banding at the end of a list and a caret blinking in the chrome
+     * are the two things that give a desktop build away as a browser — so the scroll stops where the
+     * content stops, and only the writing and the notes themselves can be selected.
+     */
+    overscroll-behavior: none;
     @apply bg-background text-foreground;
+  }
+
+  button,
+  header,
+  aside,
+  nav,
+  [role="menu"],
+  [role="dialog"] {
+    user-select: none;
+  }
+
+  textarea,
+  input,
+  p {
+    user-select: text;
   }
 
   :focus-visible {
