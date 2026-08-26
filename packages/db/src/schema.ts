@@ -6,6 +6,7 @@ import {
   customType,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -192,4 +193,46 @@ export const tasks = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("tasks_note_idx").on(table.noteId), index("tasks_due_at_idx").on(table.dueAt)],
+);
+
+/**
+ * What each note says about time, worked out by `@echo/parser` off the editor's critical path.
+ * Derived data like the vectors: drop the table and it rebuilds from the notes themselves.
+ *
+ * There is a row for every note that has been read, including notes that name no date at all —
+ * that row is the difference between "already parsed, found nothing" and "not parsed yet", and
+ * without it chrono would re-read every dateless note on every pass.
+ *
+ * ponytail: mentions are held as `jsonb` rather than a second normalized table, so finding what
+ * this week contains is one pass over a small table with the array expanded in SQL. It runs when
+ * the timeline opens, never per keystroke. If it ever needs an index, the upgrade is a normalized
+ * `note_dates` table with a btree on the instant.
+ */
+export const noteTemporal = pgTable("note_temporal", {
+  noteId: uuid("note_id")
+    .primaryKey()
+    .references(() => notes.id, { onDelete: "cascade" }),
+  parsedAt: timestamp("parsed_at", { withTimezone: true }).notNull().defaultNow(),
+  mentions: jsonb("mentions").notNull().default([]),
+});
+
+/**
+ * Where the reader has been. Separate from `learning_events` on purpose: a correction is an opinion
+ * echo derives rules from, a visit is only a fact, and mixing them would let walking around the app
+ * teach echo things nobody said.
+ *
+ * Append-only, so the history is there for anything that later wants to know what tends to be
+ * opened together.
+ */
+export const observations = pgTable(
+  "observations",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull().default(DEFAULT_WORKSPACE_ID),
+    type: text("type").notNull(),
+    /** A folder id, or a category id. */
+    subject: text("subject").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("observations_subject_idx").on(table.type, table.subject, table.at)],
 );

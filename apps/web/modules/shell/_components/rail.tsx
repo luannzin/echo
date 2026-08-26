@@ -70,7 +70,12 @@ export const Rail = ({
         active={view === "tasks"}
         onClick={() => onViewChange("tasks")}
       />
-      <RailButton label="Recent — soon" icon={History} unavailable />
+      <RailButton
+        label="Timeline"
+        icon={History}
+        active={view === "timeline"}
+        onClick={() => onViewChange("timeline")}
+      />
       <div className="mt-auto flex flex-col items-center gap-1">
         <div className="hidden lg:block">
           <RailButton

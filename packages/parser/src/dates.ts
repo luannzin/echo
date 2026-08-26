@@ -4,6 +4,8 @@ import { PT_RELATIVE } from "./relative-pt";
 export type DetectedDate = {
   /** The words that produced the date, exactly as the writer typed them. */
   text: string;
+  /** Where in the content it was found, so a span already read is never read a second time. */
+  index: number;
   date: Date;
   /** A deadline was framed as a limit ("before Friday"); a date was merely mentioned. */
   kind: "deadline" | "date";
@@ -83,6 +85,7 @@ export const detectDates = (content: string, now: Date): DetectedDate[] => {
       found.push({
         // chrono keeps the punctuation it swallowed; the interface shows this text verbatim.
         text: result.text.replace(/[\s,.;:]+$/, ""),
+        index: start,
         date: settleYear(result, now),
         kind: framing ? "deadline" : "date",
         marker: framing ? framing[0].trim().replace(/\s+/g, " ") : null,

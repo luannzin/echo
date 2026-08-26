@@ -21,6 +21,7 @@
   "dependencies": {
     "@echo/embeddings": "workspace:*",
     "@echo/learning": "workspace:*",
+    "@echo/parser": "workspace:*",
     "@echo/types": "workspace:*"
   }
 }

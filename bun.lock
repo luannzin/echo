@@ -68,6 +68,7 @@
       "dependencies": {
         "@echo/embeddings": "workspace:*",
         "@echo/learning": "workspace:*",
+        "@echo/parser": "workspace:*",
         "@echo/types": "workspace:*",
       },
       "devDependencies": {
@@ -81,6 +82,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@echo/core": "workspace:*",
+        "@echo/parser": "workspace:*",
         "@echo/types": "workspace:*",
         "@electric-sql/pglite": "^0.5.7",
         "drizzle-orm": "^0.45.2",

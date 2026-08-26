@@ -1,6 +1,8 @@
 import type { Embedder } from "@echo/embeddings";
+import { detectMentions } from "@echo/parser";
+import type { Clock } from "./clock";
 import type { EventBus } from "./events";
-import type { EmbeddingRepository, NoteRepository } from "./ports";
+import type { EmbeddingRepository, NoteRepository, TemporalRepository } from "./ports";
 
 /**
  * Derived data catches up with the notes, never runs in front of them, and a failure costs a retry
@@ -9,18 +11,26 @@ import type { EmbeddingRepository, NoteRepository } from "./ports";
  */
 const BATCH = 8;
 
+/** Reading time needs no model, so it may take bigger bites than embedding does. */
+const TEMPORAL_BATCH = 64;
+
 export const createAnalyzer = ({
   notes,
   embeddings,
+  temporal,
   embedder,
   events,
+  now,
   onEmbedded,
   onProgress,
 }: {
   notes: NoteRepository;
   embeddings: EmbeddingRepository;
+  /** What each note says about time. Absent, the temporal pass simply does not run. */
+  temporal?: TemporalRepository;
   embedder: Embedder;
   events: EventBus;
+  now?: Clock;
   /** Each vector as it is written, so anything holding an index can stay in step without re-reading. */
   onEmbedded?: (embedding: { noteId: string; values: Float32Array }) => void;
   onProgress?: (state: { pending: number; failed: boolean; error?: string }) => void;
@@ -83,13 +93,63 @@ export const createAnalyzer = ({
     return current;
   };
 
+  let temporalPass: Promise<void> | undefined;
+  let temporalQueued = false;
+
+  /**
+   * What each note says about time, read on its own queue. Deliberately independent of the pass
+   * above: parsing needs no model, so a fresh install has a working timeline long before the first
+   * vector exists — and a model that never loads never holds it up.
+   *
+   * Mentions are stored exactly as the note said them. A span named against a project keeps its
+   * anchor unresolved, because when that project started is a fact about the corpus rather than
+   * about this note.
+   */
+  const drainTemporal = (): Promise<void> => {
+    if (!temporal) return Promise.resolve();
+    temporalQueued = true;
+    temporalPass ??= (async () => {
+      try {
+        while (temporalQueued) {
+          temporalQueued = false;
+          const pending = await temporal.pending(TEMPORAL_BATCH);
+          if (pending.length === 0) break;
+
+          for (const noteId of pending) {
+            const note = await notes.get(noteId);
+            if (!note) continue;
+            const at = now?.() ?? new Date();
+            // The note is read as of the moment it is read: "amanhã" means the day after the pass,
+            // and re-reading an edited note re-reads it against the new day.
+            await temporal.put(noteId, detectMentions(note.content, at), at);
+          }
+        }
+      } catch (cause) {
+        // Same contract as the pass above: the queue is the database, so the work is still there.
+        onProgress?.({
+          pending: 0,
+          failed: true,
+          error: cause instanceof Error ? cause.message : String(cause),
+        });
+      } finally {
+        temporalPass = undefined;
+      }
+    })();
+    return temporalPass;
+  };
+
   const unsubscribe = events.subscribe((event) => {
-    if (event.type === "note.created" || event.type === "note.updated") void drain();
+    if (event.type === "note.created" || event.type === "note.updated") {
+      void drain();
+      void drainTemporal();
+    }
   });
 
   return {
     /** Catches up on everything outstanding — new notes, edited notes, a changed model. */
-    run: drain,
+    run: async (): Promise<void> => {
+      await Promise.all([drain(), drainTemporal()]);
+    },
     stop: unsubscribe,
   };
 };

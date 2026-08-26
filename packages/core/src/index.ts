@@ -4,18 +4,25 @@ import { createEventBus, type EventBus } from "./events";
 import { createFolderService, type FolderService } from "./folders";
 import { createLearningService, type LearningService } from "./learning";
 import { createNoteService, type NoteService } from "./notes";
+import { createObservationService, type ObservationService } from "./observations";
 import type { Repositories } from "./ports";
 import { createTaskService, type TaskService } from "./tasks";
+import { createTemporalService, type TemporalService } from "./temporal-service";
 
 export * from "./analyzer";
 export * from "./categories";
+export * from "./changes";
 export * from "./clock";
 export * from "./events";
 export * from "./folders";
 export * from "./learning";
 export * from "./notes";
+export * from "./observations";
 export * from "./ports";
 export * from "./tasks";
+export * from "./temporal";
+export * from "./temporal-service";
+export * from "./timeline";
 export * from "./title";
 export * from "./tree";
 
@@ -25,6 +32,10 @@ export type Echo = {
   categories: CategoryService;
   tasks: TaskService;
   learning: LearningService;
+  /** What the notes say about time. */
+  temporal: TemporalService;
+  /** Where the reader has been, which is what "since you last looked" is measured against. */
+  observations: ObservationService;
   events: EventBus;
 };
 
@@ -46,6 +57,12 @@ export const createEcho = ({
     categories: createCategoryService({ repository: repositories.categories, events, now, newId }),
     tasks: createTaskService({ repository: repositories.tasks, events, now, newId }),
     learning: createLearningService({ repository: repositories.learning, events, now, newId }),
+    temporal: createTemporalService({ repository: repositories.temporal, now }),
+    observations: createObservationService({
+      repository: repositories.observations,
+      now,
+      newId,
+    }),
     events,
   };
 };

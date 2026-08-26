@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, plus editor mode**
+Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1 — temporal context**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -225,8 +225,75 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
 Deliberately not built: tab overflow menu, drag-to-resize the split, more than two panes, per-tab
 unsaved dots (autosave means nothing is ever unsaved), editor mode on phones.
 
+### S1 — Temporal context
+First of four sub-projects turning echo from a note app that reads notes into one that holds a
+reader's history. Spec: `docs/superpowers/specs/2026-08-26-temporal-context-design.md`. S2 is
+personal vocabulary, S3 query understanding, S4 project memory — each gets its own spec.
+
+- **The parser reads spans, not only instants.** `@echo/parser/periods.ts` finds four kinds, all
+  deterministic and both languages: trailing windows (`nas últimas 3 semanas`, `the past 2 months`),
+  whole units (`semana passada`, `este mês`, `semana que vem`, `semana retrasada`), month edges
+  (`no fim do mês`), remembered neighbourhoods (`recentemente` ≈ 14 days, `faz uns 3 meses` = that
+  month ± half of one), and spans named against something that happened (`depois que comecei
+  HEREZE`). Every window constant is named and carries a `ponytail:` comment — they are the one
+  place per-writer tuning would land.
+- **`naquela época` is deliberately not read.** It is unanchored: without a second anchor in the same
+  sentence it names no stretch of time, and a span echo invented is one the reader cannot correct.
+- **Spans beat instants.** `detectMentions` returns both in one list, and a matcher never re-reads
+  what a more specific one already claimed — `semana que vem` is a week to work through, not the
+  Monday chrono can also find inside it. `DetectedDate` gained `index` so both readings compete on
+  position.
+- **Numbers are shared** (`parser/numbers.ts`): `daqui a duas semanas` and `nas últimas duas semanas`
+  are the same two, and `relative-pt.ts` stopped keeping its own copy of the map.
+- **Anchors are resolved where the corpus is** (`core/temporal.ts`), not in the parser, which has no
+  corpus. A folder or category name maps to the date of its first note — earliest wins, because a
+  project began when its first note was written. The parser captures up to three words after
+  `desde`, so candidates are tried longest first, and an anchor the corpus has never heard of is
+  **dropped rather than guessed at**.
+- **Schema, migration `0008`:** `note_temporal` (one row per note, `parsed_at` + `mentions` jsonb)
+  and `observations` (append-only, indexed on type + subject + time). Derived data: both can be
+  dropped and rebuilt. There is a row in `note_temporal` for every note that has been read,
+  *including notes that name no date at all* — that row is the difference between "already parsed,
+  found nothing" and "not parsed yet", and without it chrono would re-read every dateless note on
+  every pass.
+- **Visits are not corrections.** `observations` is a separate table from `learning_events` on
+  purpose: rules are derived from corrections, and walking around the app must not teach echo things
+  nobody said. `observations.seen()` returns *the visit before this one* from the same call —
+  otherwise "what changed" would be measured against a baseline its own write had just moved to now.
+  A repeat inside five minutes is the same visit.
+- **The analyzer has two independent queues.** Reading time needs no model, so a fresh install has a
+  working timeline long before the first vector exists, and a model that never loads never holds it
+  up. Same contract as the embedding pass: the queue is the database, so a failure costs a retry.
+- **The timeline is its own destination** — the rail's `Recent — soon` placeholder became real. One
+  row per day rather than per note: the date, what the day was about, the notes on it and how many.
+  Concepts are the reader's own categories where the notes carry them, and the words the notes used
+  where they do not, so a day is never blank just because nothing was labelled. Month headings are
+  sticky; each day row carries `content-visibility`, so a year of writing costs the layout of what is
+  on screen. It shows whatever the pane has narrowed to, so selecting a folder turns it into that
+  project's history without a second control to keep in step.
+- **A "Now" band**, not a notification. What this week already contains according to the notes
+  themselves — `falar com o João semana que vem` appears there the week it pointed at. Backward
+  fuzzy windows are left out: `recentemente` reaches from a fortnight ago up to today, so it overlaps
+  this week by construction and would sit in the band forever. Nothing here becomes a task: a task
+  exists only where the writer agreed to one.
+- **"Since you were last here"** names what arrived in a project while the reader was away, and which
+  of its concepts are new — concepts that appear in the new notes and appeared in none of the older
+  ones. Nothing new renders nothing at all; a block that says "no changes" is a block that gets
+  scrolled past every time.
+- Tests: 26 new (`parser/periods.test.ts` 21, `core/temporal.test.ts` 14 across anchors, timeline,
+  changes and observations, `db/temporal.test.ts` 6 against real PGlite). 139 pass overall.
+
+Verified in the running app: five notes captured, the timeline showing them under a sticky August
+heading with keyword concepts, the Now band holding `ate sexta` and correctly refusing `semana que
+vem` (next week is not this week), a folder created and the view scoped to it by name, and — after
+filing a new note into that folder — "HEREZE · since you were last here, 1 minute ago" naming it.
+
+**Fixed while verifying:** the Now band was reading every note rather than the narrowed list, so a
+scoped timeline showed another project's week.
+
 ## In progress
-- Nothing.
+- Nothing. S2 (personal vocabulary: aliases, synonyms, concepts instead of tags, "you may also
+  mean") is the next sub-project and has no spec yet.
 
 ## Next
 1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has
@@ -282,6 +349,11 @@ unsaved dots (autosave means nothing is ever unsaved), editor mode on phones.
 | 2026-08-26 | Mobile is CSS, not a second tree | one note list in the document, one drag target, and no guess about the viewport before the browser has said what it is |
 | 2026-08-26 | Service worker precaches nothing | the app loads all of it on the first visit anyway; a precache list would download 13MB before the first note |
 | 2026-08-26 | The document is network-first, everything else cache-first | a stale shell would pin a reader to an old build; hashed assets never go stale |
+| 2026-08-26 | Temporal mentions stored as `jsonb` on one row per note, not a normalized table | the "now" band is one pass over a small table when a view opens, never per keystroke; a note with no dates still needs a row, which is what stops chrono re-reading it forever |
+| 2026-08-26 | Visits live in `observations`, not `learning_events` | rules are derived from corrections; walking around the app must not teach echo things nobody said |
+| 2026-08-26 | Anchors resolved in `@echo/core`, not in the parser | when a project started is a fact about the corpus, not about the note — and a name the corpus never heard is dropped rather than guessed at |
+| 2026-08-26 | `naquela época` deliberately unread | unanchored: it names no span, and a span echo invented cannot be corrected |
+| 2026-08-26 | Weeks start Monday | a working week is what someone means by "semana passada" when they are looking for what they wrote |
 | 2026-08-26 | Tauri's Rust side is a window and nothing else | filesystem, notifications, tray and shortcuts arrive when a feature asks; the domain lives in the web app either way |
 
 ## Open decisions

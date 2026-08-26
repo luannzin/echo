@@ -69,6 +69,9 @@ const open = async (): Promise<EchoRuntime> => {
   const analyzer = createAnalyzer({
     notes: repositories.notes,
     embeddings: repositories.embeddings,
+    // Reading time needs no model, so this pass runs on its own queue: a fresh install has a
+    // working timeline long before the first vector exists.
+    temporal: repositories.temporal,
     embedder,
     events: echo.events,
     onEmbedded: ({ noteId, values }) => index.put(noteId, values),

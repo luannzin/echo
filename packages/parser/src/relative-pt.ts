@@ -1,4 +1,5 @@
 import type { Parser, ParsingContext } from "chrono-node";
+import { parseAmount } from "./numbers";
 
 /**
  * The offsets chrono's Portuguese locale does not read. `amanhã` and `sexta` it handles; `em 3
@@ -15,23 +16,6 @@ const UNITS: Record<string, "day" | "week" | "month" | "year"> = {
   meses: "month",
   ano: "year",
   anos: "year",
-};
-
-/** Small numbers get written out far more often than large ones, so only small ones are spelled. */
-const WORDS: Record<string, number> = {
-  um: 1,
-  uma: 1,
-  dois: 2,
-  duas: 2,
-  tres: 3,
-  quatro: 4,
-  cinco: 5,
-  seis: 6,
-  sete: 7,
-  oito: 8,
-  nove: 9,
-  dez: 10,
-  quinze: 15,
 };
 
 const strip = (text: string): string => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -57,10 +41,9 @@ const offset: Parser = {
   pattern: () =>
     /\b(?:em|daqui\s+a|dentro\s+de)\s+(\d{1,3}|um|uma|dois|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez|quinze)\s+(dias?|semanas?|m[êe]s|meses|anos?)\b/iu,
   extract: (context: ParsingContext, match: RegExpMatchArray) => {
-    const raw = strip(match[1] ?? "");
-    const amount = WORDS[raw] ?? Number.parseInt(raw, 10);
+    const amount = parseAmount(match[1] ?? "");
     const unit = UNITS[strip(match[2] ?? "")];
-    if (!unit || !Number.isFinite(amount) || amount < 1) return null;
+    if (!unit || amount === null) return null;
     return known(shift(context.refDate, amount, unit));
   },
 };

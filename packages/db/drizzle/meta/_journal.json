@@ -57,6 +57,13 @@
       "when": 1787763692290,
       "tag": "0007_sour_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787766621060,
+      "tag": "0008_low_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

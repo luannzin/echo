@@ -1,6 +1,7 @@
 import {
   Brain,
   FolderPlus,
+  History,
   Inbox,
   MessageSquareText,
   PanelLeft,
@@ -59,6 +60,13 @@ export const paletteCommands = ({
     shortcut: shortcutLabel("organize"),
     keywords: "inbox triage file organize move unfiled",
     run: () => onView("inbox"),
+  },
+  {
+    id: "timeline",
+    label: "Open the timeline",
+    icon: History,
+    keywords: "timeline history recent days what changed when",
+    run: () => onView("timeline"),
   },
   {
     id: "tasks",

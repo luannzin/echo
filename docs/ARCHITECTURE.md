@@ -37,6 +37,8 @@ The same domain runs in the browser, in Tauri, and on a self-hosted server, beca
    persistence or in ranking.
 10. **Every external integration sits behind an interface** — embedding runtime, storage, sync
     transport.
+11. **Observation is not correction.** What the reader looked at is recorded in `observations` and
+    never reaches `@echo/learning`. A rule may only come from something the reader said.
 
 ## Schema strategy
 
@@ -55,6 +57,10 @@ note content changes
   → UI receives updated derived data when it is ready
 ```
 
+Two queues, not one. Embedding waits on a model; reading what a note says about time does not, so a
+fresh install has a working timeline long before the first vector exists and a model that never
+loads never holds it up. Both derive their queue from the database, so a failure costs a retry.
+
 Jobs are durable rows, not in-memory promises, so a reload or a crash never leaves derived data
 permanently stale.
 
@@ -71,3 +77,6 @@ permanently stale.
 | `bun test` instead of Vitest | Same API, zero dependencies, and it runs real PGlite in-process |
 | chrono-node for date detection | Dates people write ("in two weeks", "até sexta") are a deep problem; the regex version handled a fraction of it |
 | Plain textarea editor in Phase 1 | Rich text is a Phase 2 concern; capture speed comes first |
+| Temporal mentions as `jsonb` on one row per note | The window query runs when a view opens, never per keystroke; a note with no dates still needs its row, or it is re-parsed forever |
+| Visits in `observations`, apart from `learning_events` | Rules are derived from corrections; being somewhere is not an opinion, and mixing the two would let navigation teach echo things nobody said |
+| Anchors (`depois que comecei X`) resolved in `core`, not `parser` | When a project started is a fact about the corpus; the parser has none, so it names the anchor and core places it |

@@ -7,8 +7,10 @@ import { createFolderRepository } from "./folders";
 import { createLearningRepository } from "./learning";
 import { migrate } from "./migrate";
 import { createNoteRepository } from "./notes";
+import { createObservationRepository } from "./observations";
 import { createLexicalSearch } from "./search";
 import { createTaskRepository } from "./tasks";
+import { createTemporalRepository } from "./temporal";
 
 export * as schema from "./schema";
 export type { Database };
@@ -38,6 +40,8 @@ export const openRepositories = async (
       tasks: createTaskRepository(db),
       embeddings: createEmbeddingRepository(db),
       learning: createLearningRepository(db),
+      temporal: createTemporalRepository(db),
+      observations: createObservationRepository(db),
     },
     lexical: createLexicalSearch(db),
   };

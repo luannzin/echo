@@ -109,6 +109,24 @@ The Rust side is a window and nothing else. Filesystem paths, notifications, a g
 
 ---
 
+## S1–S4 — Personal context
+
+A four-part expansion running beside the phase plan, turning echo from a note app that reads notes
+into one that holds a reader's history. Each part gets its own spec under
+`docs/superpowers/specs/`, in dependency order:
+
+| # | Sub-project | Covers | State |
+|---|---|---|---|
+| S1 | Temporal context | expressions → ranges, the personal timeline, "what changed since" | ✅ |
+| S2 | Personal vocabulary | aliases, synonyms, concepts instead of tags, "you may also mean" | next |
+| S3 | Query understanding | question → filters, contextual reranking, search by memory | after S2 |
+| S4 | Project memory | automatic brief, soft placement, organize inbox, "because you usually" | last |
+
+Nothing in any of them needs an API key. S1's spec is
+`docs/superpowers/specs/2026-08-26-temporal-context-design.md`.
+
+---
+
 ## Phase 7 — Sync
 
 `@echo/sync` protocol (change log per §29, per-entity version, explicit conflict policy — last-writer-wins on scalar fields, content conflicts surfaced to the user, never silent). `server/api` + `server/sync` on Postgres+pgvector, same migrations. Auth only enters here.

@@ -1,6 +1,6 @@
 "use client";
 
-import { deriveTitle, folderPath } from "@echo/core";
+import { type Change, deriveTitle, folderPath, whatChanged } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
 import { adjust, affinity, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
 import { type Destination, DUPLICATE_SIMILARITY, suggestCategories } from "@echo/search";
@@ -30,6 +30,8 @@ import { AppShell } from "@/modules/shell/_components/app-shell";
 import { Pane } from "@/modules/shell/_components/pane";
 import type { View } from "@/modules/shell/view";
 import { Tasks } from "@/modules/tasks/_components/tasks";
+import { Timeline } from "@/modules/timeline/_components/timeline";
+import type { Upcoming } from "@/modules/timeline/model";
 import { Label } from "@/shared/_components/label";
 
 import { byNote, countByCategory, labelsOf } from "@/shared/lib/categories";
@@ -98,6 +100,10 @@ const Page = () => {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   /** Where each unfiled note probably belongs. Filled when the Inbox is open, and only then. */
   const [destinations, setDestinations] = useState<Map<string, Destination>>(new Map());
+  /** What arrived in this project since the reader last looked at it. Null when nothing did. */
+  const [change, setChange] = useState<Change | null>(null);
+  /** What the notes themselves pointed at this week. Read when the timeline is open, and only then. */
+  const [upcoming, setUpcoming] = useState<Upcoming[]>([]);
 
   /**
    * The note just sent, and the words it was made of. Capture commits with a single keystroke and
@@ -112,6 +118,9 @@ const Page = () => {
   const rulesRef = useRef<LearnedRule[]>([]);
   const labelsRef = useRef<NoteCategory[]>([]);
   const editingRef = useRef<string | null>(null);
+  /** The narrowed list and the labels behind it, so opening the timeline never re-subscribes. */
+  const listedRef = useRef<Note[]>([]);
+  const conceptsRef = useRef<(noteId: string) => readonly string[]>(() => []);
   const undoableRef = useRef<{ id: string; content: string } | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const arrivedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -301,6 +310,33 @@ const Page = () => {
     [notes],
   );
 
+  /** A note's labels by name — what the timeline calls a day's concepts. */
+  const conceptsOf = useCallback(
+    (noteId: string): readonly string[] =>
+      labelsOf(labels, categories, noteId).map(({ category }) => category.name),
+    [labels, categories],
+  );
+
+  /**
+   * What the reader has narrowed to, named. The timeline shows whatever the pane is showing, so
+   * selecting a folder turns it into that project's history without a second control to keep in
+   * step — and this is the name that heading carries.
+   */
+  const scopeName = useMemo(() => {
+    if (categoryFilter !== undefined) {
+      return categories.find((category) => category.id === categoryFilter)?.name ?? null;
+    }
+    if (folderFilter !== undefined) return folderPath(folders, folderFilter) || null;
+    return null;
+  }, [categoryFilter, folderFilter, categories, folders]);
+
+  /** Which project "since you were last here" is measured against. */
+  const scopeSubject = categoryFilter ?? folderFilter ?? null;
+
+  // Read by the timeline's effects, so narrowing the list never re-subscribes anything.
+  listedRef.current = listed;
+  conceptsRef.current = conceptsOf;
+
   const toggleNavigation = useCallback(() => {
     setNavigationOpen((open) => {
       writePreference("notes-panel", !open);
@@ -379,6 +415,71 @@ const Page = () => {
       alive = false;
     };
   }, [view, unfiled, folders, rules]);
+
+  /**
+   * What the notes themselves pointed at this week, read when the timeline is open and only then.
+   * Spans still waiting on an anchor are left out by the repository: an unresolved edge would read
+   * as "since the beginning of time" and match every week there is.
+   */
+  useEffect(() => {
+    if (view !== "timeline") {
+      setUpcoming([]);
+      return;
+    }
+
+    let alive = true;
+    void (async () => {
+      const echo = await getEcho();
+      const week = await echo.temporal.thisWeek();
+      // The narrowed list, not every note: scoped to a project, "this week" is that project's week.
+      const byId = new Map(listedRef.current.map((note) => [note.id, note]));
+      const found = week.flatMap(({ noteId, mentions }) => {
+        const note = byId.get(noteId);
+        if (!note) return [];
+        return mentions.map((mention) => ({ note, text: mention.text, at: mention.start }));
+      });
+      if (alive) {
+        setUpcoming(
+          found.sort(
+            (a, b) =>
+              (a.at?.getTime() ?? 0) - (b.at?.getTime() ?? 0) || a.note.id.localeCompare(b.note.id),
+          ),
+        );
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // The temporal pass fills as it goes, so a settled analysis is the moment to read it again.
+  }, [view, scopeSubject, notes.length, listed.length, analysis.pending]);
+
+  /**
+   * What arrived in this project while the reader was away. Recording the visit returns the one
+   * before it, from the same call — otherwise the read would be measured against a baseline its own
+   * write had already moved to now.
+   */
+  useEffect(() => {
+    if (view !== "timeline" || scopeSubject === null) {
+      setChange(null);
+      return;
+    }
+
+    let alive = true;
+    void (async () => {
+      const echo = await getEcho();
+      const previous = await echo.observations.seen("project_seen", scopeSubject);
+      if (alive) {
+        setChange(whatChanged(listedRef.current, previous, { conceptsOf: conceptsRef.current }));
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // Filing a note into the project while looking at it changes the answer, and recording the
+    // visit again inside the same few minutes returns the same baseline rather than moving it.
+  }, [view, scopeSubject, listed.length]);
 
   /**
    * Everything echo knows about the question. Words come back first from the database's own index;
@@ -837,6 +938,19 @@ const Page = () => {
           onToggle={(task, completed) => void toggleTask(task, completed)}
           onDelete={(task) => void deleteTask(task)}
           onOpenNote={openNote}
+        />
+      );
+    }
+    if (view === "timeline") {
+      return (
+        <Timeline
+          notes={listed}
+          conceptsOf={conceptsOf}
+          scope={scopeName}
+          change={change}
+          upcoming={upcoming}
+          loading={loading}
+          onOpen={openNote}
         />
       );
     }

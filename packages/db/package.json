@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@echo/core": "workspace:*",
+    "@echo/parser": "workspace:*",
     "@echo/types": "workspace:*",
     "@electric-sql/pglite": "^0.5.7",
     "drizzle-orm": "^0.45.2"

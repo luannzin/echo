@@ -1,4 +1,14 @@
-import type { Category, Folder, LearningEvent, Note, NoteCategory, Task } from "@echo/types";
+import type { Mention } from "@echo/parser";
+import type {
+  Category,
+  Folder,
+  LearningEvent,
+  Note,
+  NoteCategory,
+  Observation,
+  ObservationType,
+  Task,
+} from "@echo/types";
 
 /** Fields a repository may change after insert. Identity and creation time are immutable. */
 export type NotePatch = Partial<Pick<Note, "title" | "content" | "folderId" | "archivedAt">> & {
@@ -92,6 +102,34 @@ export interface LearningRepository {
   forget(kind: LearningEvent["kind"], subject: string): Promise<void>;
 }
 
+/** One note's reading of time, and when it was read. */
+export type StoredMentions = { noteId: string; mentions: Mention[] };
+
+/**
+ * What the notes say about time. Derived data: every row here can be thrown away and rebuilt from
+ * the note it came from, which is why the parse marker lives beside the mentions rather than on the
+ * note itself — writing to a note to record that it had been read would be an edit nobody made.
+ */
+export interface TemporalRepository {
+  /** One note's mentions, replacing whatever was read from it before. */
+  put(noteId: string, mentions: Mention[], parsedAt: Date): Promise<void>;
+  /** Notes never read, and notes edited since they were. */
+  pending(limit?: number): Promise<string[]>;
+  /** Every mention overlapping a window, which is what a "now" band is. */
+  inWindow(from: Date, to: Date): Promise<StoredMentions[]>;
+  get(noteId: string): Promise<Mention[]>;
+}
+
+/**
+ * Where the reader has been. Append-only, and never consulted by the learning engine — see
+ * `Observation` for why the two logs are separate.
+ */
+export interface ObservationRepository {
+  record(observation: Observation): Promise<void>;
+  /** The newest visit per subject, for one type. */
+  lastSeen(type: ObservationType): Promise<Map<string, Date>>;
+}
+
 export type Repositories = {
   notes: NoteRepository;
   folders: FolderRepository;
@@ -99,4 +137,6 @@ export type Repositories = {
   tasks: TaskRepository;
   embeddings: EmbeddingRepository;
   learning: LearningRepository;
+  temporal: TemporalRepository;
+  observations: ObservationRepository;
 };

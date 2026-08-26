@@ -61,6 +61,16 @@ const memoryRepositories = (): Repositories => {
       get: async () => null,
       list: async () => [],
     },
+    temporal: {
+      put: async () => {},
+      pending: async () => [],
+      inWindow: async () => [],
+      get: async () => [],
+    },
+    observations: {
+      record: async () => {},
+      lastSeen: async () => new Map(),
+    },
     tasks: {
       insert: async (task) => task,
       update: async () => {
