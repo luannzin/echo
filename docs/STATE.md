@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, plus two fixes passes: panels/tasks/dates, then latency and craft**
+Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, plus editor mode**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -164,6 +164,37 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 - **Done folds.** Past four finished tasks the section becomes a `<details>`, so what is still open
   keeps the screen.
 - Long folder paths truncate in the Inbox's "Move to …" button instead of pushing the row wide.
+
+### Editor mode
+A second way to use echo, modelled on GNOME Text Editor: a page to write on, the notes you have
+open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
+
+- **It replaces the shell rather than living in it.** `app/page.tsx` branches above `AppShell`, so
+  the rail, panels, top bar and bottom nav never mount. Rendering the full frame and then hiding it
+  is how you get a rail that flashes on every toggle. Both modes read the same `notes` state above
+  the branch, so toggling is a boolean.
+- **Offered at ≥768px only**, tracked with a live `matchMedia` listener: a stored preference cannot
+  drag a phone into a mode whose main control is a strip of tabs.
+- **Tabs are session memory** (`modules/editor/session.ts`): a `string[]` in `localStorage`, array
+  order *is* the order, so nothing about a note can move its tab. New tabs append; dragging one onto
+  another takes that one's place — rightwards lands past it, which is what makes the last position
+  reachable without an empty drop zone at the end. Closing drops it from the memory and touches
+  nothing else. Survives restarts; fresh install is one blank tab.
+- **A new tab is an id and nothing else.** It becomes a row under that same id the first time
+  someone types into it, so the tab never has to be swapped — and toggling in and straight back out
+  leaves nothing behind, which is the promise the composer already makes.
+- **Split view** is two panes on a CSS grid, each an `EditorPane`, the unfocused one dimmed. The
+  split opens onto the neighbouring tab, or onto the same note when there is no other.
+- **The aside** slides over rather than taking width, so opening it never reflows the words someone
+  is mid-sentence in. Flat list, every note, a filter field that narrows what is on screen rather
+  than searching the corpus — instant, never waiting on a model, and the palette is one keystroke
+  away for the other kind of question. Rows carry `content-visibility`.
+- `useAutosave` (`modules/notes/autosave.ts`) is now shared by `NoteEditor` and `EditorPane`: one
+  debounce, one flush-on-unmount, one definition of "saved".
+- `apps/web` has a `test` script and bun types now, so `session.ts` is covered (3 tests).
+
+Deliberately not built: tab overflow menu, drag-to-resize the split, more than two panes, per-tab
+unsaved dots (autosave means nothing is ever unsaved), editor mode on phones.
 
 ## In progress
 - Nothing.

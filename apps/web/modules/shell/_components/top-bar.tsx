@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, MessageSquareText, PenLine, Search } from "lucide-react";
+import { Brain, Maximize2, MessageSquareText, PenLine, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import type { View } from "@/modules/shell/view";
@@ -14,6 +14,7 @@ export const TopBar = ({
   onToggleIntelligence,
   onSearch,
   searchShortcut,
+  onEditorMode,
 }: {
   view: View;
   onViewChange: (view: View) => void;
@@ -24,6 +25,8 @@ export const TopBar = ({
   onToggleIntelligence: () => void;
   onSearch: () => void;
   searchShortcut: string;
+  /** Absent on a screen with no room for the mode. */
+  onEditorMode?: () => void;
 }) => {
   const atHome = view === "home";
 
@@ -39,6 +42,17 @@ export const TopBar = ({
         <Kbd className="ms-1 hidden sm:inline-flex">{searchShortcut}</Kbd>
       </Button>
       <div className="flex items-center justify-end gap-1">
+        {onEditorMode ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEditorMode}
+            aria-label="Open the editor"
+            className="text-muted-foreground"
+          >
+            <Maximize2 aria-hidden="true" />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="sm"

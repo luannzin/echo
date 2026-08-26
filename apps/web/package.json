@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "bun x serve@latest out",
-    "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next .turbo *.tsbuildinfo",
+    "dev": "next dev",
+    "prebuild": "bun run scripts/sync-onnx-runtime.ts && bun run scripts/sync-pglite-runtime.ts",
     "predev": "bun run scripts/sync-onnx-runtime.ts && bun run scripts/sync-pglite-runtime.ts",
-    "prebuild": "bun run scripts/sync-onnx-runtime.ts && bun run scripts/sync-pglite-runtime.ts"
+    "start": "bun x serve@latest out",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@echo/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "latest",
+    "@types/bun": "^1.4.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

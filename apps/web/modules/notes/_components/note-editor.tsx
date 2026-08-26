@@ -2,20 +2,11 @@
 
 import type { Note } from "@echo/types";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Kbd } from "@/components/ui/kbd";
+import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
 import { Label } from "@/shared/_components/label";
 import { NOTE_SURFACE } from "@/shared/lib/transition";
-
-const AUTOSAVE_DELAY_MS = 500;
-
-type SaveState = "idle" | "saving" | "saved" | "failed";
-
-const SAVE_STATE_LABEL: Record<Exclude<SaveState, "idle">, string> = {
-  saving: "Saving…",
-  saved: "Saved",
-  failed: "Save failed",
-};
 
 /**
  * An existing note, open for editing. The caller mounts one editor per note (`key={note.id}`), so a
@@ -34,12 +25,8 @@ export const NoteEditor = ({
   onSave: (noteId: string, content: string) => Promise<void>;
   onClose: () => void;
 }) => {
-  const [draft, setDraft] = useState(note.content);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const unsaved = useRef<string | null>(null);
+  const { draft, setDraft, state } = useAutosave(note.id, note.content, onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const flush = useRef<() => void>(() => {});
 
   // Opening a note means continuing it: the caret belongs after the last character.
   useEffect(() => {
@@ -49,42 +36,6 @@ export const NoteEditor = ({
     element.setSelectionRange(element.value.length, element.value.length);
     element.scrollTop = element.scrollHeight;
   }, []);
-
-  // Only a real edit schedules a write, so opening a note and leaving it alone keeps its place.
-  useEffect(() => {
-    if (draft === note.content) {
-      unsaved.current = null;
-      return;
-    }
-
-    unsaved.current = draft;
-    timer.current = setTimeout(async () => {
-      unsaved.current = null;
-      setSaveState("saving");
-      try {
-        await onSave(note.id, draft);
-        setSaveState("saved");
-      } catch {
-        setSaveState("failed");
-      }
-    }, AUTOSAVE_DELAY_MS);
-
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [draft, note.id, note.content, onSave]);
-
-  // Closing flushes whatever the debounce still holds — and nothing when it holds nothing.
-  useEffect(() => {
-    flush.current = () => {
-      const pending = unsaved.current;
-      if (pending === null) return;
-      unsaved.current = null;
-      void onSave(note.id, pending);
-    };
-  }, [note.id, onSave]);
-
-  useEffect(() => () => flush.current(), []);
 
   return (
     // The far end of the morph: the row you clicked in the stream is this surface, opened out.
@@ -107,9 +58,9 @@ export const NoteEditor = ({
           <span className="min-w-0 truncate">
             <Label>{location}</Label>
           </span>
-          {saveState === "idle" ? null : (
-            <span key={saveState} className="animate-settle">
-              <Label>{SAVE_STATE_LABEL[saveState]}</Label>
+          {state === "idle" ? null : (
+            <span key={state} className="animate-settle">
+              <Label>{SAVE_STATE_LABEL[state]}</Label>
             </span>
           )}
         </div>

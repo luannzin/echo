@@ -31,6 +31,7 @@ export const AppShell = ({
   onToggleIntelligence,
   onSearch,
   searchShortcut,
+  onEditorMode,
 }: {
   navigation: ReactNode;
   workspace: ReactNode;
@@ -48,6 +49,8 @@ export const AppShell = ({
   onToggleIntelligence: () => void;
   onSearch: () => void;
   searchShortcut: string;
+  /** Left off where there is no room for a strip of tabs, which is where the mode is not offered. */
+  onEditorMode?: () => void;
 }) => (
   <div className="flex h-dvh overflow-hidden bg-background text-foreground">
     <a
@@ -99,6 +102,7 @@ export const AppShell = ({
         onToggleIntelligence={onToggleIntelligence}
         onSearch={onSearch}
         searchShortcut={searchShortcut}
+        onEditorMode={onEditorMode}
       />
       {/* Clears the bottom bar on a phone, and nothing on a desktop, where there is none. */}
       <main

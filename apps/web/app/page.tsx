@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { paletteCommands } from "@/app/commands";
 import { type CapturedTask, Composer } from "@/modules/capture/_components/composer";
+import { EditorMode } from "@/modules/editor/_components/editor-mode";
 import { Explorer } from "@/modules/explorer/_components/explorer";
 import { Inbox } from "@/modules/inbox/_components/inbox";
 import { Learned } from "@/modules/intelligence/_components/learned";
@@ -72,6 +73,9 @@ const Page = () => {
   const [arrivedId, setArrivedId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  /** The simpler mode. Never on until the effect below has seen the screen it is opening on. */
+  const [editorMode, setEditorMode] = useState(false);
+  const [roomForEditor, setRoomForEditor] = useState(false);
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
   const [folderFilter, setFolderFilter] = useState<string | undefined>(undefined);
@@ -106,7 +110,17 @@ const Page = () => {
     const room = (query: string) => window.matchMedia(query).matches;
     setNavigationOpen(readPreference("notes-panel", true) && room("(min-width: 800px)"));
     setIntelligenceOpen(readPreference("intelligence-panel", true) && room("(min-width: 1024px)"));
+    // A strip of tabs on a 375px screen is not the simpler mode, so the toggle is not offered
+    // there — and a stored preference cannot drag a phone into it either.
+    const wide = window.matchMedia("(min-width: 768px)");
+    const measure = () => {
+      setRoomForEditor(wide.matches);
+      setEditorMode(wide.matches && readPreference("editor-mode", false));
+    };
+    measure();
+    wide.addEventListener("change", measure);
     registerServiceWorker();
+    return () => wide.removeEventListener("change", measure);
   }, []);
 
   /**
@@ -386,6 +400,19 @@ const Page = () => {
     await echo.notes.saveContent(noteId, content);
   }, []);
 
+  /** The editor's new tab, becoming a note under the id its tab already carries. */
+  const write = useCallback(async (noteId: string, content: string) => {
+    const echo = await getEcho();
+    await echo.notes.create({ id: noteId, content });
+  }, []);
+
+  const toggleEditorMode = useCallback(() => {
+    setEditorMode((current) => {
+      writePreference("editor-mode", !current);
+      return !current;
+    });
+  }, []);
+
   /**
    * Opening a note is a movement, not a swap: the row that was clicked is the shape the editor grows
    * out of, and closing puts it back where it came from.
@@ -650,6 +677,10 @@ const Page = () => {
     return composer(false);
   };
 
+  if (editorMode) {
+    return <EditorMode notes={notes} onSave={save} onCreate={write} onLeave={toggleEditorMode} />;
+  }
+
   return (
     <>
       <AppShell
@@ -665,6 +696,7 @@ const Page = () => {
         onToggleIntelligence={toggleIntelligence}
         onSearch={() => setPaletteOpen(true)}
         searchShortcut={shortcutLabel("palette")}
+        onEditorMode={roomForEditor ? toggleEditorMode : undefined}
         navigation={
           <Explorer
             folders={folders}
