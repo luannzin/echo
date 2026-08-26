@@ -9,3 +9,4 @@ coverage/
 .env.local
 .DS_Store
 apps/web/public/ort/
+apps/web/public/pglite/

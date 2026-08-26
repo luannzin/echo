@@ -1,6 +1,17 @@
 export const EMBEDDING_DIMENSIONS = 384;
 
 /**
+ * Where the model is up to. A local model is a download before it is a runtime, and the difference
+ * between "still arriving" and "not coming" is the difference between a wait and a dead end — the
+ * interface has to be able to tell a reader which one they are looking at.
+ */
+export type EmbedderStatus =
+  | { state: "idle" }
+  | { state: "loading"; progress: number }
+  | { state: "ready" }
+  | { state: "unavailable"; reason: string };
+
+/**
  * The application never learns which model produced a vector, only how wide it is. Swapping the
  * runtime — worker, server, a different model — is implementing this interface again.
  */
@@ -13,6 +24,8 @@ export interface Embedder {
   embedMany(texts: string[]): Promise<Float32Array[]>;
   /** Encodes a search query. Retrieval models treat queries and passages differently. */
   embedQuery(text: string): Promise<Float32Array>;
+  /** Optional: begins loading the model before anything needs it. */
+  warm?(): Promise<void>;
 }
 
 /** Cosine similarity for unit-length vectors, which is what both sides of a comparison are. */
@@ -37,4 +50,12 @@ export function normalize(vector: Float32Array): Float32Array {
   return unit;
 }
 
-export { createLocalEmbedder } from "./local";
+/**
+ * The local runtime lives behind `@echo/embeddings/local` rather than here.
+ *
+ * It reaches for transformers.js, which reaches for an ONNX runtime, which in a server build reaches
+ * for a native binary no browser bundler can read. Only the worker that runs the model needs any of
+ * that; everything else needs the interface and the arithmetic, which is what this file is. Keeping
+ * them apart is the difference between one module pulling in a model runtime and every module doing
+ * it.
+ */

@@ -4,20 +4,30 @@ import type { EmbeddingRepository, NoteRepository } from "./ports";
 
 /**
  * Derived data catches up with the notes, always behind them and never in front. Writing a note
- * finishes the moment it is stored; embedding it happens afterwards, one note at a time, and a
- * failure costs nothing but a retry on the next pass.
+ * finishes the moment it is stored; embedding it happens afterwards, and a failure costs nothing
+ * but a retry on the next pass.
+ *
+ * Work is taken in batches rather than one note at a time. A model pays a fixed cost per call
+ * regardless of how much it is given, so handing it several notes at once is most of the difference
+ * between a fresh import finishing in a minute and finishing in ten. The batch is small on purpose:
+ * progress should be visible while it runs, and a failure should cost a few notes, not all of them.
  */
+const BATCH = 8;
+
 export function createAnalyzer({
   notes,
   embeddings,
   embedder,
   events,
+  onEmbedded,
   onProgress,
 }: {
   notes: NoteRepository;
   embeddings: EmbeddingRepository;
   embedder: Embedder;
   events: EventBus;
+  /** Each vector as it is written, so anything holding an index can stay in step without re-reading. */
+  onEmbedded?: (embedding: { noteId: string; values: Float32Array }) => void;
   onProgress?: (state: { pending: number; failed: boolean; error?: string }) => void;
 }) {
   let current: Promise<void> | undefined;
@@ -36,13 +46,30 @@ export function createAnalyzer({
           queued = false;
           const pending = await embeddings.pending(embedder.id);
           if (pending.length === 0) break;
-          onProgress?.({ pending: pending.length, failed: false });
 
-          for (const noteId of pending) {
-            const note = await notes.get(noteId);
-            if (!note) continue;
-            const values = await embedder.embed(`${note.title}\n\n${note.content}`);
-            await embeddings.put({ noteId, model: embedder.id, values });
+          let remaining = pending.length;
+          onProgress?.({ pending: remaining, failed: false });
+
+          for (let start = 0; start < pending.length; start += BATCH) {
+            const batch = pending.slice(start, start + BATCH);
+            const loaded = (await Promise.all(batch.map((noteId) => notes.get(noteId)))).filter(
+              (note) => note !== null,
+            );
+            if (loaded.length === 0) continue;
+
+            const vectors = await embedder.embedMany(
+              loaded.map((note) => `${note.title}\n\n${note.content}`),
+            );
+
+            for (const [offset, note] of loaded.entries()) {
+              const values = vectors[offset];
+              if (!values) continue;
+              await embeddings.put({ noteId: note.id, model: embedder.id, values });
+              onEmbedded?.({ noteId: note.id, values });
+            }
+
+            remaining -= batch.length;
+            onProgress?.({ pending: Math.max(0, remaining), failed: false });
           }
         }
         onProgress?.({ pending: 0, failed: false });

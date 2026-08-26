@@ -1,12 +1,28 @@
 import { expect, test } from "bun:test";
 import type { Note } from "@echo/types";
-import { rank, type SearchCandidate } from "./index";
+import { createVectorIndex, rank, type SearchCandidate } from "./index";
 
 /**
- * Ranking at the size a real notebook reaches, with vectors standing in for the model. The model is
- * verified where it lives; what has to hold here is that a corpus this size does not drown the one
- * note the reader meant — including when that note shares not a single word with the question.
+ * Retrieval at the size a real notebook reaches, with vectors standing in for the model. The model
+ * is verified where it lives; what has to hold here is that a corpus this size does not drown the
+ * one note the reader meant — including when that note shares not a single word with the question.
+ *
+ * Similarity comes from the real index rather than from arithmetic in the test, so this covers the
+ * path the application actually takes: vectors in the index, scores out, ranking over the scores.
  */
+
+/** A candidate plus the vector the index will hold for it. */
+type Seeded = SearchCandidate & { embedding: Float32Array };
+
+/** Scores a whole corpus against one question, exactly the way the application does. */
+function scored(candidates: Seeded[], question: Float32Array): SearchCandidate[] {
+  const index = createVectorIndex(DIMENSIONS);
+  index.load(candidates.map((c) => ({ noteId: c.note.id, values: c.embedding })));
+  return candidates.map(({ embedding: _embedding, ...candidate }) => ({
+    ...candidate,
+    semantic: index.scoreOf(question, candidate.note.id) ?? 0,
+  }));
+}
 
 const NOW = new Date(2026, 7, 26, 12, 0, 0);
 const DIMENSIONS = 8;
@@ -40,7 +56,7 @@ function note(id: string, content: string, daysOld = 0): Note {
 }
 
 /** 200 notes of noise, none of them about the question, spread over half a year. */
-function corpus(): SearchCandidate[] {
+function corpus(): Seeded[] {
   const random = seeded(7);
   return Array.from({ length: 200 }, (_, index) => ({
     note: note(`noise-${String(index).padStart(3, "0")}`, `unrelated note number ${index}`, index),
@@ -69,8 +85,7 @@ test("the note the reader meant survives a corpus that does not mention it", () 
     lexical: 1,
   });
 
-  const order = rank(candidates, {
-    queryEmbedding: query,
+  const order = rank(scored(candidates, query), {
     now: NOW,
     limit: candidates.length,
   }).map((result) => result.note.id);
@@ -82,8 +97,7 @@ test("the note the reader meant survives a corpus that does not mention it", () 
 });
 
 test("a corpus of noise produces no confident match at all", () => {
-  const results = rank(corpus(), {
-    queryEmbedding: query,
+  const results = rank(scored(corpus(), query), {
     now: NOW,
     minimumScore: 0.5,
   });
@@ -95,7 +109,19 @@ test("a corpus of noise produces no confident match at all", () => {
 
 test("ranking a corpus twice ranks it the same way", () => {
   const candidates = corpus();
-  const once = rank(candidates, { queryEmbedding: query, now: NOW, limit: 20 });
-  const twice = rank(candidates, { queryEmbedding: query, now: NOW, limit: 20 });
+  const once = rank(scored(candidates, query), { now: NOW, limit: 20 });
+  const twice = rank(scored(candidates, query), { now: NOW, limit: 20 });
   expect(once.map((result) => result.note.id)).toEqual(twice.map((result) => result.note.id));
+});
+
+test("the index answers a whole corpus without being asked about every note", () => {
+  const candidates = corpus();
+  const index = createVectorIndex(DIMENSIONS);
+  index.load(candidates.map((c) => ({ noteId: c.note.id, values: c.embedding })));
+
+  // What retrieval actually does: nominate a handful, rather than score two hundred into a sort.
+  const nominated = index.nearest(query, { limit: 5 });
+  const exhaustive = index.nearest(query, { limit: candidates.length }).slice(0, 5);
+
+  expect(nominated.map((match) => match.noteId)).toEqual(exhaustive.map((match) => match.noteId));
 });

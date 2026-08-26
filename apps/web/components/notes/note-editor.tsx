@@ -87,7 +87,7 @@ export function NoteEditor({
         <button
           type="button"
           onClick={onClose}
-          className="-ms-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground text-xs transition-colors duration-150 hover:text-foreground"
+          className="-ms-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground text-xs transition-[color,transform] duration-150 ease-[var(--ease-out-quart)] active:scale-[0.97] hover:text-foreground"
         >
           <ArrowLeft aria-hidden="true" className="size-3.5" />
           Back to writing

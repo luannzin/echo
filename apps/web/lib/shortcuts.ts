@@ -3,7 +3,13 @@
  * be read in one place, and the platform question — ⌘ on a Mac, Ctrl everywhere else — is answered
  * once instead of at every call site.
  */
-export type Shortcut = "palette" | "search" | "new-note" | "toggle-notes" | "toggle-intelligence";
+export type Shortcut =
+  | "palette"
+  | "search"
+  | "new-note"
+  | "toggle-notes"
+  | "toggle-intelligence"
+  | "undo-capture";
 
 /** What the reader would call each one, in the notation their own platform uses. */
 export function shortcutLabel(shortcut: Shortcut, mac = onMac()): string {
@@ -19,6 +25,8 @@ export function shortcutLabel(shortcut: Shortcut, mac = onMac()): string {
       return `${mod} B`;
     case "toggle-intelligence":
       return `${mod} I`;
+    case "undo-capture":
+      return `${mod} Z`;
   }
 }
 
@@ -37,12 +45,27 @@ export function shortcutFor(event: KeyboardEvent): Shortcut | null {
     if (key === "f" && event.shiftKey) return "search";
     if (key === "b" && !event.shiftKey) return "toggle-notes";
     if (key === "i" && !event.shiftKey) return "toggle-intelligence";
+    // Only ever claimed away from written text. Inside a box with words in it, undo means the
+    // words — taking that away to undo something else would be the rudest thing echo could do.
+    if (key === "z" && !event.shiftKey && !holdingText(event.target)) return "undo-capture";
     return null;
   }
 
   if (event.shiftKey || event.metaKey || event.ctrlKey) return null;
   if (key === "n" && !writing(event.target)) return "new-note";
   return null;
+}
+
+/**
+ * True while the event came from a writing surface that currently has something in it. An empty box
+ * has no undo history of its own, so the keystroke is free for echo to mean something else by.
+ */
+function holdingText(target: EventTarget | null): boolean {
+  if (!writing(target)) return false;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+    return target.value.length > 0;
+  }
+  return true;
 }
 
 /** True while the event came from somewhere a person is putting words. */

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { createAnalyzer, createEcho } from "@echo/core";
 import type { Embedder } from "@echo/embeddings";
 import { normalize } from "@echo/embeddings";
-import { relatedTo } from "@echo/search";
+import { createVectorIndex } from "@echo/search";
 import { openRepositories } from "./index";
 
 /**
@@ -50,19 +50,41 @@ test("writing a note leads to an embedding, and to a related note", async () => 
   expect(await repositories.embeddings.pending(stubEmbedder.id)).toEqual([]);
 
   const query = await stubEmbedder.embedQuery("merchant cache");
-  const byId = new Map((await echo.notes.list()).map((note) => [note.id, note]));
-  const candidates = stored.flatMap((entry) => {
-    const note = byId.get(entry.noteId);
-    return note ? [{ note, embedding: entry.values }] : [];
+  const index = createVectorIndex(stubEmbedder.dimensions);
+  index.load(stored);
+
+  const related = index.nearest(query, { minimumSimilarity: 0.3, limit: 2 });
+  expect(related.map((match) => match.noteId).sort()).toEqual([cache.id, production.id].sort());
+
+  analyzer.stop();
+});
+
+test("every vector is published as it is written, so an index never needs re-reading", async () => {
+  const { repositories } = await openRepositories();
+  const echo = createEcho({ repositories });
+  const index = createVectorIndex(stubEmbedder.dimensions);
+  const analyzer = createAnalyzer({
+    notes: repositories.notes,
+    embeddings: repositories.embeddings,
+    embedder: stubEmbedder,
+    events: echo.events,
+    onEmbedded: ({ noteId, values }) => index.put(noteId, values),
   });
 
-  const related = relatedTo(query, candidates, { minimumSimilarity: 0.3 });
-  expect(
-    related
-      .map((result) => result.note.id)
-      .slice(0, 2)
-      .sort(),
-  ).toEqual([cache.id, production.id].sort());
+  // More notes than one batch holds, so the batching path is the one under test.
+  const created = [];
+  for (let n = 0; n < 11; n++) {
+    created.push(await echo.notes.create({ content: `assunto numero ${n} sobre estoque` }));
+  }
+  await analyzer.run();
+
+  expect(index.size).toBe(11);
+  const stored = await repositories.embeddings.list(stubEmbedder.id);
+  expect(stored).toHaveLength(11);
+  // What the index holds is what the database holds — not an approximation of it.
+  for (const entry of stored) {
+    expect(index.scoreOf(entry.values, entry.noteId)).toBeCloseTo(1, 5);
+  }
 
   analyzer.stop();
 });

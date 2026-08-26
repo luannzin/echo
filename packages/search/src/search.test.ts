@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Note } from "@echo/types";
-import { combine, DEFAULT_WEIGHTS, normalizeLexical, rank, recencyScore, relatedTo } from "./index";
+import { combine, DEFAULT_WEIGHTS, normalizeLexical, rank, recencyScore } from "./index";
 
 const NOW = new Date(2026, 7, 26, 12, 0, 0);
 
@@ -17,11 +17,6 @@ function note(id: string, updatedAt = NOW): Note {
   };
 }
 
-/** Unit vectors on a plane, so similarity is easy to reason about. */
-function vector(angle: number): Float32Array {
-  return Float32Array.from([Math.cos(angle), Math.sin(angle)]);
-}
-
 test("recency decays by half every two weeks", () => {
   expect(recencyScore(NOW, NOW)).toBe(1);
   expect(recencyScore(new Date(NOW.getTime() - 14 * 24 * 3600_000), NOW)).toBeCloseTo(0.5, 5);
@@ -35,23 +30,22 @@ test("weights are the only thing deciding the blend", () => {
 });
 
 test("what the reader opens breaks ties, and only ties", () => {
-  const equal = { queryEmbedding: vector(0), now: NOW };
   const tied = rank(
     [
-      { note: note("ignored"), embedding: vector(0) },
-      { note: note("opened-before"), embedding: vector(0), interaction: 1 },
+      { note: note("ignored"), semantic: 1 },
+      { note: note("opened-before"), semantic: 1, interaction: 1 },
     ],
-    equal,
+    { now: NOW },
   );
   expect(tied[0]?.note.id).toBe("opened-before");
 
   // A note the reader keeps opening still loses to one that actually answers the question.
   const outranked = rank(
     [
-      { note: note("familiar"), embedding: vector(Math.PI / 3), interaction: 1 },
-      { note: note("relevant"), embedding: vector(0) },
+      { note: note("familiar"), semantic: 0.5, interaction: 1 },
+      { note: note("relevant"), semantic: 1 },
     ],
-    equal,
+    { now: NOW },
   );
   expect(outranked[0]?.note.id).toBe("relevant");
 });
@@ -59,10 +53,10 @@ test("what the reader opens breaks ties, and only ties", () => {
 test("recency and habit are tie-breakers, never a reason to be a result", () => {
   const results = rank(
     [
-      { note: note("recent-but-unrelated"), embedding: vector(Math.PI / 2), interaction: 1 },
-      { note: note("actually-about-it"), embedding: vector(0) },
+      { note: note("recent-but-unrelated"), semantic: 0, interaction: 1 },
+      { note: note("actually-about-it"), semantic: 1 },
     ],
-    { queryEmbedding: vector(0), now: NOW, minimumSemantic: 0.5 },
+    { now: NOW, minimumSemantic: 0.5 },
   );
 
   expect(results.map((result) => result.note.id)).toEqual(["actually-about-it"]);
@@ -74,23 +68,19 @@ test("lexical scores are normalized against the best hit", () => {
 });
 
 test("meaning outranks word overlap", () => {
-  const query = vector(0);
   const results = rank(
     [
       { note: note("lexical-only"), lexical: 1 },
-      { note: note("semantic-match"), embedding: vector(0) },
+      { note: note("semantic-match"), semantic: 1 },
     ],
-    { queryEmbedding: query, now: NOW },
+    { now: NOW },
   );
 
   expect(results[0]?.note.id).toBe("semantic-match");
 });
 
 test("a note without an embedding still competes", () => {
-  const results = rank([{ note: note("unembedded"), lexical: 1 }], {
-    queryEmbedding: vector(0),
-    now: NOW,
-  });
+  const results = rank([{ note: note("unembedded"), lexical: 1 }], { now: NOW });
 
   expect(results).toHaveLength(1);
   expect(results[0]?.semantic).toBe(0);
@@ -100,37 +90,22 @@ test("older notes rank behind equally relevant new ones", () => {
   const old = new Date(NOW.getTime() - 60 * 24 * 3600_000);
   const results = rank(
     [
-      { note: note("old", old), embedding: vector(0) },
-      { note: note("fresh", NOW), embedding: vector(0) },
+      { note: note("old", old), semantic: 1 },
+      { note: note("fresh", NOW), semantic: 1 },
     ],
-    { queryEmbedding: vector(0), now: NOW },
+    { now: NOW },
   );
 
   expect(results.map((result) => result.note.id)).toEqual(["fresh", "old"]);
 });
 
-test("related notes ignore recency and exclude the note itself", () => {
-  const results = relatedTo(
-    vector(0),
-    [
-      { note: note("self"), embedding: vector(0) },
-      { note: note("close", new Date(2020, 0, 1)), embedding: vector(0.2) },
-      { note: note("unrelated"), embedding: vector(Math.PI / 2) },
-    ],
-    { excludeNoteId: "self" },
-  );
-
-  expect(results.map((result) => result.note.id)).toEqual(["close"]);
-  expect(results[0]?.semantic).toBeGreaterThan(0.9);
-});
-
 test("ties break deterministically", () => {
   const candidates = [
-    { note: note("b"), embedding: vector(0) },
-    { note: note("a"), embedding: vector(0) },
+    { note: note("b"), semantic: 1 },
+    { note: note("a"), semantic: 1 },
   ];
-  const first = rank(candidates, { queryEmbedding: vector(0), now: NOW });
-  const second = rank(candidates, { queryEmbedding: vector(0), now: NOW });
+  const first = rank(candidates, { now: NOW });
+  const second = rank(candidates, { now: NOW });
   expect(first.map((r) => r.note.id)).toEqual(second.map((r) => r.note.id));
   expect(first[0]?.note.id).toBe("a");
 });

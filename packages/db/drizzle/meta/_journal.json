@@ -22,6 +22,27 @@
       "when": 1787706583974,
       "tag": "0002_crazy_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787710486586,
+      "tag": "0003_equal_shen",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787711529569,
+      "tag": "0004_daffy_warbound",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787711536190,
+      "tag": "0005_futuristic_meggan",
+      "breakpoints": true
     }
   ]
 }

@@ -6,8 +6,9 @@
 Open source, no-AI, local-first note taking. Semantic search, automatic organization and adaptive
 learning that run **on your machine** — no AI API key required for any core feature, ever.
 
-Status: **Phase 0 — monorepo skeleton.** See [docs/PLAN.md](docs/PLAN.md) for the roadmap and
-[docs/STATE.md](docs/STATE.md) for exactly where the build stands right now.
+Status: **Phase 4 — capture, search, related notes and adaptive learning all work locally.** See
+[docs/PLAN.md](docs/PLAN.md) for the roadmap and [docs/STATE.md](docs/STATE.md) for exactly where the
+build stands right now.
 
 ## Requirements
 
@@ -29,13 +30,24 @@ default and always will be.
 | --- | --- |
 | `bun run dev` | Start every dev target (currently the web app) |
 | `bun run dev:web` | Web app only |
-| `bun run build` | Build everything through Turborepo |
+| `bun run build` | Build everything through Turborepo (the web app builds with webpack — see below) |
 | `bun run start` | Serve the built static export (after `bun run build`) |
 | `bun run typecheck` | `tsc --noEmit` in every package |
 | `bun run lint` | Biome check (lint + format + import sort) |
 | `bun run lint:fix` | Biome check with safe fixes applied |
 | `bun run test` | Unit and integration tests (`bun test`, real PGlite) |
 | `bun run --cwd packages/db db:generate` | Regenerate migrations after a schema change |
+
+## A note on the web build
+
+Development runs on Turbopack; production runs on webpack (`next build --webpack`). Turbopack
+miscompiles PGlite's runtime module, and the result is an app that loads and then cannot open its
+database — visible only in a built export, never in dev. `apps/web/next.config.ts` records the
+details.
+
+PGlite's WebAssembly and the ONNX runtime are copied into `public/` before every build, so a
+deployment is a folder of files and nothing reaches for a CDN. Only the model weights are fetched on
+first use, once, and then cached by the browser.
 
 ## Layout
 

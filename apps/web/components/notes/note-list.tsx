@@ -73,7 +73,10 @@ export function NoteList({
                   // The row truncates, so the full title stays reachable by resting on it. Reading
                   // the whole note is one click away either way.
                   title={note.title || "Untitled"}
-                  className={`flex w-full items-baseline gap-2 rounded-md px-2 py-1.5 text-start text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
+                  // Presses down under the pointer. Opening a note is a navigation, and a
+                  // navigation that gives nothing back until the next screen arrives feels like a
+                  // click that missed.
+                  className={`flex w-full items-baseline gap-2 rounded-md px-2 py-1.5 text-start text-sm outline-none transition-[background-color,color,transform] duration-150 ease-[var(--ease-out-quart)] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
                     note.id === selectedId
                       ? "bg-sidebar-accent text-foreground"
                       : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"

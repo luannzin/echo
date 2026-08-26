@@ -59,12 +59,17 @@ export function AppShell({
       <aside
         aria-label="Navigation"
         // One rule governs the panel in every view: the reader's own preference.
+        //
+        // Short, because this is bound to a keystroke and a keystroke is pressed all day: a panel
+        // that takes a third of a second to get out of the way is one the reader waits for. The
+        // inner pane keeps its full width throughout, so only the outer box is ever laid out again
+        // — the note list itself never reflows on the way past.
         inert={!navigationOpen}
         className={`hidden shrink-0 overflow-hidden border-e md:block ${
           navigationOpen
             ? "w-60 border-border opacity-100"
             : "pointer-events-none w-0 border-transparent opacity-0"
-        } transition-[width,opacity,border-color] duration-260 ease-[var(--ease-out-quart)]`}
+        } transition-[width,opacity,border-color] duration-180 ease-[var(--ease-out-quart)]`}
       >
         <div className="h-full w-60">{navigation}</div>
       </aside>
@@ -85,7 +90,7 @@ export function AppShell({
         inert={!intelligenceOpen}
         className={`hidden shrink-0 overflow-hidden border-s lg:block ${
           intelligenceOpen ? "w-80 border-border opacity-100" : "w-0 border-transparent opacity-0"
-        } transition-[width,opacity,border-color] duration-260 ease-[var(--ease-out-quart)]`}
+        } transition-[width,opacity,border-color] duration-180 ease-[var(--ease-out-quart)]`}
       >
         <div className="h-full w-80">{intelligence}</div>
       </aside>

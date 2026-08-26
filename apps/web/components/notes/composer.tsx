@@ -29,6 +29,8 @@ export function Composer({
   onDraft,
   rules,
   onCorrect,
+  undoLabel,
+  restore,
   docked = false,
 }: {
   /** Returns the note synchronously: it exists on screen before it exists in the database. */
@@ -38,6 +40,10 @@ export function Composer({
   /** What this reader has taught echo, which decides whether a signal is worth mentioning. */
   rules: LearnedRule[];
   onCorrect: (event: LearningEventCreate) => void;
+  /** Named when the note just sent can still be taken back, so the way back is on screen. */
+  undoLabel?: string;
+  /** Text handed back to the writer — an undone note returning to where it was written. */
+  restore?: { text: string; at: number };
   docked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
@@ -74,6 +80,21 @@ export function Composer({
   useEffect(() => {
     textarea.current?.focus();
   }, []);
+
+  // An undone note comes back to the box it was written in, with the caret after the last word, so
+  // taking one back leaves the writer exactly where they were before they sent it.
+  const restoredAt = restore?.at;
+  useEffect(() => {
+    if (restoredAt === undefined) return;
+    const text = restore?.text ?? "";
+    setDraft(text);
+    setSettled({});
+    const element = textarea.current;
+    if (!element) return;
+    element.focus();
+    // After the value has been painted, or the caret would be placed in the box's old contents.
+    requestAnimationFrame(() => element.setSelectionRange(text.length, text.length));
+  }, [restoredAt, restore?.text]);
 
   const filled = draft.trim().length > 0;
 
@@ -142,8 +163,21 @@ export function Composer({
 
         <div className="flex items-center justify-between gap-3 px-5 pb-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">
-              {filled ? `${countWords(draft)} words` : "Local · private"}
+            {/* One slot, three things it can be saying. While there is nothing written it names
+                what echo is; while there is, it counts; and in the moment just after a note has
+                gone it names the way back, because an action you cannot reverse is one you have to
+                be sure about before you take it — and capture is meant to be the opposite of that. */}
+            <p
+              key={filled ? "count" : undoLabel ? "undo" : "idle"}
+              className="animate-settle font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]"
+            >
+              {filled ? (
+                `${countWords(draft)} words`
+              ) : undoLabel ? (
+                <span className="text-foreground/70">Sent · {undoLabel} to take it back</span>
+              ) : (
+                "Local · private"
+              )}
             </p>
             <Signals
               signals={signals}
@@ -163,8 +197,15 @@ export function Composer({
             onClick={commit}
             disabled={!filled}
             aria-label="Save note"
-            className={`flex h-8 items-center gap-2 rounded-full bg-brand-bright px-3 font-medium text-brand-ink text-xs transition-[opacity,transform,background-color] duration-200 ease-[var(--ease-out-quart)] hover:bg-brand-bright/90 active:scale-[0.96] ${
-              filled ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
+            // Two jobs at two speeds. Arriving is 200ms, because the button is appearing next to
+            // something being written and should not snatch at the eye. Answering a press is 120ms,
+            // because that is not an arrival — it is the interface saying it heard you, and there is
+            // no such thing as hearing someone slowly.
+            //
+            // Which is also why the entrance is opacity alone: `transform` means "pressed" here and
+            // nothing else, so the two can never end up sharing one duration.
+            className={`flex h-8 items-center gap-2 rounded-full bg-brand-bright px-3 font-medium text-brand-ink text-xs [transition:opacity_200ms_var(--ease-out-quart),background-color_200ms_var(--ease-out-quart),transform_120ms_var(--ease-out-quart)] hover:bg-brand-bright/90 active:scale-[0.96] ${
+              filled ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
             Save

@@ -1,18 +1,27 @@
 import type { NoteListOptions, NotePatch, NoteRepository } from "@echo/core";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client";
-import { notes } from "./schema";
+import { noteColumns, notes } from "./schema";
 
+/**
+ * Columns are named explicitly on every read. The table carries a stored `tsvector` for search, and
+ * `select *` would return it with every row — a second copy of the note, in a form nothing here can
+ * use, on the one query that runs most often.
+ */
 export function createNoteRepository(db: Database): NoteRepository {
   return {
     async insert(note) {
-      const [row] = await db.insert(notes).values(note).returning();
+      const [row] = await db.insert(notes).values(note).returning(noteColumns);
       if (!row) throw new Error("Insert returned no row");
       return row;
     },
 
     async update(id, patch: NotePatch) {
-      const [row] = await db.update(notes).set(patch).where(eq(notes.id, id)).returning();
+      const [row] = await db
+        .update(notes)
+        .set(patch)
+        .where(eq(notes.id, id))
+        .returning(noteColumns);
       if (!row) throw new Error(`Note ${id} not found`);
       return row;
     },
@@ -22,7 +31,7 @@ export function createNoteRepository(db: Database): NoteRepository {
     },
 
     async get(id) {
-      const [row] = await db.select().from(notes).where(eq(notes.id, id)).limit(1);
+      const [row] = await db.select(noteColumns).from(notes).where(eq(notes.id, id)).limit(1);
       return row ?? null;
     },
 
@@ -37,7 +46,7 @@ export function createNoteRepository(db: Database): NoteRepository {
       ].filter((filter) => filter !== undefined);
 
       return db
-        .select()
+        .select(noteColumns)
         .from(notes)
         .where(filters.length > 0 ? and(...filters) : undefined)
         .orderBy(desc(notes.updatedAt))
