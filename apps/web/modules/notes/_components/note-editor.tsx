@@ -1,12 +1,19 @@
 "use client";
 
-import type { Note } from "@echo/types";
+import type { Category, Note } from "@echo/types";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Kbd } from "@/components/ui/kbd";
 import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
+import { CategoryChip } from "@/shared/_components/category-chip";
+import { CategoryPicker } from "@/shared/_components/category-picker";
+import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
+import { useCompletion } from "@/shared/lib/completion";
 import { NOTE_SURFACE } from "@/shared/lib/transition";
+
+/** Given to the textarea and to the suggestion behind it; they only line up while they agree. */
+const WRITING = "min-h-0 flex-1 resize-none bg-transparent text-base leading-7 sm:text-[0.975rem]";
 
 /**
  * An existing note, open for editing. The caller mounts one editor per note (`key={note.id}`), so a
@@ -16,17 +23,33 @@ import { NOTE_SURFACE } from "@/shared/lib/transition";
 export const NoteEditor = ({
   note,
   location,
+  categories,
+  labels,
+  complete,
   onSave,
   onClose,
+  onAddCategory,
+  onCreateCategory,
+  onRemoveCategory,
 }: {
   note: Note;
   /** Where the note lives, written out: `Work / Authentication`, or `Inbox`. */
   location: string;
+  /** Every category there is, for the picker. */
+  categories: Category[];
+  /** The ones on this note, and whether the reader said so or echo read it. */
+  labels: { category: Category; source: "user" | "auto" }[];
+  /** Finishes the sentence from the reader's own writing. Absent until the database has opened. */
+  complete?: (text: string) => string;
   onSave: (noteId: string, content: string) => Promise<void>;
   onClose: () => void;
+  onAddCategory: (noteId: string, categoryId: string) => void;
+  onCreateCategory: (noteId: string, name: string) => void;
+  onRemoveCategory: (noteId: string, categoryId: string) => void;
 }) => {
   const { draft, setDraft, state } = useAutosave(note.id, note.content, onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const completion = useCompletion(textarea, complete);
 
   // Opening a note means continuing it: the caret belongs after the last character.
   useEffect(() => {
@@ -65,16 +88,46 @@ export const NoteEditor = ({
           )}
         </div>
       </div>
-      <textarea
-        ref={textarea}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => event.key === "Escape" && onClose()}
-        aria-label="Note content"
-        placeholder="Write anything…"
-        spellCheck={false}
-        className="mt-5 min-h-0 flex-1 resize-none bg-transparent text-base leading-7 outline-none placeholder:text-muted-foreground sm:text-[0.975rem]"
-      />
+      {/* What the note is about, under where it lives. Both are metadata; only one is a decision
+          the reader has to have made in advance. */}
+      <div className="mt-4 flex flex-wrap items-center gap-1.5">
+        {labels.map(({ category, source }) => (
+          <CategoryChip
+            key={category.id}
+            name={category.name}
+            source={source}
+            onRemove={() => onRemoveCategory(note.id, category.id)}
+          />
+        ))}
+        <CategoryPicker
+          categories={categories}
+          used={new Set(labels.map(({ category }) => category.id))}
+          onChoose={(categoryId) => onAddCategory(note.id, categoryId)}
+          onCreate={(name) => onCreateCategory(note.id, name)}
+        />
+      </div>
+
+      <div className="relative mt-4 flex min-h-0 flex-1 flex-col">
+        <GhostText text={draft} suggestion={completion.ghost} className={WRITING} from={textarea} />
+        <textarea
+          ref={textarea}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            completion.refresh();
+          }}
+          onSelect={completion.refresh}
+          // Escape puts the suggestion away first, and closes the note only when there is none.
+          onKeyDown={(event) => {
+            if (completion.onKeyDown(event, setDraft)) return;
+            if (event.key === "Escape") onClose();
+          }}
+          aria-label="Note content"
+          placeholder="Write anything…"
+          spellCheck={false}
+          className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
+        />
+      </div>
     </div>
   );
 };

@@ -2,13 +2,16 @@
 
 import type { LearnedRule } from "@echo/learning";
 import { parse } from "@echo/parser";
-import type { LearningEventCreate, Note } from "@echo/types";
+import type { Category, LearningEventCreate, Note } from "@echo/types";
 import { CornerDownLeft } from "lucide-react";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Kbd } from "@/components/ui/kbd";
 import { type Answer, SignalChip } from "@/modules/capture/_components/signal-chip";
 import { believes, readSignals, type Signal, signalKey } from "@/modules/capture/signals";
+import { CategoryChip } from "@/shared/_components/category-chip";
+import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
+import { useCompletion } from "@/shared/lib/completion";
 
 const MAX_HEIGHT = 420;
 const DRAFT_SETTLE_MS = 400;
@@ -24,6 +27,13 @@ const PROMPTS = [
 
 export type CapturedTask = { title: string; dueAt: Date | null };
 
+/**
+ * The writing surface's own type, given to the textarea and to the suggestion drawn behind it. One
+ * constant because the two have to agree character for character to line up.
+ */
+const WRITING =
+  "w-full resize-none bg-transparent px-5 pt-4 pb-2 text-base leading-7 sm:text-[0.975rem]";
+
 const countWords = (text: string): number => text.trim().split(/\s+/).length;
 
 /**
@@ -36,17 +46,23 @@ export const Composer = ({
   onDraft,
   rules,
   onCorrect,
+  predicted,
+  complete,
   undoLabel,
   restore,
   onRestored,
   docked = false,
 }: {
   /** Returns the note synchronously. A task comes with it unless the writer said it was not one. */
-  onCapture: (content: string, task?: CapturedTask) => Note;
+  onCapture: (content: string, task?: CapturedTask, categoryIds?: string[]) => Note;
   /** Fires behind the typing, never in front of it: retrieval is allowed to be late. */
   onDraft: (text: string) => void;
   rules: LearnedRule[];
   onCorrect: (event: LearningEventCreate) => void;
+  /** What the notes nearest this draft are labelled with. Empty until there are neighbours to ask. */
+  predicted: Category[];
+  /** Finishes the sentence from the reader's own writing. Absent until the database has opened. */
+  complete?: (text: string) => string;
   /** Named when the note just sent can still be taken back, so the way back is on screen. */
   undoLabel?: string;
   /** Text handed back to the writer — an undone note returning to where it was written. */
@@ -58,7 +74,10 @@ export const Composer = ({
   const [draft, setDraft] = useState("");
   /** Signals answered in this draft. Cleared with the draft, because the next note is a new note. */
   const [settled, setSettled] = useState<Record<string, Answer>>({});
+  /** Labels echo offered and the writer took off. Cleared with the draft, like every other answer. */
+  const [declined, setDeclined] = useState<ReadonlySet<string>>(() => new Set());
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const completion = useCompletion(textarea, complete);
   // Chosen once per visit: a prompt that changed under the cursor would be a distraction.
   const [prompt] = useState(() => PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
 
@@ -94,12 +113,14 @@ export const Composer = ({
     const text = restore?.text ?? "";
     setDraft(text);
     setSettled({});
+    setDeclined(new Set());
+    completion.reset();
     onRestored?.();
     const element = textarea.current;
     if (!element) return;
     element.focus();
     requestAnimationFrame(() => element.setSelectionRange(text.length, text.length));
-  }, [restoredAt, restore?.text, onRestored]);
+  }, [restoredAt, restore?.text, onRestored, completion.reset]);
 
   // Detection rides a deferred copy of the draft: React finishes the keystroke first and parses when
   // it has a moment. On a 5k-character note that is ~6ms of work per character rather than ~0.
@@ -112,6 +133,24 @@ export const Composer = ({
   }, [draft, onDraft]);
 
   const filled = draft.trim().length > 0;
+
+  /** What echo will put on this note if the writer says nothing — minus whatever they took off. */
+  const offered = predicted.filter((category) => !declined.has(category.id));
+
+  /**
+   * Taking a label off is the correction the engine learns from. Filing it is not: a note that ends
+   * up carrying a category becomes one of the neighbours that argues for it next time, which is the
+   * positive signal already, and recording it twice would count it twice.
+   */
+  const decline = (category: Category) => {
+    setDeclined((current) => new Set(current).add(category.id));
+    onCorrect({
+      type: "signal_rejected",
+      kind: "category",
+      subject: category.id,
+      noteId: null,
+    });
+  };
 
   const commit = () => {
     if (!filled) return;
@@ -135,13 +174,18 @@ export const Composer = ({
       task && wanted("task-phrase")
         ? { title: task.text, dueAt: when && wanted("deadline-phrase") ? when.date : null }
         : undefined,
+      offered.map((category) => category.id),
     );
     setDraft("");
     setSettled({});
+    setDeclined(new Set());
+    completion.reset();
     textarea.current?.focus();
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Tab takes the completion and Escape puts it away, both before anything else looks at the key.
+    if (completion.onKeyDown(event, setDraft)) return;
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
     commit();
@@ -180,25 +224,45 @@ export const Composer = ({
         <label className="sr-only" htmlFor="composer">
           Write a note
         </label>
-        <textarea
-          id="composer"
-          ref={textarea}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={onKeyDown}
-          rows={1}
-          spellCheck={false}
-          placeholder={docked ? "Write another…" : "Write anything…"}
-          className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-base leading-7 outline-none placeholder:text-muted-foreground sm:text-[0.975rem]"
-        />
+        {/* The suggestion sits behind the words, in the same type, so the box stays one surface. */}
+        <div className="relative">
+          <GhostText
+            text={draft}
+            suggestion={completion.ghost}
+            className={WRITING}
+            from={textarea}
+          />
+          <textarea
+            id="composer"
+            ref={textarea}
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              completion.refresh();
+            }}
+            // Fires for the caret moving as well as for typing, which is what keeps a suggestion
+            // from being drawn at the end of a line the caret has left.
+            onSelect={completion.refresh}
+            onKeyDown={onKeyDown}
+            rows={1}
+            spellCheck={false}
+            placeholder={docked ? "Write another…" : "Write anything…"}
+            className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
+          />
+        </div>
 
         <div className="flex items-center justify-between gap-3 px-5 pb-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {/* One slot, three things it can be saying: what echo is, how much has been written, or
                 the way back from a note that has just gone. */}
-            <p key={filled ? "count" : undoLabel ? "undo" : "idle"} className="animate-settle">
+            <p
+              key={completion.ghost ? "complete" : filled ? "count" : undoLabel ? "undo" : "idle"}
+              className="animate-settle"
+            >
               <Label>
-                {filled ? (
+                {completion.ghost ? (
+                  <span className="text-foreground/70">Tab to complete</span>
+                ) : filled ? (
                   `${countWords(draft)} words`
                 ) : undoLabel ? (
                   <span className="text-foreground/70">Sent · {undoLabel} to take it back</span>
@@ -207,6 +271,14 @@ export const Composer = ({
                 )}
               </Label>
             </p>
+            {offered.map((category) => (
+              <CategoryChip
+                key={category.id}
+                name={category.name}
+                source="auto"
+                onRemove={() => decline(category)}
+              />
+            ))}
             {signals.map((signal) => (
               <SignalChip
                 key={signalKey(signal)}

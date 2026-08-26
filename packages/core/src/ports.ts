@@ -1,4 +1,4 @@
-import type { Folder, LearningEvent, Note, Task } from "@echo/types";
+import type { Category, Folder, LearningEvent, Note, NoteCategory, Task } from "@echo/types";
 
 /** Fields a repository may change after insert. Identity and creation time are immutable. */
 export type NotePatch = Partial<Pick<Note, "title" | "content" | "folderId" | "archivedAt">> & {
@@ -29,6 +29,26 @@ export interface FolderRepository {
   delete(id: string): Promise<void>;
   get(id: string): Promise<Folder | null>;
   list(): Promise<Folder[]>;
+}
+
+export type CategoryPatch = Partial<Pick<Category, "name">> & { updatedAt: Date };
+
+export interface CategoryRepository {
+  insert(category: Category): Promise<Category>;
+  update(id: string, patch: CategoryPatch): Promise<Category>;
+  delete(id: string): Promise<void>;
+  /** Named, not by id: creating a category is idempotent on its name. */
+  findByName(name: string): Promise<Category | null>;
+  list(): Promise<Category[]>;
+  /** Every note-to-category row there is. Small enough to hold, and read once per session. */
+  assignments(): Promise<NoteCategory[]>;
+  /**
+   * Returns whether anything changed. An `auto` row may never overwrite a `user` one — that is
+   * rule 9 (explicit beats inferred), and it is enforced here because this is the only place both
+   * rows are visible at once.
+   */
+  assign(assignment: NoteCategory): Promise<boolean>;
+  unassign(noteId: string, categoryId: string): Promise<void>;
 }
 
 export type TaskPatch = Partial<Pick<Task, "title" | "completedAt">> & { updatedAt: Date };
@@ -75,6 +95,7 @@ export interface LearningRepository {
 export type Repositories = {
   notes: NoteRepository;
   folders: FolderRepository;
+  categories: CategoryRepository;
   tasks: TaskRepository;
   embeddings: EmbeddingRepository;
   learning: LearningRepository;

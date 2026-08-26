@@ -29,6 +29,7 @@ export const EditorMode = ({
   notes,
   loading,
   failed,
+  complete,
   onSave,
   onCreate,
   onLeave,
@@ -37,6 +38,8 @@ export const EditorMode = ({
   /** True until the notes are in memory. A pane may not open before then — see below. */
   loading: boolean;
   failed: boolean;
+  /** Finishes the sentence from the reader's own writing. Absent until the database has opened. */
+  complete?: (text: string) => string;
   onSave: (noteId: string, content: string) => Promise<void>;
   /** Called with the id the tab already carries, the first time someone types into a new note. */
   onCreate: (noteId: string, content: string) => Promise<void>;
@@ -225,6 +228,7 @@ export const EditorMode = ({
                 note={noteOf(panes[0])}
                 focused={focused === 0}
                 split={panes[1] !== null}
+                complete={complete}
                 onSave={save}
                 onFocus={() => setFocused(0)}
               />
@@ -236,6 +240,7 @@ export const EditorMode = ({
                 note={noteOf(panes[1])}
                 focused={focused === 1}
                 split
+                complete={complete}
                 onSave={save}
                 onFocus={() => setFocused(1)}
               />

@@ -40,6 +40,18 @@ const memoryRepositories = (): Repositories => {
       forget: async () => {},
     },
     notes,
+    categories: {
+      insert: async (category) => category,
+      update: async () => {
+        throw new Error("not used");
+      },
+      delete: async () => {},
+      findByName: async () => null,
+      list: async () => [],
+      assignments: async () => [],
+      assign: async () => true,
+      unassign: async () => {},
+    },
     folders: {
       insert: async (folder) => folder,
       update: async () => {

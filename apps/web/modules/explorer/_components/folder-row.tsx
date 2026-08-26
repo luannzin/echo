@@ -18,6 +18,13 @@ import { MenuNote } from "@/shared/_components/menu-note";
 import { quiet, row } from "@/shared/lib/styles";
 
 const INDENT_PX = 12;
+/**
+ * Where a row's leading control starts, and how wide it is. Together they put the chevron on the
+ * same 14px column as the Inbox, "All notes" and every category icon, and the folder's name on the
+ * same edge as their labels — measured, because a tree that is five pixels off the list above it
+ * reads as two lists rather than one pane.
+ */
+const GUTTER_PX = 4;
 
 /** Said where the decision is made, because deleting a folder sounds like deleting what is in it. */
 const DELETE_NOTE = "Deleting a folder keeps its notes. They go back to the Inbox.";
@@ -101,7 +108,7 @@ export const FolderRow = ({
             className={`group flex items-center rounded-md transition-colors duration-150 ${
               over && droppable ? "bg-brand-bright/15 ring-1 ring-brand-bright/40" : ""
             } ${dragged?.kind === "folder" && dragged.id === folder.id ? "opacity-40" : ""}`}
-            style={{ paddingInlineStart: `${depth * INDENT_PX}px` }}
+            style={{ paddingInlineStart: `${depth * INDENT_PX + GUTTER_PX}px` }}
           >
             {/* Kept for every folder, empty or not: rows that lose their chevron shift their labels
                 sideways as notes arrive, and the tree flickers as you file into it. */}
@@ -110,11 +117,11 @@ export const FolderRow = ({
               aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
               aria-expanded={expanded}
               onClick={onToggle}
-              className="flex size-5 shrink-0 items-center justify-center self-stretch rounded text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-8"
+              className="flex w-5.5 shrink-0 items-center justify-center self-stretch rounded text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ChevronRight
                 aria-hidden="true"
-                className={`size-3 transition-transform duration-150 ease-[var(--ease-out-quart)] ${
+                className={`size-3.5 transition-transform duration-150 ease-[var(--ease-out-quart)] ${
                   expanded ? "rotate-90" : ""
                 } ${children.length === 0 ? "opacity-0" : ""}`}
               />

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build --webpack",
     "clean": "rm -rf .next .turbo *.tsbuildinfo",
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "prebuild": "bun run scripts/sync-onnx-runtime.ts && bun run scripts/sync-pglite-runtime.ts",
     "predev": "bun run scripts/sync-onnx-runtime.ts && bun run scripts/sync-pglite-runtime.ts",
     "start": "bun x serve@latest out",

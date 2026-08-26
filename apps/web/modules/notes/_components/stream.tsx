@@ -17,11 +17,14 @@ const STAGGERED_ROWS = 8;
 export const Stream = memo(
   ({
     notes,
+    labelsOf,
     arrivedId,
     previewId,
     onOpen,
   }: {
     notes: Note[];
+    /** What each note is about, named and joined by the page: a string keeps the row memo holding. */
+    labelsOf: (noteId: string) => string;
     /** The note just written, briefly lit so the eye can follow where it landed. */
     arrivedId: string | null;
     /** A note being pointed at somewhere else — the list — which this view brings into view. */
@@ -91,6 +94,7 @@ export const Stream = memo(
                 ) : null}
                 <StreamRow
                   note={note}
+                  labels={labelsOf(note.id)}
                   targeted={note.id === previewId}
                   arrived={note.id === arrivedId}
                   delay={settled.current ? 0 : Math.min(index, STAGGERED_ROWS) * STAGGER_MS}

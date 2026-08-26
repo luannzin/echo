@@ -1,10 +1,11 @@
 "use client";
 
 import { buildTree, flattenTree, subtreeIds } from "@echo/core";
-import type { Folder, Note } from "@echo/types";
+import type { Category, Folder, Note } from "@echo/types";
 import { Inbox, Layers, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CategoryList } from "@/modules/explorer/_components/category-list";
 import { FolderNameField } from "@/modules/explorer/_components/folder-name-field";
 import { FolderRow } from "@/modules/explorer/_components/folder-row";
 import { PlaceRow } from "@/modules/explorer/_components/place-row";
@@ -38,6 +39,13 @@ export const Explorer = ({
   onDeleteFolder,
   onMoveFolder,
   onMoveNote,
+  categories,
+  categoryCountOf,
+  selectedCategoryId,
+  onSelectCategory,
+  onCreateCategory,
+  onRenameCategory,
+  onDeleteCategory,
   notes,
   loading,
   failed,
@@ -64,6 +72,14 @@ export const Explorer = ({
   onDeleteFolder: (folderId: string) => void;
   onMoveFolder: (folderId: string, parentId: string | null) => void;
   onMoveNote: (noteId: string, folderId: string | null) => void;
+  categories: Category[];
+  categoryCountOf: (categoryId: string) => number;
+  /** `undefined` means the list is not being narrowed to one label. */
+  selectedCategoryId: string | undefined;
+  onSelectCategory: (categoryId: string | undefined) => void;
+  onCreateCategory: (name: string) => void;
+  onRenameCategory: (categoryId: string, name: string) => void;
+  onDeleteCategory: (categoryId: string) => void;
   /** Already filtered by the page to whatever the tree has selected. */
   notes: Note[];
   loading: boolean;
@@ -79,6 +95,11 @@ export const Explorer = ({
 
   const rows = flattenTree(buildTree(folders), expanded);
   const selected = folders.find((folder) => folder.id === selectedFolderId);
+  /** The list says what it is showing, whichever of the two questions narrowed it. */
+  const listTitle =
+    categories?.find((category) => category.id === selectedCategoryId)?.name ??
+    selected?.name ??
+    "All notes";
   const creatingAtRoot = draft?.mode === "create" && draft.parentId === null;
 
   /** A folder may not be dropped into itself or anything inside it, or the tree loses its root. */
@@ -153,7 +174,9 @@ export const Explorer = ({
               label="All notes"
               icon={Layers}
               count={allCount}
-              selected={!atInbox && selectedFolderId === undefined}
+              selected={
+                !atInbox && selectedFolderId === undefined && selectedCategoryId === undefined
+              }
               onSelect={() => onSelectFolder(undefined)}
             />
           </li>
@@ -200,9 +223,23 @@ export const Explorer = ({
         ) : null}
       </div>
 
+      {/* Bounded on purpose: a reader with forty labels still has to be able to reach their notes,
+          and the list below is what the pane is for. */}
+      <div className="max-h-56 shrink-0 overflow-y-auto border-b">
+        <CategoryList
+          categories={categories}
+          countOf={categoryCountOf}
+          selectedId={selectedCategoryId}
+          onSelect={onSelectCategory}
+          onCreate={onCreateCategory}
+          onRename={onRenameCategory}
+          onDelete={onDeleteCategory}
+        />
+      </div>
+
       <div className="min-h-0 flex-1">
         <NoteList
-          title={selected ? selected.name : "All notes"}
+          title={listTitle}
           notes={notes}
           folders={folders}
           loading={loading}

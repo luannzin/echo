@@ -3,7 +3,13 @@
 import type { Note } from "@echo/types";
 import { useEffect, useRef } from "react";
 import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
+import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
+import { useCompletion } from "@/shared/lib/completion";
+
+/** Given to the textarea and to the suggestion behind it; they only line up while they agree. */
+const WRITING =
+  "min-h-full w-full flex-1 resize-none bg-transparent px-6 py-5 text-base leading-7 sm:text-[0.975rem]";
 
 /**
  * One note, filling whatever it is given — the whole screen, or half of it in a split. No chrome of
@@ -18,6 +24,7 @@ export const EditorPane = ({
   note,
   focused,
   split,
+  complete,
   onSave,
   onFocus,
 }: {
@@ -27,11 +34,14 @@ export const EditorPane = ({
   focused: boolean;
   /** Whether anything is beside it — a lone pane has nothing to distinguish itself from. */
   split: boolean;
+  /** Finishes the sentence from the reader's own writing. Absent until the database has opened. */
+  complete?: (text: string) => string;
   onSave: (noteId: string, content: string) => Promise<void>;
   onFocus: () => void;
 }) => {
   const { draft, setDraft, state } = useAutosave(noteId, note?.content ?? "", onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const completion = useCompletion(textarea, complete);
 
   // Opening a note means continuing it: the caret belongs after the last character.
   useEffect(() => {
@@ -56,15 +66,23 @@ export const EditorPane = ({
           <Label>{SAVE_STATE_LABEL[state]}</Label>
         </span>
       )}
-      <textarea
-        ref={textarea}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        aria-label="Note content"
-        placeholder="Write anything…"
-        spellCheck={false}
-        className="min-h-full w-full flex-1 resize-none bg-transparent px-6 py-5 text-base leading-7 outline-none placeholder:text-muted-foreground sm:text-[0.975rem]"
-      />
+      <div className="relative flex min-h-full flex-1 flex-col">
+        <GhostText text={draft} suggestion={completion.ghost} className={WRITING} from={textarea} />
+        <textarea
+          ref={textarea}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            completion.refresh();
+          }}
+          onSelect={completion.refresh}
+          onKeyDown={(event) => completion.onKeyDown(event, setDraft)}
+          aria-label="Note content"
+          placeholder="Write anything…"
+          spellCheck={false}
+          className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
+        />
+      </div>
     </section>
   );
 };

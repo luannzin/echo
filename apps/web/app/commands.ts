@@ -6,6 +6,7 @@ import {
   PanelLeft,
   PenLine,
   SquareCheck,
+  Tag,
   Undo2,
 } from "lucide-react";
 import type { PaletteCommand } from "@/modules/search/model";
@@ -20,6 +21,7 @@ export const paletteCommands = ({
   undoable,
   onView,
   onNewFolder,
+  onNewCategory,
   onUndo,
   onToggleNavigation,
   onToggleIntelligence,
@@ -30,6 +32,7 @@ export const paletteCommands = ({
   undoable: boolean;
   onView: (view: View) => void;
   onNewFolder: () => void;
+  onNewCategory: () => void;
   onUndo: () => void;
   onToggleNavigation: () => void;
   onToggleIntelligence: () => void;
@@ -70,6 +73,13 @@ export const paletteCommands = ({
     icon: FolderPlus,
     keywords: "create folder project place",
     run: onNewFolder,
+  },
+  {
+    id: "new-category",
+    label: "New category",
+    icon: Tag,
+    keywords: "create category label tag topic",
+    run: onNewCategory,
   },
   ...(undoable
     ? [

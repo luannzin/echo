@@ -1,5 +1,6 @@
 import type { Echo } from "@echo/core";
 import { EMBEDDING_DIMENSIONS, type EmbedderStatus } from "@echo/embeddings";
+import { createPhraseModel, type PhraseModel } from "@echo/learning";
 import { createVectorIndex } from "@echo/search";
 import { createWorkerEmbedder } from "@/shared/lib/embedder";
 import { createRetrieval, type Retrieval } from "@/shared/lib/retrieval";
@@ -9,6 +10,8 @@ export type AnalysisState = { pending: number; failed: boolean; error?: string }
 
 export type EchoRuntime = Echo & {
   retrieval: Retrieval;
+  /** How this reader writes, for completing a sentence they have written before. */
+  phrases: PhraseModel;
   onAnalysis: (listener: (state: AnalysisState) => void) => () => void;
   onModel: (listener: (status: EmbedderStatus) => void) => () => void;
 };
@@ -43,6 +46,22 @@ const open = async (): Promise<EchoRuntime> => {
     })
     .catch((cause) => console.error("[echo] vectors could not be read:", cause));
 
+  /**
+   * The reader's own phrases, learned from their own notes. Filled after the notes are on screen —
+   * until it is, `complete` returns nothing, which is exactly what a new install should suggest.
+   *
+   * ponytail: one extra read of the corpus at startup, and a deleted note's phrases are left in
+   * place because the event carries only an id. Both are worth revisiting if the model ever gets
+   * expensive enough to be worth caching between sessions.
+   */
+  const phrases = createPhraseModel();
+  void repositories.notes
+    .list({ limit: 1000 })
+    .then((stored) => {
+      for (const note of stored) phrases.learn(note.content);
+    })
+    .catch((cause) => console.error("[echo] phrases could not be read:", cause));
+
   const listeners = new Set<(state: AnalysisState) => void>();
   /** The first pass starts before the UI can subscribe, so the latest state is replayed. */
   let latest: AnalysisState = { pending: 0, failed: false };
@@ -60,9 +79,15 @@ const open = async (): Promise<EchoRuntime> => {
     },
   });
 
-  // A deleted note's vector would go on matching questions about a note that is gone.
   echo.events.subscribe((event) => {
+    // A deleted note's vector would go on matching questions about a note that is gone.
     if (event.type === "note.deleted") index.remove(event.noteId);
+    if (event.type === "note.created") phrases.learn(event.note.content);
+    // The previous text goes back out first: an edited note must correct the counts, not double them.
+    if (event.type === "note.updated") {
+      phrases.unlearn(event.previous.content);
+      phrases.learn(event.note.content);
+    }
   });
 
   void embedder.warm?.();
@@ -71,6 +96,7 @@ const open = async (): Promise<EchoRuntime> => {
   return {
     ...echo,
     retrieval: createRetrieval({ lexical, embedder, index }),
+    phrases,
     onAnalysis: (listener) => {
       listener(latest);
       listeners.add(listener);

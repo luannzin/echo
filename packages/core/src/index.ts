@@ -1,3 +1,4 @@
+import { type CategoryService, createCategoryService } from "./categories";
 import { type Clock, type IdFactory, systemClock, uuid } from "./clock";
 import { createEventBus, type EventBus } from "./events";
 import { createFolderService, type FolderService } from "./folders";
@@ -7,6 +8,7 @@ import type { Repositories } from "./ports";
 import { createTaskService, type TaskService } from "./tasks";
 
 export * from "./analyzer";
+export * from "./categories";
 export * from "./clock";
 export * from "./events";
 export * from "./folders";
@@ -20,6 +22,7 @@ export * from "./tree";
 export type Echo = {
   notes: NoteService;
   folders: FolderService;
+  categories: CategoryService;
   tasks: TaskService;
   learning: LearningService;
   events: EventBus;
@@ -40,6 +43,7 @@ export const createEcho = ({
   return {
     notes: createNoteService({ repository: repositories.notes, events, now, newId }),
     folders: createFolderService({ repository: repositories.folders, events, now, newId }),
+    categories: createCategoryService({ repository: repositories.categories, events, now, newId }),
     tasks: createTaskService({ repository: repositories.tasks, events, now, newId }),
     learning: createLearningService({ repository: repositories.learning, events, now, newId }),
     events,

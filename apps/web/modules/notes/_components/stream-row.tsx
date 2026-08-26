@@ -15,12 +15,15 @@ import { formatExact, formatStamp } from "@/shared/lib/time";
 export const StreamRow = memo(
   ({
     note,
+    labels,
     targeted,
     arrived,
     delay,
     onOpen,
   }: {
     note: Note;
+    /** What the note is about, already named and joined — a string, so the memo above still holds. */
+    labels: string;
     targeted: boolean;
     arrived: boolean;
     delay: number;
@@ -70,6 +73,11 @@ export const StreamRow = memo(
           <StreamStamp date={note.updatedAt} muted>
             · edited {formatStamp(note.updatedAt)}
           </StreamStamp>
+        ) : null}
+        {labels.length > 0 ? (
+          <span className="min-w-0 truncate font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">
+            {labels}
+          </span>
         ) : null}
         {/* Says the row opens. The row is the control, so this is a sign, not a stop. */}
         <ArrowUpRight

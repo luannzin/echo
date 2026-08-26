@@ -3,12 +3,14 @@
 import { deriveTitle, folderPath } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
 import { adjust, affinity, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
-import { type Destination, DUPLICATE_SIMILARITY } from "@echo/search";
+import { type Destination, DUPLICATE_SIMILARITY, suggestCategories } from "@echo/search";
 import {
+  type Category,
   DEFAULT_WORKSPACE_ID,
   type Folder,
   type LearningEventCreate,
   type Note,
+  type NoteCategory,
   type Task,
 } from "@echo/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,6 +32,7 @@ import type { View } from "@/modules/shell/view";
 import { Tasks } from "@/modules/tasks/_components/tasks";
 import { Label } from "@/shared/_components/label";
 
+import { byNote, countByCategory, labelsOf } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import { registerServiceWorker } from "@/shared/lib/service-worker";
@@ -39,6 +42,12 @@ import { navigate, noteRow } from "@/shared/lib/transition";
 
 const ARRIVAL_GLOW_MS = 1400;
 const PREVIEW_INTENT_MS = 150;
+/**
+ * How many neighbours are asked what a draft is about. Wider than the four the panel shows, because
+ * four voters is a show of hands and this is meant to be a pattern.
+ */
+const RELATED_LIMIT = 8;
+const RELATED_SHOWN = 4;
 
 /**
  * The note list is ordered by when a note was last touched. Applying that here rather than asking
@@ -62,6 +71,8 @@ const replace = <T extends { id: string }>(items: T[], item: T): T[] => {
 const Page = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [assignments, setAssignments] = useState<NoteCategory[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [rules, setRules] = useState<LearnedRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +91,10 @@ const Page = () => {
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
   const [folderFilter, setFolderFilter] = useState<string | undefined>(undefined);
+  /** Or which category. The two are different questions, so asking one clears the other. */
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
+  /** Finishes a sentence from the reader's own writing. Absent until the database has opened. */
+  const [complete, setComplete] = useState<((text: string) => string) | undefined>(undefined);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   /** Where each unfiled note probably belongs. Filled when the Inbox is open, and only then. */
   const [destinations, setDestinations] = useState<Map<string, Destination>>(new Map());
@@ -95,6 +110,7 @@ const Page = () => {
   /** Read by retrieval and search so a keystroke never re-subscribes anything. */
   const notesRef = useRef<Note[]>([]);
   const rulesRef = useRef<LearnedRule[]>([]);
+  const labelsRef = useRef<NoteCategory[]>([]);
   const editingRef = useRef<string | null>(null);
   const undoableRef = useRef<{ id: string; content: string } | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,6 +176,37 @@ const Page = () => {
                 void echo.folders.list().then((listed) => alive && setFolders(listed));
                 void echo.notes.list().then((listed) => alive && setNotes(listed));
                 break;
+              case "category.created":
+              case "category.renamed":
+                setCategories((current) => replace(current, event.category));
+                break;
+              case "category.deleted":
+                setCategories((current) =>
+                  current.filter((category) => category.id !== event.categoryId),
+                );
+                setAssignments((current) =>
+                  current.filter((assignment) => assignment.categoryId !== event.categoryId),
+                );
+                break;
+              case "note.categorized":
+                setAssignments((current) => [
+                  ...current.filter(
+                    (assignment) =>
+                      assignment.noteId !== event.assignment.noteId ||
+                      assignment.categoryId !== event.assignment.categoryId,
+                  ),
+                  event.assignment,
+                ]);
+                break;
+              case "note.uncategorized":
+                setAssignments((current) =>
+                  current.filter(
+                    (assignment) =>
+                      assignment.noteId !== event.noteId ||
+                      assignment.categoryId !== event.categoryId,
+                  ),
+                );
+                break;
               case "task.created":
               case "task.updated":
                 setTasks((current) => replace(current, event.task));
@@ -182,13 +229,21 @@ const Page = () => {
           for (const off of stop) off();
         };
 
-        const [listedNotes, listedFolders, listedTasks, learned] = await Promise.all([
-          echo.notes.list(),
-          echo.folders.list(),
-          echo.tasks.list(),
-          echo.learning.rules(),
-        ]);
+        const [listedNotes, listedFolders, listedCategories, listedLabels, listedTasks, learned] =
+          await Promise.all([
+            echo.notes.list(),
+            echo.folders.list(),
+            echo.categories.list(),
+            echo.categories.assignments(),
+            echo.tasks.list(),
+            echo.learning.rules(),
+          ]);
         if (!alive) return;
+        // Completing a sentence is a map lookup, so it may hang off the keystroke itself — but only
+        // once there is a model behind it. Until then the writing surfaces suggest nothing.
+        setComplete(() => (text: string) => echo.phrases.complete(text));
+        setCategories(listedCategories);
+        setAssignments(listedLabels);
         // Anything captured while the database was opening is already on screen, and it is newer
         // than everything the database has to say about it.
         setNotes((optimistic) => listedNotes.reduce(upsert, optimistic));
@@ -210,15 +265,36 @@ const Page = () => {
 
   notesRef.current = notes;
   rulesRef.current = rules;
+  labelsRef.current = assignments;
   editingRef.current = editingId;
   undoableRef.current = undoable;
 
   const editing = notes.find((note) => note.id === editingId) ?? null;
   const unfiled = useMemo(() => notes.filter((note) => note.folderId === null), [notes]);
-  const listed = useMemo(
-    () =>
-      folderFilter === undefined ? notes : notes.filter((note) => note.folderId === folderFilter),
-    [notes, folderFilter],
+  /** Every note's labels, arranged once for the whole screen rather than once per row. */
+  const labels = useMemo(() => byNote(assignments), [assignments]);
+  const labelCounts = useMemo(() => countByCategory(assignments), [assignments]);
+
+  const listed = useMemo(() => {
+    if (categoryFilter !== undefined) {
+      const tagged = new Set(
+        assignments
+          .filter((assignment) => assignment.categoryId === categoryFilter)
+          .map((assignment) => assignment.noteId),
+      );
+      return notes.filter((note) => tagged.has(note.id));
+    }
+    if (folderFilter === undefined) return notes;
+    return notes.filter((note) => note.folderId === folderFilter);
+  }, [notes, folderFilter, categoryFilter, assignments]);
+
+  /** The stream says what a note is about in one line, which is what keeps its rows memoized. */
+  const streamLabels = useCallback(
+    (noteId: string) =>
+      labelsOf(labels, categories, noteId)
+        .map(({ category }) => category.name)
+        .join(" · "),
+    [labels, categories],
   );
   const countOf = useCallback(
     (folderId: string) => notes.filter((note) => note.folderId === folderId).length,
@@ -261,7 +337,7 @@ const Page = () => {
     const found = await echo.retrieval.related(text, {
       notes: notesRef.current,
       excludeNoteId,
-      limit: 4,
+      limit: RELATED_LIMIT,
     });
     setRelated(found.map(({ note, semantic }) => ({ note, semantic })));
   }, []);
@@ -340,7 +416,7 @@ const Page = () => {
    * disappears again and the text comes back to the composer.
    */
   const capture = useCallback(
-    (content: string, task?: CapturedTask): Note => {
+    (content: string, task?: CapturedTask, categoryIds: string[] = []): Note => {
       const now = new Date();
       const note: Note = {
         id: crypto.randomUUID(),
@@ -375,6 +451,11 @@ const Page = () => {
           // After the note it belongs to, and only when the writer agreed: a task with no source is
           // a list item echo would have no way to explain.
           if (task) await echo.tasks.create({ noteId: note.id, ...task });
+          // What the neighbouring notes are about, applied rather than merely offered — and marked
+          // as echo's reading, so taking one off is a correction and not an argument.
+          for (const categoryId of categoryIds) {
+            await echo.categories.assign(note.id, categoryId, "auto");
+          }
         })
         .catch(() => setNotes((current) => current.filter((existing) => existing.id !== note.id)));
 
@@ -528,6 +609,58 @@ const Page = () => {
     if (parentId !== null) setExpanded((current) => new Set(current).add(parentId));
   }, []);
 
+  /**
+   * Labels a note. `auto` is echo's reading and `user` is the reader's word for it — the repository
+   * refuses to let the first overwrite the second, which is where that rule has to live to be true.
+   */
+  const categorize = useCallback(
+    async (noteId: string, categoryId: string, source: "user" | "auto" = "user") => {
+      const echo = await getEcho();
+      await echo.categories.assign(noteId, categoryId, source);
+    },
+    [],
+  );
+
+  const uncategorize = useCallback(async (noteId: string, categoryId: string) => {
+    const echo = await getEcho();
+    await echo.categories.unassign(noteId, categoryId);
+  }, []);
+
+  /** Naming a category from the pane. Nothing is labelled by it until something is. */
+  const createCategory = useCallback(async (name: string) => {
+    const echo = await getEcho();
+    await echo.categories.create({ name });
+  }, []);
+
+  /** Naming one from inside a note: making it and using it are one gesture, not two screens. */
+  const createCategoryFor = useCallback(async (noteId: string, name: string) => {
+    const echo = await getEcho();
+    const category = await echo.categories.create({ name });
+    await echo.categories.assign(noteId, category.id, "user");
+  }, []);
+
+  const renameCategory = useCallback(async (categoryId: string, name: string) => {
+    const echo = await getEcho();
+    await echo.categories.rename(categoryId, name);
+  }, []);
+
+  const deleteCategory = useCallback(async (categoryId: string) => {
+    const echo = await getEcho();
+    await echo.categories.delete(categoryId);
+    setCategoryFilter((current) => (current === categoryId ? undefined : current));
+  }, []);
+
+  /** The two questions narrow the same list, so answering one puts the other back to "everything". */
+  const filterByFolder = useCallback((folderId: string | undefined) => {
+    setCategoryFilter(undefined);
+    setFolderFilter(folderId);
+  }, []);
+
+  const filterByCategory = useCallback((categoryId: string | undefined) => {
+    setFolderFilter(undefined);
+    setCategoryFilter(categoryId);
+  }, []);
+
   const toggleExpanded = useCallback((folderId: string) => {
     setExpanded((current) => {
       const next = new Set(current);
@@ -563,6 +696,15 @@ const Page = () => {
    * Naming a folder happens in the tree, wherever it was asked for: the pane opens if it was shut,
    * and the row that turns into a text field takes the cursor from there.
    */
+  /** Naming a category happens in the pane, wherever it was asked for — the same way a folder does. */
+  const startNewCategory = useCallback(() => {
+    setNavigationOpen(true);
+    writePreference("notes-panel", true);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>('[aria-label="New category"]')?.click(),
+    );
+  }, []);
+
   const startNewFolder = useCallback(() => {
     setNavigationOpen(true);
     writePreference("notes-panel", true);
@@ -606,10 +748,31 @@ const Page = () => {
     undoable: undoable !== null,
     onView: changeView,
     onNewFolder: startNewFolder,
+    onNewCategory: startNewCategory,
     onUndo: undoCapture,
     onToggleNavigation: toggleNavigation,
     onToggleIntelligence: toggleIntelligence,
   });
+
+  /**
+   * What the draft is probably about, decided by what the notes nearest it are already labelled
+   * with. It costs nothing extra: the neighbours were already fetched for the Related panel, and
+   * this is a count over labels the screen is holding.
+   */
+  const predicted = useMemo(() => {
+    if (editingId !== null || related.length === 0 || categories.length === 0) return [];
+    const byId = new Map(categories.map((category) => [category.id, category]));
+    return suggestCategories(
+      related.map(({ note, semantic }) => ({
+        noteId: note.id,
+        similarity: semantic,
+        categoryIds: (labels.get(note.id) ?? []).map((assignment) => assignment.categoryId),
+      })),
+      // A label the reader keeps taking off goes quiet. Nothing here can invent one the notes did
+      // not already carry: history is a second opinion, never the evidence.
+      { weightOf: (categoryId) => adjust(1, ruleFor(rules, "category", categoryId)) },
+    ).flatMap((guess) => byId.get(guess.categoryId) ?? []);
+  }, [related, labels, categories, rules, editingId]);
 
   // Close enough to be the same thought written twice — unless the reader has already said it is
   // not, in which case echo does not get to ask again.
@@ -625,6 +788,8 @@ const Page = () => {
       onDraft={findRelated}
       rules={rules}
       onCorrect={correct}
+      predicted={predicted}
+      complete={complete}
       undoLabel={undoable ? shortcutLabel("undo-capture") : undefined}
       restore={restore}
       onRestored={clearRestore}
@@ -639,8 +804,14 @@ const Page = () => {
           key={editing.id}
           note={editing}
           location={folderPath(folders, editing.folderId)}
+          categories={categories}
+          labels={labelsOf(labels, categories, editing.id)}
+          complete={complete}
           onSave={save}
           onClose={closeNote}
+          onAddCategory={(noteId, categoryId) => void categorize(noteId, categoryId)}
+          onCreateCategory={(noteId, name) => void createCategoryFor(noteId, name)}
+          onRemoveCategory={(noteId, categoryId) => void uncategorize(noteId, categoryId)}
         />
       );
     }
@@ -677,7 +848,13 @@ const Page = () => {
           data-stream-scroll
           className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
         >
-          <Stream notes={notes} arrivedId={arrivedId} previewId={previewId} onOpen={openNote} />
+          <Stream
+            notes={notes}
+            labelsOf={streamLabels}
+            arrivedId={arrivedId}
+            previewId={previewId}
+            onOpen={openNote}
+          />
           <div className="sticky bottom-0 bg-background pt-2">{composer(true)}</div>
         </div>
       );
@@ -691,6 +868,7 @@ const Page = () => {
         notes={notes}
         loading={loading}
         failed={failed}
+        complete={complete}
         onSave={save}
         onCreate={write}
         onLeave={toggleEditorMode}
@@ -718,7 +896,7 @@ const Page = () => {
           <Explorer
             folders={folders}
             selectedFolderId={folderFilter}
-            onSelectFolder={setFolderFilter}
+            onSelectFolder={filterByFolder}
             onOpenInbox={() => changeView("inbox")}
             atInbox={view === "inbox" && editingId === null}
             inboxCount={unfiled.length}
@@ -731,6 +909,13 @@ const Page = () => {
             onDeleteFolder={(folderId) => void deleteFolder(folderId)}
             onMoveFolder={(folderId, parentId) => void moveFolder(folderId, parentId)}
             onMoveNote={(noteId, folderId) => void moveNote(noteId, folderId)}
+            categories={categories}
+            categoryCountOf={(categoryId) => labelCounts.get(categoryId) ?? 0}
+            selectedCategoryId={categoryFilter}
+            onSelectCategory={filterByCategory}
+            onCreateCategory={(name) => void createCategory(name)}
+            onRenameCategory={(categoryId, name) => void renameCategory(categoryId, name)}
+            onDeleteCategory={(categoryId) => void deleteCategory(categoryId)}
             notes={listed}
             loading={loading}
             failed={failed}
@@ -745,7 +930,7 @@ const Page = () => {
             <div className="min-h-0 flex-1">
               <Pane title="Related">
                 <RelatedNotes
-                  related={related}
+                  related={related.slice(0, RELATED_SHOWN)}
                   duplicate={duplicate}
                   analysis={analysis}
                   model={model}

@@ -1,5 +1,6 @@
 import type { Repositories } from "@echo/core";
 import type { PGliteInterface } from "@electric-sql/pglite";
+import { createCategoryRepository } from "./categories";
 import { createDatabase, type Database } from "./client";
 import { createEmbeddingRepository } from "./embeddings";
 import { createFolderRepository } from "./folders";
@@ -33,6 +34,7 @@ export const openRepositories = async (
     repositories: {
       notes: createNoteRepository(db),
       folders: createFolderRepository(db),
+      categories: createCategoryRepository(db),
       tasks: createTaskRepository(db),
       embeddings: createEmbeddingRepository(db),
       learning: createLearningRepository(db),

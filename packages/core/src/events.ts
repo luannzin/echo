@@ -1,4 +1,4 @@
-import type { Folder, LearningEvent, Note, Task } from "@echo/types";
+import type { Category, Folder, LearningEvent, Note, NoteCategory, Task } from "@echo/types";
 
 export type DomainEvent =
   | { type: "note.created"; note: Note }
@@ -9,6 +9,11 @@ export type DomainEvent =
   | { type: "folder.renamed"; folder: Folder }
   | { type: "folder.moved"; folder: Folder; previousParentId: string | null }
   | { type: "folder.deleted"; folderId: string }
+  | { type: "category.created"; category: Category }
+  | { type: "category.renamed"; category: Category }
+  | { type: "category.deleted"; categoryId: string }
+  | { type: "note.categorized"; assignment: NoteCategory }
+  | { type: "note.uncategorized"; noteId: string; categoryId: string }
   | { type: "task.created"; task: Task }
   | { type: "task.updated"; task: Task }
   | { type: "task.deleted"; taskId: string }

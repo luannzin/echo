@@ -3,17 +3,21 @@
 import type { KeyboardEvent } from "react";
 
 const INDENT_PX = 12;
-const GUTTER_PX = 20;
+/** Puts the field's text on the same edge as the name it is replacing, gutter and padding included. */
+const GUTTER_PX = 22;
 
 /** A row that is a text field for as long as it takes to name something. */
 export const FolderNameField = ({
   depth,
   initial = "",
+  label = "Folder name",
   onSubmit,
   onCancel,
 }: {
   depth: number;
   initial?: string;
+  /** What is being named. Categories are named in this same row, in the same pane. */
+  label?: string;
   onSubmit: (name: string) => void;
   onCancel: () => void;
 }) => {
@@ -40,8 +44,8 @@ export const FolderNameField = ({
       <input
         ref={takeCursor}
         defaultValue={initial}
-        aria-label="Folder name"
-        placeholder="Folder name"
+        aria-label={label}
+        placeholder={label}
         maxLength={200}
         onKeyDown={onKeyDown}
         // Clicking away keeps what was typed: the reader moved on, they did not change their mind,

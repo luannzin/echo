@@ -7,8 +7,10 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -97,6 +99,45 @@ export const noteColumns = {
  * ships no pgvector build today; on a server this column becomes `vector(384)` and gains an index
  * without touching the domain.
  */
+
+/**
+ * A label that goes on notes rather than a place notes go into. Unique by name inside a workspace,
+ * because two categories spelled the same are one category the reader has to keep choosing between.
+ */
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull().default(DEFAULT_WORKSPACE_ID),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("categories_name_key").on(table.workspaceId, table.name)],
+);
+
+/**
+ * Which categories a note carries. `source` is the whole reason this table has a column beyond its
+ * two keys: an `auto` row is echo's reading and may be replaced by a later one, a `user` row is a
+ * stated fact and nothing inferred is ever allowed to write over it.
+ */
+export const noteCategories = pgTable(
+  "note_categories",
+  {
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    source: text("source").notNull().default("user"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.noteId, table.categoryId] }),
+    index("note_categories_category_idx").on(table.categoryId),
+  ],
+);
 
 /**
  * Every correction as it happened. Rules are derived from these rows and never stored, so forgetting
