@@ -1,7 +1,7 @@
 "use client";
 
 import type { ParsedQuery } from "@echo/core";
-import { CalendarRange, FolderOpen, Quote, X } from "lucide-react";
+import { X } from "lucide-react";
 import { formatDay } from "@/shared/lib/time";
 
 /**
@@ -27,12 +27,12 @@ export const QueryChips = ({
   const place = query.place;
   if (!period && !place && !query.framing) return null;
 
-  const chip = (
-    key: "period" | "place",
-    Icon: typeof CalendarRange,
-    text: string,
-    detail: string,
-  ) => {
+  /**
+   * No icon. A calendar beside "semana passada" and a folder beside "Prod" say nothing the words do
+   * not, and a Lucide glyph small enough to sit in a 12px chip still carries a 2px stroke — it reads
+   * as a dense mark rather than as a small one, louder than the label it is decorating.
+   */
+  const chip = (key: "period" | "place", text: string, detail: string) => {
     const off = ignoring.has(key);
     return (
       <button
@@ -46,9 +46,9 @@ export const QueryChips = ({
             : "border-brand-bright/40 bg-brand-bright/[0.06] text-foreground"
         }`}
       >
-        <Icon aria-hidden="true" className="size-2.5 shrink-0" />
         <span className="max-w-40 truncate">{text}</span>
-        <X aria-hidden="true" className="size-2.5 shrink-0 opacity-60" />
+        {/* The one mark that earns its place: it is the affordance, not a label for the label. */}
+        <X aria-hidden="true" className="size-3 shrink-0 opacity-50" />
       </button>
     );
   };
@@ -64,17 +64,16 @@ export const QueryChips = ({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2">
-      {period ? chip("period", CalendarRange, period.text, span(period.from, period.to)) : null}
-      {place ? chip("place", FolderOpen, place.name, `Only notes in ${place.name}`) : null}
+      {period ? chip("period", period.text, span(period.from, period.to)) : null}
+      {place ? chip("place", place.name, `Only notes in ${place.name}`) : null}
       {/* Words that were a way of asking rather than part of the question. Not a filter — it took
           nothing away — so it is said rather than offered as a control. */}
       {query.framing ? (
         <span
-          className="inline-flex items-center gap-1 text-muted-foreground/70 text-xs"
+          className="max-w-56 truncate text-muted-foreground/70 text-xs italic"
           title="These words were how you asked, not what you asked about"
         >
-          <Quote aria-hidden="true" className="size-2.5" />
-          <span className="max-w-56 truncate">{query.framing}</span>
+          {query.framing}
         </span>
       ) : null}
       {filtered > 0 ? (

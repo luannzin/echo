@@ -1,7 +1,5 @@
 "use client";
 
-import { Plus } from "lucide-react";
-
 /**
  * What a note is about, read out of the words in it against the words in every other note. Nothing
  * was created and nothing was tagged: a concept exists because the reader keeps writing it.
@@ -39,11 +37,10 @@ export const Concepts = ({
             title={`Keep "${concept}" as a category`}
             className="inline-flex min-w-0 items-center gap-1 rounded-sm outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
+            {/* No icon. A plus beside a word small enough to sit in a 12px chip still carries a
+                2px stroke, so it reads as a dense mark rather than a small one — louder than the
+                concept it is decorating. Hover and the title carry the affordance instead. */}
             <span className="truncate">{concept}</span>
-            <Plus
-              aria-hidden="true"
-              className="size-2.5 shrink-0 opacity-0 transition-opacity duration-150 group-hover/concept:opacity-100"
-            />
           </button>
           <button
             type="button"

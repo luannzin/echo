@@ -35,7 +35,7 @@ export const countCoOpens = (
   opens: readonly Observation[],
   { windowMs = TOGETHER_MS }: { windowMs?: number } = {},
 ): CoOpens => {
-  const inOrder = [...opens].sort((a, b) => a.at.getTime() - b.at.getTime());
+  const inOrder = [...(opens || [])].sort((a, b) => a.at.getTime() - b.at.getTime());
   const pairs = new Map<string, Map<string, number>>();
 
   for (const [index, open] of inOrder.entries()) {

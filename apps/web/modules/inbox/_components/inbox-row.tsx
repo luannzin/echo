@@ -21,6 +21,7 @@ export const InboxRow = ({
   folders,
   places,
   suggestion,
+  reasonsFor,
   onAccept,
   onMove,
   onOpen,
@@ -31,6 +32,8 @@ export const InboxRow = ({
   /** Every folder, named and ordered once by the list rather than once per row. */
   places: FolderPath[];
   suggestion: Destination | undefined;
+  /** Why this folder, in sentences. Empty when echo has nothing to say beyond the neighbours. */
+  reasonsFor: (noteId: string, suggestion: Destination) => string[];
   onAccept: (noteId: string, destination: Destination) => void;
   onMove: (noteId: string, folderId: string, suggested: Destination | undefined) => void;
   onOpen: (noteId: string, from: HTMLElement) => void;
@@ -108,9 +111,20 @@ export const InboxRow = ({
         </Menu>
 
         {suggestion ? (
-          <Badge variant="outline" className="font-normal text-muted-foreground">
-            {evidence(suggestion)}
-          </Badge>
+          /* A summary you can press for the whole answer. "Why?" has to be answerable, and the
+             answer is the reader's own habit and their own notes — never a score. */
+          <details className="group/why">
+            <summary className="cursor-pointer list-none outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Badge variant="outline" className="font-normal text-muted-foreground">
+                {evidence(suggestion)} · why?
+              </Badge>
+            </summary>
+            <ul className="basis-full pt-2 ps-1 text-muted-foreground text-xs leading-5">
+              {reasonsFor(note.id, suggestion).map((reason) => (
+                <li key={reason}>· {reason}</li>
+              ))}
+            </ul>
+          </details>
         ) : null}
       </div>
     </div>

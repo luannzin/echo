@@ -1,12 +1,13 @@
 "use client";
 
-import { buildTimeline, type Change } from "@echo/core";
+import { buildTimeline, type Change, type ProjectBrief } from "@echo/core";
 import type { Note } from "@echo/types";
 import { History } from "lucide-react";
 import { useMemo } from "react";
 import { NoteListSkeleton } from "@/modules/notes/_components/note-list-skeleton";
 import { ChangesBlock } from "@/modules/timeline/_components/changes-block";
 import { NowBand } from "@/modules/timeline/_components/now-band";
+import { ProjectBriefBlock } from "@/modules/timeline/_components/project-brief";
 import { TimelineDayRow } from "@/modules/timeline/_components/timeline-day";
 import { groupByMonth, type Upcoming } from "@/modules/timeline/model";
 import { EmptyState } from "@/shared/_components/empty-state";
@@ -24,20 +25,25 @@ export const Timeline = ({
   notes,
   conceptsOf,
   scope,
+  brief,
   change,
   upcoming,
   loading,
   onOpen,
+  onOpenTasks,
 }: {
   notes: Note[];
   /** A note's labels, by name. The page arranges them once; this never asks per row. */
   conceptsOf: (noteId: string) => readonly string[];
   /** What is being looked at, named — or null for everything the reader has written. */
   scope: string | null;
+  /** What this project is, when one is selected. Null for the whole corpus. */
+  brief: ProjectBrief | null;
   change: Change | null;
   upcoming: Upcoming[];
   loading: boolean;
   onOpen: (noteId: string, from: HTMLElement) => void;
+  onOpenTasks: () => void;
 }) => {
   const byId = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes]);
   const months = useMemo(
@@ -72,8 +78,18 @@ export const Timeline = ({
         </Label>
       </div>
 
-      <NowBand upcoming={upcoming} onOpen={onOpen} />
+      {/* What the project is, then what changed while you were away, then what this week holds,
+          then the days themselves. One screen, read top to bottom. */}
+      {scope && brief ? (
+        <ProjectBriefBlock
+          brief={brief}
+          scope={scope}
+          onOpenNote={onOpen}
+          onOpenTasks={onOpenTasks}
+        />
+      ) : null}
       {scope ? <ChangesBlock change={change} scope={scope} onOpen={onOpen} /> : null}
+      <NowBand upcoming={upcoming} onOpen={onOpen} />
 
       {months.map((month) => (
         <section key={month.key} className="pb-6">

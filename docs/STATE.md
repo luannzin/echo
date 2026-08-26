@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1, S2 and S3**
+Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1–S4**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -402,9 +402,57 @@ note above an equally-scoring one and said `you usually open them together`.
 are the only thing the palette searches — the chip would be decoration until tasks are searchable
 too.
 
+### S4 — Project memory
+Last of the four. What a project is, where a pile of notes would go, and why echo thinks so — all
+derived, none of it maintained by hand.
+
+- **`@echo/core/brief.ts` — the project brief.** Nobody writes this and nobody keeps it current:
+  there is no project description to go stale, because it is built from the notes every time it is
+  read. Count, span, the latest few notes, recurring themes and what is still open. `null` for an
+  empty project — an empty brief would be a lie about a project that has nothing in it.
+- **Themes lead with the reader's own words.** Stated categories first, most-used first, then the
+  concepts the writing is distinctive for against the whole corpus (S2's vocabulary), with anything
+  the reader already named filtered out so echo never repeats a word back at them. A project nobody
+  has labelled is still described — in the words its own notes are distinctive for.
+- **The brief sits on top of the scoped timeline.** Selecting a folder or category already made the
+  timeline that project's screen; it now reads top to bottom as *what this project is → what changed
+  while you were away → what this week holds → the days themselves*. No second destination, and
+  nothing that has to agree with a count somewhere else.
+- **Organize the Inbox** (`modules/inbox/plan.ts`). One press works the whole pile out and shows it
+  grouped by destination — every note visible under the folder it is bound for, every one
+  re-assignable without leaving the plan, and nothing moved until "File N". Filing fourteen notes
+  wrongly is a far worse afternoon than filing them one at a time, so the plan is something the
+  reader reads rather than something they undo. Accepting records the same `signal_accepted` a
+  single acceptance does: filing a note is what teaches echo where notes like it go.
+- **"Why?" answers** (item 16). The Inbox row's evidence badge is a disclosure now: the habit first,
+  then the notes that actually argued for it, by name. A reason you can open is a reason you can
+  disagree with; a percentage is not.
+- **"Because you usually…"** (item 17). `reasonsFor` intersects the note's concepts with the concepts
+  common to the suggested folder's notes and says it plainly — *you usually put Next and prod notes
+  there*. Concepts, not categories alone: categories would leave this silent on a corpus nobody has
+  tagged, which is exactly the corpus concepts were built for. Read on demand and cached per note
+  until the note changes, because answering "why?" for a folder of fifty notes reads all fifty.
+- **Soft placement** (item 14). A note's folder now reads `In Prod` rather than as a bare fact, with
+  its labels and concepts directly beneath — the folder is the likeliest place a note lives, never
+  the only way to reach it.
+- Tests: 12 new (`brief.test.ts` 7, `plan.test.ts` 5). 188 pass overall.
+
+Verified in the running app: the HEREZE timeline opened with *You have written 2 notes about HEREZE,
+from Today to Today*, its recent notes and its recurring themes above the change block and the week
+band; asking why a note was bound for `Prod` answered *you usually put Next and prod notes there*
+followed by the two notes that argued for it; Organize showed 13 of 14 moving, sending one note
+elsewhere moved that note and left the other twelve exactly where they were, and File 13 emptied the
+Inbox to the single note that was staying put.
+
+**Fixed while verifying:** re-assigning one note in the plan reset every other note to "staying in
+the Inbox" — the plan was rebuilt from an override map that had never been seeded, so only the note
+just moved had an entry. `planFiling` now takes where a note is bound rather than a whole
+`Destination`, and the map is seeded when the plan is made.
+
 ## In progress
-- Nothing. S4 (project memory: the automatic brief, soft placement, organize inbox, "because you
-  usually") is the last of the four. All three of its dependencies are in.
+- Nothing. All four sub-projects are done. Still open from Phase 5: whether projects should be their
+  own entity — the brief is the first thing in the product that treats a folder as a project, so
+  that decision has evidence behind it now rather than only a shape.
 
 ## Next
 1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has
@@ -460,6 +508,9 @@ too.
 | 2026-08-26 | Mobile is CSS, not a second tree | one note list in the document, one drag target, and no guess about the viewport before the browser has said what it is |
 | 2026-08-26 | Service worker precaches nothing | the app loads all of it on the first visit anyway; a precache list would download 13MB before the first note |
 | 2026-08-26 | The document is network-first, everything else cache-first | a stale shell would pin a reader to an old build; hashed assets never go stale |
+| 2026-08-26 | The project brief is derived on read, never stored | a description that has to be maintained is a description that goes stale; this one is either right or the notes are |
+| 2026-08-26 | Organize shows the plan before it moves anything | filing fourteen notes wrongly is a far worse afternoon than filing them one at a time; undo is not the same promise as never having done it |
+| 2026-08-26 | "Why?" answers with a habit and named notes, never a score | a reason you can open is a reason you can disagree with |
 | 2026-08-26 | Extracted filters narrow rather than re-order | "from last month" has to mean something; it is only fair because every filter is a chip one press from gone, and the row says how many notes it set aside |
 | 2026-08-26 | Meaning dropped from 0.55 to 0.45 to make room for context | a note can be almost exactly about the same words and still be the wrong note; belonging can pass seventeen points of meaning and no more |
 | 2026-08-26 | `note_opened` in `observations`, not `learning_events` | which notes are read together is a fact about how the reader works, not an opinion about anything echo inferred |

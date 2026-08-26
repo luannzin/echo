@@ -2,11 +2,13 @@
 
 import {
   buildAnchors,
+  buildBrief,
   type Change,
   type CoOpens,
   deriveTitle,
   folderPath,
   type Place,
+  type ProjectBrief,
   whatChanged,
 } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
@@ -26,7 +28,9 @@ import { paletteCommands } from "@/app/commands";
 import { type CapturedTask, Composer } from "@/modules/capture/_components/composer";
 import { EditorMode } from "@/modules/editor/_components/editor-mode";
 import { Explorer } from "@/modules/explorer/_components/explorer";
+import { FilingPlan } from "@/modules/inbox/_components/filing-plan";
 import { Inbox } from "@/modules/inbox/_components/inbox";
+import { type FilingGroup, planFiling, reasonsFor as reasonsForNote } from "@/modules/inbox/plan";
 import { Learned } from "@/modules/intelligence/_components/learned";
 import { RelatedNotes } from "@/modules/intelligence/_components/related-notes";
 import type { Related } from "@/modules/intelligence/related";
@@ -43,6 +47,7 @@ import type { Upcoming } from "@/modules/timeline/model";
 import { Label } from "@/shared/_components/label";
 import { byNote, countByCategory, labelsOf, type NoteLabels } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
+import { folderPaths } from "@/shared/lib/folder-paths";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import type { Suggestion } from "@/shared/lib/retrieval";
 import { registerServiceWorker } from "@/shared/lib/service-worker";
@@ -134,6 +139,15 @@ const Page = () => {
   const editingRef = useRef<string | null>(null);
   /** The narrowed list and the labels behind it, so opening the timeline never re-subscribes. */
   const listedRef = useRef<Note[]>([]);
+  const tasksRef = useRef<Task[]>([]);
+  const foldersRef = useRef<Folder[]>([]);
+  /**
+   * Where every note in the open plan is bound. Seeded from what echo worked out and then edited by
+   * the reader — one map, so sending one note elsewhere cannot disturb where the others are going.
+   */
+  const movedTo = useRef<Map<string, string | null>>(new Map());
+  /** Concepts read out of a note's own words, kept until the note changes. */
+  const conceptCache = useRef<Map<string, { at: number; concepts: string[] }>>(new Map());
   /** The opened runtime, for the one lookup that is answered from memory on a keystroke. */
   const runtime = useRef<Awaited<ReturnType<typeof getEcho>> | null>(null);
   const conceptsRef = useRef<(noteId: string) => readonly string[]>(() => []);
@@ -394,6 +408,17 @@ const Page = () => {
     return null;
   }, [categoryFilter, folderFilter, categories, folders]);
 
+  /**
+   * What this project is, as echo reads it. Derived on every read like everything else here: there
+   * is no description to keep current and nothing that can go stale.
+   */
+  const [brief, setBrief] = useState<ProjectBrief | null>(null);
+  /**
+   * Where the whole pile would go, once the reader has asked. Null until they have: nothing moves
+   * before the plan has been read, so the plan has to exist as a thing on screen first.
+   */
+  const [plan, setPlan] = useState<FilingGroup[] | null>(null);
+
   /** Which project "since you were last here" is measured against. */
   const scopeSubject = categoryFilter ?? folderFilter ?? null;
 
@@ -441,6 +466,8 @@ const Page = () => {
 
   // Read inside callbacks and effects, so none of them re-subscribes when any of this changes.
   listedRef.current = listed;
+  tasksRef.current = tasks;
+  foldersRef.current = folders;
   labelsRef.current = labels;
   conceptsRef.current = conceptsOf;
   placesRef.current = places;
@@ -573,6 +600,33 @@ const Page = () => {
     };
     // The temporal pass fills as it goes, so a settled analysis is the moment to read it again.
   }, [view, scopeSubject, notes.length, listed.length, analysis.pending]);
+
+  /**
+   * What this project is. Themes come from the vocabulary rather than from the categories alone, so
+   * a project nobody has labelled is still described — in the words its own notes are distinctive
+   * for, against every other note the reader has written.
+   */
+  useEffect(() => {
+    if (view !== "timeline" || scopeSubject === null) {
+      setBrief(null);
+      return;
+    }
+
+    let alive = true;
+    void getEcho().then((echo) => {
+      if (!alive) return;
+      setBrief(
+        buildBrief(listedRef.current, tasksRef.current, {
+          categoriesOf: conceptsRef.current,
+          themesOf: (text) => echo.vocabulary.conceptsOf(text, 5),
+        }),
+      );
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [view, scopeSubject, listed.length, tasks]);
 
   /**
    * What arrived in this project while the reader was away. Recording the visit returns the one
@@ -886,6 +940,105 @@ const Page = () => {
     [correct, moveNote],
   );
 
+  /**
+   * What a note is about: the labels the reader put on it, plus the words its own text is
+   * distinctive for. Cached per note until the note changes — answering "why?" for a folder of
+   * fifty notes reads all fifty, and only when someone actually asks.
+   */
+  const readConceptsOf = useCallback(
+    (noteId: string): readonly string[] => {
+      const note = notesRef.current.find((held) => held.id === noteId);
+      if (!note) return [];
+      const at = note.updatedAt.getTime();
+      const held = conceptCache.current.get(noteId);
+      if (held?.at === at) return held.concepts;
+
+      const seen = new Set<string>();
+      const concepts: string[] = [];
+      for (const concept of [
+        ...conceptsOf(noteId),
+        ...(runtime.current?.vocabulary.conceptsOf(note.content, 4) ?? []),
+      ]) {
+        const key = concept.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        concepts.push(concept);
+      }
+
+      conceptCache.current.set(noteId, { at, concepts });
+      return concepts;
+    },
+    [conceptsOf],
+  );
+
+  /**
+   * Why echo suggests a folder, in sentences rather than a score: the reader's own habit first —
+   * "you usually put React and TypeScript notes there" — then the notes that actually argued for it,
+   * by name. A reason you can open is a reason you can disagree with.
+   */
+  const explainDestination = useCallback(
+    (noteId: string, suggestion: Destination): string[] => {
+      const note = notes.find((held) => held.id === noteId);
+      if (!note) return [];
+      return reasonsForNote({
+        note,
+        destination: suggestion,
+        notesIn: notes.filter((held) => held.folderId === suggestion.folderId),
+        // The reader's stated labels *and* what their words are distinctive for. Categories alone
+        // would leave this silent on a corpus nobody has tagged — which is the corpus concepts
+        // were built for.
+        conceptsOf: readConceptsOf,
+        titleOf: (id) => notes.find((held) => held.id === id)?.title,
+      });
+    },
+    [notes, readConceptsOf],
+  );
+
+  /** The whole pile worked out at once, grouped by where it is bound. Nothing has moved yet. */
+  const organize = useCallback(() => {
+    movedTo.current = new Map(
+      unfiled.map((note) => [note.id, destinations.get(note.id)?.folderId ?? null]),
+    );
+    setPlan(planFiling(unfiled, folders, (noteId) => movedTo.current.get(noteId) ?? null));
+  }, [unfiled, folders, destinations]);
+
+  /** Sending one note somewhere else before the plan is accepted. Only that note moves. */
+  const reassign = useCallback((noteId: string, folderId: string | null) => {
+    movedTo.current.set(noteId, folderId);
+    setPlan((current) =>
+      current === null
+        ? current
+        : planFiling(
+            current.flatMap((group) => group.notes),
+            foldersRef.current,
+            (id) => movedTo.current.get(id) ?? null,
+          ),
+    );
+  }, []);
+
+  /**
+   * The plan, applied. One action, so `⌘Z`-shaped regret has one thing to undo — and every move is
+   * the same learning signal a single acceptance is, because filing a note is what teaches echo
+   * where notes like it go.
+   */
+  const acceptPlan = useCallback(() => {
+    const current = plan;
+    if (!current) return;
+    setPlan(null);
+    for (const group of current) {
+      if (group.folderId === null) continue;
+      for (const note of group.notes) {
+        void moveNote(note.id, group.folderId);
+        void correct({
+          type: "signal_accepted",
+          kind: "destination",
+          subject: group.folderId,
+          noteId: note.id,
+        });
+      }
+    }
+  }, [plan, moveNote, correct]);
+
   const createFolder = useCallback(async (name: string, parentId: string | null) => {
     const echo = await getEcho();
     await echo.folders.create({ name, parentId });
@@ -1118,6 +1271,17 @@ const Page = () => {
         />
       );
     }
+    if (view === "inbox" && plan) {
+      return (
+        <FilingPlan
+          plan={plan}
+          places={folderPaths(folders)}
+          onReassign={reassign}
+          onAccept={acceptPlan}
+          onCancel={() => setPlan(null)}
+        />
+      );
+    }
     if (view === "inbox") {
       return (
         <Inbox
@@ -1128,6 +1292,8 @@ const Page = () => {
           onMove={chooseDestination}
           onOpen={openNote}
           onNewFolder={startNewFolder}
+          onOrganize={organize}
+          reasonsFor={explainDestination}
         />
       );
     }
@@ -1149,10 +1315,12 @@ const Page = () => {
           notes={listed}
           conceptsOf={conceptsOf}
           scope={scopeName}
+          brief={brief}
           change={change}
           upcoming={upcoming}
           loading={loading}
           onOpen={openNote}
+          onOpenTasks={() => changeView("tasks")}
         />
       );
     }

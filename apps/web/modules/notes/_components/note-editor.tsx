@@ -82,10 +82,15 @@ export const NoteEditor = ({
           Back to writing
           <Kbd className="ml-1">Esc</Kbd>
         </button>
-        {/* Metadata stays secondary: where the note is, said quietly, next to what it is doing. */}
+        {/* Metadata stays secondary: where the note is, said quietly, next to what it is doing.
+            "In" rather than the bare path, because a folder is the likeliest place a note lives and
+            not the only way to reach it — the labels and concepts below this find it too. */}
         <div className="flex min-w-0 items-center gap-3">
-          <span className="min-w-0 truncate">
-            <Label>{location}</Label>
+          <span
+            className="min-w-0 truncate"
+            title={`Kept in ${location}. The labels and concepts below find it too.`}
+          >
+            <Label>In {location}</Label>
           </span>
           {state === "idle" ? null : (
             <span key={state} className="animate-settle">

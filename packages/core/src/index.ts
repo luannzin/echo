@@ -10,6 +10,7 @@ import { createTaskService, type TaskService } from "./tasks";
 import { createTemporalService, type TemporalService } from "./temporal-service";
 
 export * from "./analyzer";
+export * from "./brief";
 export * from "./categories";
 export * from "./changes";
 export * from "./clock";
