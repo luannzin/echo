@@ -89,3 +89,18 @@ test("the same note parses the same way twice", () => {
   const content = "revisar auth antes de sexta\n- [ ] mandar o resumo";
   expect(JSON.stringify(on(content))).toBe(JSON.stringify(on(content)));
 });
+
+test("Portuguese offsets chrono's own locale misses", () => {
+  expect(dayOf(on("comprar leite em 3 dias").dates[0])).toEqual(new Date(2026, 7, 29));
+  expect(dayOf(on("daqui a 3 dias").dates[0])).toEqual(new Date(2026, 7, 29));
+  expect(dayOf(on("dentro de duas semanas").dates[0])).toEqual(new Date(2026, 8, 9));
+  expect(dayOf(on("semana que vem").dates[0])).toEqual(new Date(2026, 8, 2));
+  expect(dayOf(on("depois de amanha").dates[0])).toEqual(new Date(2026, 7, 28));
+});
+
+test("a bare date just gone stays in this year", () => {
+  // Written on 26 August: 6 August is three weeks back, not eleven months forward.
+  expect(dayOf(on("06/08").dates[0])).toEqual(new Date(2026, 7, 6));
+  // Far enough back that the writer meant the one coming.
+  expect(dayOf(on("06/03").dates[0])).toEqual(new Date(2027, 2, 6));
+});

@@ -28,20 +28,17 @@ export const TopBar = ({
   const atHome = view === "home";
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4">
+    // Three columns rather than a row with a gap: the middle one is centred on the header, which is
+    // centred on the writing, so search sits over the column the reader is already looking down.
+    <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4">
       <Label>echo</Label>
-      <div className="flex items-center gap-1">
-        {/* The shortcut is printed on the control, which is how anyone learns it exists. */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onSearch}
-          className="gap-2 text-muted-foreground"
-        >
-          <Search aria-hidden="true" />
-          <span className="hidden sm:inline">Search</span>
-          <Kbd className="ms-1 hidden sm:inline-flex">{searchShortcut}</Kbd>
-        </Button>
+      {/* The shortcut is printed on the control, which is how anyone learns it exists. */}
+      <Button variant="ghost" size="sm" onClick={onSearch} className="gap-2 text-muted-foreground">
+        <Search aria-hidden="true" />
+        <span className="hidden sm:inline">Search</span>
+        <Kbd className="ms-1 hidden sm:inline-flex">{searchShortcut}</Kbd>
+      </Button>
+      <div className="flex items-center justify-end gap-1">
         <Button
           variant="ghost"
           size="sm"

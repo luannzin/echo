@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete — installable, offline, and at home on a phone**
+Last updated: 2026-08-26 · Phase: **6 complete, plus a fixes pass on the panels, tasks and dates**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -116,8 +116,34 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   Applied to: heading entrance, list stagger (28ms, first 8 items), save-button scale+fade,
   save-state indicator, focus ring, press feedback. Reduced motion still collapses all of it.
 
+### Fixes pass — panels, tasks, dates, capture
+- **Side panels give their width back again.** Both asides carried their open width in the base
+  class list *and* in the open branch, so the closed branch's `md:w-0` / `lg:w-0` lost the cascade
+  to it: the panel faded out and kept its column. Closed is now 1px of border, and the workspace
+  grows from 664px to 1222px at 1280 wide.
+- **Search sits over the writing.** The header is a three-column grid, so the middle cell is centred
+  on the workspace rather than pushed right by whatever is beside it.
+- **Detection acts, and is corrected rather than confirmed.** A note that reads like a task becomes
+  one on Enter, with whatever date the note gave it; the chip is a statement of what will happen and
+  its menu is where the reader says otherwise. One threshold (`WORTH_SAYING`) now decides both
+  saying and doing — a suggestion the interface showed but quietly declined to act on was the
+  original bug.
+- **A date that was only mentioned still sets the due date.** It earns a chip too, because a due
+  date nothing on screen names cannot be corrected.
+- **The Portuguese chrono locale's gaps are filled** (`packages/parser/src/relative-pt.ts`):
+  `em 3 dias`, `daqui a duas semanas`, `dentro de um mês`, `semana que vem`, `próximo mês`,
+  `depois de amanhã` — the last three returned nothing, and `daqui a 3 dias` read as three o'clock.
+- **A bare `06/08` written on 26 August means this year.** `forwardDate` is right for a weekday and
+  wrong for a date the writer spelled out; a 30-day grace window keeps `05/01` written in December
+  meaning January.
+- **Task rows.** The whole row ticks the box (the checkbox stays the only control a keyboard or
+  screen reader sees), the source note's folder and a `Done just now` stamp are on the row, the due
+  date carries its exact date as a title, and focus inside the row lights it the way hover does.
+- Deleted the commented-out webpack alias in `apps/web/next.config.ts` and the unused
+  `transformersWeb` path it left behind — it was failing `bun run lint`.
+
 ## In progress
-- Nothing. Phase 6 closed with the PWA, the mobile layout and the desktop shell below.
+- Nothing.
 
 ## Next
 1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has

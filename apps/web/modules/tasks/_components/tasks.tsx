@@ -1,6 +1,6 @@
 "use client";
 
-import type { Note, Task } from "@echo/types";
+import type { Folder, Note, Task } from "@echo/types";
 import { SquareCheck } from "lucide-react";
 import { TaskRow } from "@/modules/tasks/_components/task-row";
 import { groupTasks, SECTION_HEADING, SECTIONS } from "@/modules/tasks/sections";
@@ -9,19 +9,21 @@ import { Label } from "@/shared/_components/label";
 import { stagger } from "@/shared/lib/stagger";
 
 /**
- * Everything the reader has agreed to do, and the note each one came out of. There is no way to add
- * a task here on purpose: a task is something a note already said, so it is created where the note
- * is written and lives here afterwards.
+ * Everything the notes said there was to do, and the note each one came out of. There is no way to
+ * add a task here on purpose: a task is something a note already said, so it is created where the
+ * note is written and lives here afterwards.
  */
 export const Tasks = ({
   tasks,
   noteOf,
+  folders,
   onToggle,
   onDelete,
   onOpenNote,
 }: {
   tasks: Task[];
   noteOf: (noteId: string) => Note | undefined;
+  folders: Folder[];
   onToggle: (task: Task, completed: boolean) => void;
   onDelete: (task: Task) => void;
   onOpenNote: (noteId: string, from: HTMLElement) => void;
@@ -29,8 +31,8 @@ export const Tasks = ({
   if (tasks.length === 0) {
     return (
       <EmptyState icon={SquareCheck} title="Nothing to do yet.">
-        When you write something that reads like a task, echo offers it as one. Agree, and it
-        appears here with whatever date the note gave it.
+        Write something that reads like a task and it lands here, with whatever date the note gave
+        it. Say the word on the chip and echo drops it.
       </EmptyState>
     );
   }
@@ -62,6 +64,7 @@ export const Tasks = ({
                   <TaskRow
                     task={task}
                     note={noteOf(task.noteId)}
+                    folders={folders}
                     late={section === "overdue"}
                     onToggle={onToggle}
                     onDelete={onDelete}

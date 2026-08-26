@@ -607,6 +607,7 @@ const Page = () => {
         <Tasks
           tasks={tasks}
           noteOf={(noteId) => notes.find((note) => note.id === noteId)}
+          folders={folders}
           onToggle={(task, completed) => void toggleTask(task, completed)}
           onDelete={(task) => void deleteTask(task)}
           onOpenNote={openNote}

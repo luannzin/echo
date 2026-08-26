@@ -1,4 +1,5 @@
 import * as chrono from "chrono-node";
+import { PT_RELATIVE } from "./relative-pt";
 
 export type DetectedDate = {
   /** The words that produced the date, exactly as the writer typed them. */
@@ -21,7 +22,38 @@ const DEADLINE_MARKERS =
  * Portuguese runs first so numeric dates read day-first (`03/12` is 3 December), which is how the
  * writer's locale — and most of the world — writes them. English then covers what it misses.
  */
-const PARSERS = [chrono.pt.casual, chrono.en.casual];
+const PARSERS = [withPortugueseOffsets(), chrono.en.casual];
+
+function withPortugueseOffsets(): chrono.Chrono {
+  const parser = chrono.pt.casual.clone();
+  // Ahead of the built-ins: `daqui a 3 dias` matches chrono's clock parser too, and whichever
+  // reads it first wins the span.
+  parser.parsers.unshift(...PT_RELATIVE);
+  return parser;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** How far back a bare `06/08` is still read as the one that just went by. */
+const RECENT_PAST_MS = 30 * DAY_MS;
+
+/**
+ * `forwardDate` is right for a weekday — `sexta` means the one coming — and wrong for a date the
+ * writer spelled out. Written on 26 August, `06/08` is three weeks gone, not eleven months away,
+ * and a note-taker that silently books it for next year cannot be corrected, because nothing on
+ * screen says it happened.
+ *
+ * ponytail: a 30-day grace window, which is what makes `05/01` written in December still mean
+ * January. Per-writer tuning, if this ever reads wrong.
+ */
+const settleYear = (result: chrono.ParsedResult, now: Date): Date => {
+  const date = result.start.date();
+  if (result.start.isCertain("year")) return date;
+
+  const lastYear = new Date(date);
+  lastYear.setFullYear(date.getFullYear() - 1);
+  const behind = now.getTime() - lastYear.getTime();
+  return behind > 0 && behind <= RECENT_PAST_MS ? lastYear : date;
+};
 
 const fold = (text: string): string => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -45,7 +77,7 @@ export const detectDates = (content: string, now: Date): DetectedDate[] => {
       found.push({
         // chrono keeps the punctuation it swallowed; the interface shows this text verbatim.
         text: result.text.replace(/[\s,.;:]+$/, ""),
-        date: result.start.date(),
+        date: settleYear(result, now),
         kind: framing ? "deadline" : "date",
         marker: framing ? framing[0].trim().replace(/\s+/g, " ") : null,
       });

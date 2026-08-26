@@ -81,7 +81,7 @@ export const AppShell = ({
     <aside
       aria-label="Navigation"
       inert={!navigationOpen}
-      className={`fixed inset-y-0 start-0 z-40 w-[min(20rem,85vw)] shrink-0 overflow-hidden border-e bg-sidebar shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] md:relative md:z-auto md:w-60 md:bg-transparent md:shadow-none md:transition-[width,opacity,border-color] md:duration-180 ${
+      className={`fixed inset-y-0 start-0 z-40 w-[min(20rem,85vw)] shrink-0 overflow-hidden border-e bg-sidebar shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] md:relative md:z-auto md:bg-transparent md:shadow-none md:transition-[width,opacity,border-color] md:duration-180 ${
         navigationOpen
           ? "translate-x-0 border-border md:w-60 md:opacity-100 rtl:-translate-x-0"
           : "-translate-x-full border-transparent md:pointer-events-none md:w-0 md:translate-x-0 md:opacity-0 rtl:translate-x-full"
@@ -115,7 +115,7 @@ export const AppShell = ({
     <aside
       aria-label="Intelligence"
       inert={!intelligenceOpen}
-      className={`fixed inset-x-0 bottom-0 z-40 h-[60dvh] shrink-0 overflow-hidden rounded-t-2xl border-t bg-card shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:w-80 lg:rounded-none lg:border-t-0 lg:border-s lg:bg-transparent lg:shadow-none lg:transition-[width,opacity,border-color] lg:duration-180 ${
+      className={`fixed inset-x-0 bottom-0 z-40 h-[60dvh] shrink-0 overflow-hidden rounded-t-2xl border-t bg-card shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:rounded-none lg:border-t-0 lg:border-s lg:bg-transparent lg:shadow-none lg:transition-[width,opacity,border-color] lg:duration-180 ${
         intelligenceOpen
           ? "translate-y-0 border-border lg:w-80 lg:translate-y-0 lg:opacity-100"
           : "translate-y-full border-transparent lg:w-0 lg:translate-y-0 lg:opacity-0"

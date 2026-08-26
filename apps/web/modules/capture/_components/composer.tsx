@@ -7,7 +7,7 @@ import { CornerDownLeft } from "lucide-react";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Kbd } from "@/components/ui/kbd";
 import { type Answer, SignalChip } from "@/modules/capture/_components/signal-chip";
-import { readSignals, signalKey } from "@/modules/capture/signals";
+import { believes, readSignals, type Signal, signalKey } from "@/modules/capture/signals";
 import { Label } from "@/shared/_components/label";
 
 const MAX_HEIGHT = 420;
@@ -41,7 +41,7 @@ export const Composer = ({
   onRestored,
   docked = false,
 }: {
-  /** Returns the note synchronously. A task comes with it only when the writer agreed to one. */
+  /** Returns the note synchronously. A task comes with it unless the writer said it was not one. */
   onCapture: (content: string, task?: CapturedTask) => Note;
   /** Fires behind the typing, never in front of it: retrieval is allowed to be late. */
   onDraft: (text: string) => void;
@@ -119,11 +119,22 @@ export const Composer = ({
     // keystroke behind, and a task is made from what was actually written.
     const parsed = parse(draft);
     const task = parsed.tasks[0];
-    const agreed = task !== undefined && settled[`task-phrase:${task.trigger}`] === "accepted";
+    // On by default. Echo acts on what it read, and the writer's job is to say when it is wrong —
+    // a chip that has to be pressed before anything happens is a to-do list with extra steps.
+    const wanted = (kind: Signal["kind"]) => {
+      const signal = readSignals(parsed).find((candidate) => candidate.kind === kind);
+      if (!signal) return false;
+      const answered = settled[signalKey(signal)];
+      if (answered) return answered === "accepted";
+      return believes(signal, rules);
+    };
+    const when = parsed.deadline ?? parsed.dates[0];
 
     onCapture(
       draft,
-      agreed && task ? { title: task.text, dueAt: parsed.deadline?.date ?? null } : undefined,
+      task && wanted("task-phrase")
+        ? { title: task.text, dueAt: when && wanted("deadline-phrase") ? when.date : null }
+        : undefined,
     );
     setDraft("");
     setSettled({});
