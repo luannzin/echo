@@ -2,7 +2,7 @@
 
 import { type Change, deriveTitle, folderPath, whatChanged } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
-import { adjust, affinity, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
+import { adjust, affinity, aliasKey, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
 import { type Destination, DUPLICATE_SIMILARITY, suggestCategories } from "@echo/search";
 import {
   type Category,
@@ -33,10 +33,10 @@ import { Tasks } from "@/modules/tasks/_components/tasks";
 import { Timeline } from "@/modules/timeline/_components/timeline";
 import type { Upcoming } from "@/modules/timeline/model";
 import { Label } from "@/shared/_components/label";
-
 import { byNote, countByCategory, labelsOf } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
+import type { Suggestion } from "@/shared/lib/retrieval";
 import { registerServiceWorker } from "@/shared/lib/service-worker";
 import { shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
 import { isDesktopApp } from "@/shared/lib/tauri";
@@ -62,6 +62,10 @@ const upsert = (notes: Note[], note: Note): Note[] => {
   if (at === -1) return [...without, note];
   return [...without.slice(0, at), note, ...without.slice(at)];
 };
+
+/** Which note a concept was taken off. The lesson is about this note, not about the word. */
+const conceptKey = (noteId: string, concept: string): string =>
+  `${noteId}:${concept.toLowerCase()}`;
 
 /** Folders and tasks are small lists kept in the order they arrive in. */
 const replace = <T extends { id: string }>(items: T[], item: T): T[] => {
@@ -120,6 +124,8 @@ const Page = () => {
   const editingRef = useRef<string | null>(null);
   /** The narrowed list and the labels behind it, so opening the timeline never re-subscribes. */
   const listedRef = useRef<Note[]>([]);
+  /** The opened runtime, for the two lookups that are answered from memory on a keystroke. */
+  const runtime = useRef<Awaited<ReturnType<typeof getEcho>> | null>(null);
   const conceptsRef = useRef<(noteId: string) => readonly string[]>(() => []);
   const undoableRef = useRef<{ id: string; content: string } | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,6 +168,7 @@ const Page = () => {
 
     getEcho()
       .then(async (echo) => {
+        runtime.current = echo;
         const stop = [
           echo.events.subscribe((event) => {
             if (!alive) return;
@@ -309,6 +316,41 @@ const Page = () => {
     (folderId: string) => notes.filter((note) => note.folderId === folderId).length,
     [notes],
   );
+
+  /**
+   * What the open note is about, read out of its own words against every other note's. Nothing here
+   * was tagged and nothing had to be created first — a concept exists because the reader keeps
+   * writing it. A concept the reader has taken off this note stays off.
+   */
+  const [concepts, setConcepts] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!editing) {
+      setConcepts([]);
+      return;
+    }
+    let alive = true;
+    void getEcho().then((echo) => {
+      if (!alive) return;
+      const named = new Set(
+        labelsOf(labels, categories, editing.id).map(({ category }) => category.name.toLowerCase()),
+      );
+      setConcepts(
+        echo.vocabulary
+          .conceptsOf(editing.content, 6)
+          .filter((concept) => {
+            // A category the reader stated already says this; echo repeating it back is noise.
+            if (named.has(concept.toLowerCase())) return false;
+            const rule = ruleFor(rulesRef.current, "concept", conceptKey(editing.id, concept));
+            return rule?.outcome !== "reject";
+          })
+          .slice(0, 4),
+      );
+    });
+    return () => {
+      alive = false;
+    };
+  }, [editing, categories, labels, rules]);
 
   /** A note's labels by name — what the timeline calls a day's concepts. */
   const conceptsOf = useCallback(
@@ -493,6 +535,10 @@ const Page = () => {
         {
           notes: notesRef.current,
           affinityOf: (noteId) => affinity(rulesRef.current, noteId),
+          // A pairing the reader has told echo is wrong goes quiet. Nothing here can invent one:
+          // the evidence is how they use the words, and history is only ever a second opinion.
+          aliasAllowed: (a, b) =>
+            ruleFor(rulesRef.current, "alias", aliasKey(a, b))?.outcome !== "reject",
         },
         receive,
       );
@@ -504,6 +550,55 @@ const Page = () => {
   const correct = useCallback(async (event: LearningEventCreate) => {
     const echo = await getEcho();
     await echo.learning.record(event);
+  }, []);
+
+  /**
+   * The reader's own other words for what they just typed. A lookup in memory, so the palette can
+   * ask on the keystroke rather than behind a promise — and it holds a model that is filled in the
+   * background, so it says nothing until there is something to say.
+   */
+  const suggest = useCallback((query: string): Suggestion[] => {
+    const echo = runtime.current;
+    if (!echo) return [];
+    return echo.retrieval.suggestions(
+      query,
+      (a, b) => ruleFor(rulesRef.current, "alias", aliasKey(a, b))?.outcome !== "reject",
+    );
+  }, []);
+
+  /**
+   * Two of the reader's words echo took for one thing that are not. Filed under the pair, sorted, so
+   * the belief has one home rather than two that could disagree — and the correction only damps: the
+   * notes remain the evidence for what a word means to this reader.
+   */
+  const rejectAlias = useCallback((typed: string, offered: string) => {
+    const term =
+      typed
+        .trim()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean)
+        .pop() ?? typed;
+    void getEcho().then((echo) =>
+      echo.learning.record({
+        type: "signal_rejected",
+        kind: "alias",
+        subject: aliasKey(term, offered),
+        noteId: null,
+      }),
+    );
+  }, []);
+
+  /** Echo read the note wrong. The word stays in the vocabulary; it stops labelling this note. */
+  const dismissConcept = useCallback((noteId: string, concept: string) => {
+    setConcepts((current) => current.filter((held) => held !== concept));
+    void getEcho().then((echo) =>
+      echo.learning.record({
+        type: "signal_rejected",
+        kind: "concept",
+        subject: conceptKey(noteId, concept),
+        noteId,
+      }),
+    );
   }, []);
 
   const forget = useCallback(async (rule: LearnedRule) => {
@@ -907,12 +1002,14 @@ const Page = () => {
           location={folderPath(folders, editing.folderId)}
           categories={categories}
           labels={labelsOf(labels, categories, editing.id)}
+          concepts={concepts}
           complete={complete}
           onSave={save}
           onClose={closeNote}
           onAddCategory={(noteId, categoryId) => void categorize(noteId, categoryId)}
           onCreateCategory={(noteId, name) => void createCategoryFor(noteId, name)}
           onRemoveCategory={(noteId, categoryId) => void uncategorize(noteId, categoryId)}
+          onDismissConcept={dismissConcept}
         />
       );
     }
@@ -1074,6 +1171,8 @@ const Page = () => {
         onOpenChange={setPaletteOpen}
         commands={commands}
         onSearch={search}
+        onSuggest={suggest}
+        onRejectAlias={rejectAlias}
         onOpenNote={(noteId) => openSuggested(noteId)}
         model={model}
       />

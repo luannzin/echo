@@ -9,6 +9,7 @@ export * from "./keywords";
 export * from "./mentions";
 export * from "./numbers";
 export * from "./periods";
+export * from "./stopwords";
 export * from "./tasks";
 
 export type ParseResult = {

@@ -99,7 +99,7 @@ export const CategoryList = ({
                 >
                   <Tag aria-hidden="true" className="size-3.5 shrink-0" />
                   <span className="min-w-0 flex-1 truncate text-start">{category.name}</span>
-                  <Count of={countOf(category.id)} label={`notes tagged ${category.name}`} />
+                  <Count of={countOf(category.id)} label={`tagged ${category.name}`} />
                 </ContextMenuTrigger>
                 <ContextMenuPopup align="start" className="max-w-64">
                   <ContextMenuItem closeOnClick onClick={() => setNaming({ id: category.id })}>

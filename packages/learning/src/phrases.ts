@@ -1,3 +1,5 @@
+import { STOPWORDS } from "@echo/parser";
+
 /**
  * How this reader writes, learned from what they have already written. No model and no network: a
  * count of which words follow which, which is enough to finish a sentence someone has typed forty
@@ -45,6 +47,11 @@ export type PhraseModel = {
    * space when one is needed.
    */
   complete: (text: string) => string;
+  /**
+   * The reader's own two-word phrases built around a term — "production cache", "cache
+   * invalidation". Their vocabulary, not a taxonomy: what *they* say around this word.
+   */
+  phrasesFor: (term: string, limit?: number) => string[];
   /** How many distinct words echo has seen. Zero means there is nothing to suggest from yet. */
   readonly vocabulary: number;
 };
@@ -80,6 +87,8 @@ export const createPhraseModel = (): PhraseModel => {
   const words = new Map<string, Counts>();
   /** One word → what tends to follow it. */
   const after = new Map<string, Counts>();
+  /** And what tends to come before it, so a term can be grown in both directions. */
+  const before = new Map<string, Counts>();
   /** Two words → what tends to follow them. Consulted first: more context, better answer. */
   const afterPair = new Map<string, Counts>();
 
@@ -93,7 +102,10 @@ export const createPhraseModel = (): PhraseModel => {
       if (folded.length >= BUCKET) bump(words, folded.slice(0, BUCKET), token, by);
 
       const one = tokens[index - 1]?.toLowerCase();
-      if (one !== undefined) bump(after, one, token, by);
+      if (one !== undefined) {
+        bump(after, one, token, by);
+        bump(before, folded, tokens[index - 1] as string, by);
+      }
       const two = tokens[index - 2]?.toLowerCase();
       if (one !== undefined && two !== undefined) bump(afterPair, `${two} ${one}`, token, by);
     }
@@ -144,6 +156,35 @@ export const createPhraseModel = (): PhraseModel => {
     learn: (text) => count(text, 1),
     unlearn: (text) => count(text, -1),
 
+    /**
+     * Every word the reader habitually puts either side of this one, as phrases. Two words rather
+     * than a chain: a chain produces the single most likely continuation, and the question here is
+     * "which of these did you mean", which needs several answers rather than the best one.
+     */
+    phrasesFor(term, limit = 4) {
+      const folded = term.toLowerCase();
+      const found: { phrase: string; count: number }[] = [];
+
+      // "do HEREZE" is not one of the reader's phrases, it is a preposition. A phrase offered back
+      // as another way to ask the question has to carry a second word that means something.
+      const carries = (word: string) =>
+        !STOPWORDS.has(word.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase());
+
+      for (const [word, seen] of before.get(folded) ?? []) {
+        if (seen >= MIN_COUNT && carries(word))
+          found.push({ phrase: `${word} ${term}`, count: seen });
+      }
+      for (const [word, seen] of after.get(folded) ?? []) {
+        if (seen >= MIN_COUNT && carries(word))
+          found.push({ phrase: `${term} ${word}`, count: seen });
+      }
+
+      return found
+        .sort((a, b) => b.count - a.count || a.phrase.localeCompare(b.phrase))
+        .slice(0, limit)
+        .map((held) => held.phrase);
+    },
+
     get vocabulary() {
       let total = 0;
       for (const bucket of words.values()) total += bucket.size;
@@ -154,8 +195,8 @@ export const createPhraseModel = (): PhraseModel => {
       if (text.length === 0) return "";
       const tail = text.slice(-TAIL_CHARS);
       const partial = TRAILING.exec(tail)?.[0] ?? "";
-      const before = tail.slice(0, tail.length - partial.length);
-      const context = [...before.matchAll(WORD)].map(([word]) => word.toLowerCase());
+      const preceding = tail.slice(0, tail.length - partial.length);
+      const context = [...preceding.matchAll(WORD)].map(([word]) => word.toLowerCase());
 
       // Mid-word: finish the word first, and only then carry on past it. Nothing is offered for one
       // or two characters — at that length a prefix belongs to half the vocabulary.

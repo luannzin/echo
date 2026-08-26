@@ -4,6 +4,7 @@ import type { Category, Note } from "@echo/types";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Kbd } from "@/components/ui/kbd";
+import { Concepts } from "@/modules/intelligence/_components/concepts";
 import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { CategoryPicker } from "@/shared/_components/category-picker";
@@ -25,12 +26,14 @@ export const NoteEditor = ({
   location,
   categories,
   labels,
+  concepts,
   complete,
   onSave,
   onClose,
   onAddCategory,
   onCreateCategory,
   onRemoveCategory,
+  onDismissConcept,
 }: {
   note: Note;
   /** Where the note lives, written out: `Work / Authentication`, or `Inbox`. */
@@ -39,6 +42,8 @@ export const NoteEditor = ({
   categories: Category[];
   /** The ones on this note, and whether the reader said so or echo read it. */
   labels: { category: Category; source: "user" | "auto" }[];
+  /** What echo reads the note as being about, in the reader's own words. Nothing was tagged. */
+  concepts: string[];
   /** Finishes the sentence from the reader's own writing. Absent until the database has opened. */
   complete?: (text: string) => string;
   onSave: (noteId: string, content: string) => Promise<void>;
@@ -46,6 +51,7 @@ export const NoteEditor = ({
   onAddCategory: (noteId: string, categoryId: string) => void;
   onCreateCategory: (noteId: string, name: string) => void;
   onRemoveCategory: (noteId: string, categoryId: string) => void;
+  onDismissConcept: (noteId: string, name: string) => void;
 }) => {
   const { draft, setDraft, state } = useAutosave(note.id, note.content, onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -104,6 +110,16 @@ export const NoteEditor = ({
           used={new Set(labels.map(({ category }) => category.id))}
           onChoose={(categoryId) => onAddCategory(note.id, categoryId)}
           onCreate={(name) => onCreateCategory(note.id, name)}
+        />
+      </div>
+
+      {/* Under the labels, and quieter than them: a category is a decision, a concept is a reading.
+          Nothing here has to be made before it can be useful. */}
+      <div className="mt-2">
+        <Concepts
+          concepts={concepts}
+          onPromote={(name) => onCreateCategory(note.id, name)}
+          onDismiss={(name) => onDismissConcept(note.id, name)}
         />
       </div>
 

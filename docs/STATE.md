@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1 — temporal context**
+Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1 and S2**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -291,9 +291,71 @@ filing a new note into that folder — "HEREZE · since you were last here, 1 mi
 **Fixed while verifying:** the Now band was reading every note rather than the narrowed list, so a
 scoped timeline showed another project's week.
 
+### S2 — Personal vocabulary
+Second of the four sub-projects. Spec direction: the reader's own words, learned from the reader's
+own notes. No taxonomy, no thesaurus, no model and no API key — every word echo offers came out of a
+note they wrote.
+
+- **`@echo/learning/vocabulary.ts`** holds which words the reader uses, which they use *near* each
+  other, and which they use *in the same places*. Built from the same corpus read that already
+  filled the phrase model, kept in memory like the vectors, and derived — it can be thrown away.
+- **Concepts, with nothing to tag** (item 13). `conceptsOf` ranks a note's words by how much they
+  stand out in it against how ordinary they are across the corpus. The note editor shows them under
+  the categories, quieter, dashed: nothing had to be created first, and a concept exists because the
+  reader keeps writing it. One press promotes one to a real category; one press says the note is not
+  about it. A word the corpus has seen once is never a concept — at that count a typo and an idea
+  look the same.
+- **Aliases** (items 11, 12) come from *distributional* similarity: two terms are the same thing to
+  this reader when they keep the same company. `HEREZE ≈ Deadlands`, `prod ≈ production ≈ produção`.
+- **What actually makes that work is not the similarity.** Measured on a real corpus, the noise
+  scores *higher* than the true pairs: `prod ~ estável` cosines at 0.86 while `prod ~ production`
+  manages 0.81, because a word written beside all three spellings keeps better company with each of
+  them than they keep with each other. No threshold separates those. What does is that a synonym is
+  the word the reader reaches for **instead** — so the two hardly ever share a note, while a word
+  merely written near them shares nearly all of them. `COMPANIONS` (0.15) carries the whole result;
+  the similarity floor, the shared-context floor and the mutual-shortlist check only trim what is
+  left.
+- **A word in fewer than three notes gets no synonyms at all.** Saying two of someone's words are
+  one word is the strongest claim in the package, and a profile built from two notes is not a
+  profile. Below that echo says nothing rather than guessing — the same bargain the rest of the
+  learning engine makes.
+- **Known and deliberate: opposites read as substitutes.** `estável` and `quebrou` fill the same slot
+  and are never written together, which is exactly the shape of a synonym. Telling them apart needs
+  something that knows what words mean, which echo does not have on purpose. Pinned by a test so it
+  is a decision on the record; it stays because the claim on screen is "you may also mean", refused
+  with one press, and the alternative is offering nothing.
+- **Aliases widen the search** (item 11's payoff). Searching `HEREZE` runs a second indexed query for
+  `Deadlands` and merges the ranks, with the word actually typed outranking the word echo worked out
+  is the same thing. A second lookup rather than a widened `tsquery`: the index is a lookup, so
+  asking twice costs less than teaching every caller to build an expanded query.
+- **"You may also mean"** (item 8) sits above the palette's answers — the reader's other spellings
+  for the word, the phrases they build around it (`phrasesFor`, from a new `before` map beside the
+  phrase model's existing `after`), and what they tend to write beside it. A phrase whose second word
+  is a stopword is dropped: `do HEREZE` is a preposition, not one of their phrases.
+- **Every alias is refusable.** The × on an alias chip records `signal_rejected` on kind `alias`,
+  filed under the sorted pair so the belief has one home rather than two that could disagree. Search
+  obeys immediately, and the Learned panel shows it immediately — `alias` and `concept` rules skip
+  the `CONFIDENT` threshold on purpose: they are not inferred *from* a correction, they **are** the
+  correction. A refusal that took effect but could not be seen or undone would be a change nobody
+  could take back.
+- Tests: 20 new in `vocabulary.test.ts` and `phrases.test.ts` over a corpus written the way one
+  person writes. 155 pass overall.
+
+Verified in the running app on an 18-note corpus: searching `HEREZE` offered `Deadlands` and returned
+all three `Deadlands` notes, none of which contain the word; refusing the pairing removed it from the
+suggestions and from the results, and named it in the Learned panel as “deadlands” and “hereze” are
+not the same thing, with an undo; the note editor listed the note's concepts, dismissing one dropped
+it and promoted the next word up, and promoting `merchant` made it a real category on the note and in
+the pane.
+
+**Fixed while verifying:** `do HEREZE` was being offered as a phrase; and `Count` read "1 notes
+tagged merchant" to a screen reader — the plural now lives in the component rather than in each
+caller's template string.
+
 ## In progress
-- Nothing. S2 (personal vocabulary: aliases, synonyms, concepts instead of tags, "you may also
-  mean") is the next sub-project and has no spec yet.
+- Nothing. S3 (query understanding: a question decomposed into filters, contextual reranking, search
+  by memory) is next and has no spec yet. It has both of its dependencies now — S1's temporal spans
+  and S2's vocabulary.
 
 ## Next
 1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has
@@ -349,6 +411,11 @@ scoped timeline showed another project's week.
 | 2026-08-26 | Mobile is CSS, not a second tree | one note list in the document, one drag target, and no guess about the viewport before the browser has said what it is |
 | 2026-08-26 | Service worker precaches nothing | the app loads all of it on the first visit anyway; a precache list would download 13MB before the first note |
 | 2026-08-26 | The document is network-first, everything else cache-first | a stale shell would pin a reader to an old build; hashed assets never go stale |
+| 2026-08-26 | Aliases decided by near-exclusive usage, not by similarity | measured on a real corpus the noise cosines higher than the true pairs; what makes a synonym is that the reader writes it *instead*, so the two hardly ever share a note |
+| 2026-08-26 | No aliases for a word in fewer than three notes | two notes is not a profile; on thin data half the vocabulary keeps the same company and no threshold tells the half apart |
+| 2026-08-26 | Opposites read as substitutes, accepted | separating them needs something that knows what words mean; the claim on screen is "you may also mean" and one press refuses it |
+| 2026-08-26 | Concepts sit beside categories rather than replacing them | a category is the reader's stated word and still outranks anything inferred; a concept needs nothing created before it is useful |
+| 2026-08-26 | `alias` and `concept` rules skip the CONFIDENT threshold | they are not inferred from a correction, they are the correction — a refusal that cannot be seen cannot be undone |
 | 2026-08-26 | Temporal mentions stored as `jsonb` on one row per note, not a normalized table | the "now" band is one pass over a small table when a view opens, never per keystroke; a note with no dates still needs a row, which is what stops chrono re-reading it forever |
 | 2026-08-26 | Visits live in `observations`, not `learning_events` | rules are derived from corrections; walking around the app must not teach echo things nobody said |
 | 2026-08-26 | Anchors resolved in `@echo/core`, not in the parser | when a project started is a fact about the corpus, not about the note — and a name the corpus never heard is dropped rather than guessed at |

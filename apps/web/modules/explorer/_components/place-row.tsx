@@ -51,6 +51,6 @@ export const PlaceRow = ({
   >
     <Icon aria-hidden="true" className="size-3.5 shrink-0" />
     <span className="min-w-0 flex-1 truncate">{label}</span>
-    <Count of={count} label={`notes in ${label}`} />
+    <Count of={count} label={`in ${label}`} />
   </button>
 );

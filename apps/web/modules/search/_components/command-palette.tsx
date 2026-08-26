@@ -15,6 +15,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
+import { AlsoMean } from "@/modules/search/_components/also-mean";
 import { PaletteAction } from "@/modules/search/_components/palette-action";
 import { PaletteNote } from "@/modules/search/_components/palette-note";
 import {
@@ -26,6 +27,7 @@ import {
   queryTerms,
   type SearchPass,
 } from "@/modules/search/model";
+import type { Suggestion } from "@/shared/lib/retrieval";
 
 /** Short: the first pass is a lookup, not a scan. This skips keystrokes rather than buying time. */
 const SETTLE_MS = 90;
@@ -42,6 +44,8 @@ export const CommandPalette = ({
   commands,
   onSearch,
   onOpenNote,
+  onSuggest,
+  onRejectAlias,
   model,
 }: {
   open: boolean;
@@ -50,6 +54,10 @@ export const CommandPalette = ({
   /** Calls back once per pass, best first. */
   onSearch: (query: string, receive: (pass: SearchPass) => void) => Promise<void>;
   onOpenNote: (noteId: string) => void;
+  /** The reader's own other words for what they typed. Synchronous: it is a lookup in memory. */
+  onSuggest: (query: string) => Suggestion[];
+  /** Two words echo took for one thing that are not. Called with what was typed and what it offered. */
+  onRejectAlias: (typed: string, offered: string) => void;
   model: EmbedderStatus;
 }) => {
   const [query, setQuery] = useState("");
@@ -103,6 +111,8 @@ export const CommandPalette = ({
     [commands, pass, query],
   );
   const terms = useMemo(() => queryTerms(query), [query]);
+  // Behind the keystroke like the search itself, so honing a word never costs a frame.
+  const suggestions = useMemo(() => onSuggest(settled), [settled, onSuggest]);
 
   const emptyMessage = searching
     ? "Looking…"
@@ -150,6 +160,14 @@ export const CommandPalette = ({
       <CommandDialogPopup className="duration-100" aria-label="Search and commands">
         <Command items={groups} mode="none" value={query} onValueChange={setQuery}>
           <CommandInput placeholder="Search notes, or type a command…" />
+          {/* Above the answers rather than beside them: it is a question about the question. */}
+          <AlsoMean
+            suggestions={suggestions}
+            onChoose={(text) =>
+              setQuery(`${query.slice(0, query.trimEnd().lastIndexOf(" ") + 1)}${text}`)
+            }
+            onReject={(text) => onRejectAlias(settled, text)}
+          />
           <CommandEmpty>{emptyMessage}</CommandEmpty>
           <CommandList>{renderGroup}</CommandList>
           <CommandFooter>

@@ -20,7 +20,18 @@ export const learningEventSchema = z.object({
     "result_opened",
   ]),
   /** Which family the subject belongs to, so two kinds of rule can never collide on one key. */
-  kind: z.enum(["task-phrase", "deadline-phrase", "note", "duplicate", "destination", "category"]),
+  kind: z.enum([
+    "task-phrase",
+    "deadline-phrase",
+    "note",
+    "duplicate",
+    "destination",
+    "category",
+    /** Two of the reader's words that mean the same thing. The subject is the pair, folded and sorted. */
+    "alias",
+    /** A word echo read a note as being about. Taking it off is how the reader says otherwise. */
+    "concept",
+  ]),
   /** What the event is about: the phrase that triggered a signal, or a note or folder id. */
   subject: z.string().min(1),
   /** The note the reader was looking at, kept for the trail behind a "why". */

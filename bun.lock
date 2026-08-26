@@ -111,6 +111,7 @@
       "name": "@echo/learning",
       "version": "0.0.0",
       "dependencies": {
+        "@echo/parser": "workspace:*",
         "@echo/types": "workspace:*",
       },
       "devDependencies": {
