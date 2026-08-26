@@ -18,6 +18,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { AlsoMean } from "@/modules/search/_components/also-mean";
 import { PaletteAction } from "@/modules/search/_components/palette-action";
 import { PaletteNote } from "@/modules/search/_components/palette-note";
+import { QueryChips } from "@/modules/search/_components/query-chips";
 import {
   describePass,
   groupRows,
@@ -52,7 +53,11 @@ export const CommandPalette = ({
   onOpenChange: (open: boolean) => void;
   commands: PaletteCommand[];
   /** Calls back once per pass, best first. */
-  onSearch: (query: string, receive: (pass: SearchPass) => void) => Promise<void>;
+  onSearch: (
+    query: string,
+    ignoring: ReadonlySet<"period" | "place">,
+    receive: (pass: SearchPass) => void,
+  ) => Promise<void>;
   onOpenNote: (noteId: string) => void;
   /** The reader's own other words for what they typed. Synchronous: it is a lookup in memory. */
   onSuggest: (query: string) => Suggestion[];
@@ -65,6 +70,8 @@ export const CommandPalette = ({
   const [searching, setSearching] = useState(false);
   /** Search runs on a local database. When that database cannot be opened, say so. */
   const [unavailable, setUnavailable] = useState(false);
+  /** Filters the reader has taken back. Cleared with the question they belonged to. */
+  const [ignoring, setIgnoring] = useState<ReadonlySet<"period" | "place">>(() => new Set());
   // Retrieval rides behind the keystroke, the same way it does in the composer.
   const settled = useDeferredValue(query);
   /** Which question the results belong to, so a late answer cannot overwrite a newer one. */
@@ -75,6 +82,7 @@ export const CommandPalette = ({
     if (open) return;
     setQuery("");
     setPass(null);
+    setIgnoring(new Set());
   }, [open]);
 
   useEffect(() => {
@@ -91,7 +99,7 @@ export const CommandPalette = ({
     setSearching(true);
 
     const timer = setTimeout(() => {
-      void onSearch(text, (next) => {
+      void onSearch(text, ignoring, (next) => {
         if (!current || question !== asked.current) return;
         setPass(next);
         setUnavailable(false);
@@ -104,7 +112,7 @@ export const CommandPalette = ({
       current = false;
       clearTimeout(timer);
     };
-  }, [settled, open, onSearch]);
+  }, [settled, open, ignoring, onSearch]);
 
   const groups = useMemo(
     () => groupRows(commands, pass?.results ?? [], query),
@@ -168,6 +176,20 @@ export const CommandPalette = ({
             }
             onReject={(text) => onRejectAlias(settled, text)}
           />
+          {pass ? (
+            <QueryChips
+              query={pass.query}
+              ignoring={ignoring}
+              filtered={pass.filtered}
+              onToggle={(filter) =>
+                setIgnoring((current) => {
+                  const next = new Set(current);
+                  if (!next.delete(filter)) next.add(filter);
+                  return next;
+                })
+              }
+            />
+          ) : null}
           <CommandEmpty>{emptyMessage}</CommandEmpty>
           <CommandList>{renderGroup}</CommandList>
           <CommandFooter>

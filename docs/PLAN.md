@@ -119,8 +119,8 @@ into one that holds a reader's history. Each part gets its own spec under
 |---|---|---|---|
 | S1 | Temporal context | expressions → ranges, the personal timeline, "what changed since" | ✅ |
 | S2 | Personal vocabulary | aliases, synonyms, concepts instead of tags, "you may also mean" | ✅ |
-| S3 | Query understanding | question → filters, contextual reranking, search by memory | next |
-| S4 | Project memory | automatic brief, soft placement, organize inbox, "because you usually" | last |
+| S3 | Query understanding | question → filters, contextual reranking, search by memory | ✅ |
+| S4 | Project memory | automatic brief, soft placement, organize inbox, "because you usually" | next |
 
 Nothing in any of them needs an API key. S1's spec is
 `docs/superpowers/specs/2026-08-26-temporal-context-design.md`.

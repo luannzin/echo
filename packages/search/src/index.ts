@@ -8,6 +8,7 @@ import {
 } from "./ranking";
 
 export * from "./categories";
+export * from "./context";
 export * from "./destinations";
 export * from "./ranking";
 export * from "./vector-index";
@@ -21,6 +22,8 @@ export type SearchCandidate = {
   lexical?: number;
   /** 0..1 affinity from `@echo/learning`. Absent means echo has learned nothing about this note. */
   interaction?: number;
+  /** 0..1 from `contextScore` — how much the note belongs to what is being asked about. */
+  context?: number;
 };
 
 export type SearchResult = {
@@ -64,6 +67,7 @@ export const rank = (
         lexical: lexical[index] ?? 0,
         recency: recencyScore(candidate.note.updatedAt, now),
         interaction: candidate.interaction ?? 0,
+        context: candidate.context ?? 0,
       };
       return {
         note: candidate.note,

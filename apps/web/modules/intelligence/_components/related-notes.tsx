@@ -72,7 +72,7 @@ export const RelatedNotes = ({
       ) : null}
 
       <ul className="space-y-1">
-        {related.map(({ note, semantic }) => (
+        {related.map(({ note, semantic, because }) => (
           <li key={note.id}>
             <button
               type="button"
@@ -89,6 +89,13 @@ export const RelatedNotes = ({
               <span className="mt-0.5 line-clamp-2 text-muted-foreground text-xs leading-5">
                 {note.content}
               </span>
+              {/* Why it is here beyond how close it reads. A percentage says how alike two notes
+                  are; this says why one of them belongs — and it is checkable, which a score is not. */}
+              {because.length > 0 ? (
+                <span className="mt-1 block truncate text-[0.6875rem] text-muted-foreground/70">
+                  {because.join(" · ")}
+                </span>
+              ) : null}
             </button>
           </li>
         ))}

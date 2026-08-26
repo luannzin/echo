@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { detectMentions } from "@echo/parser";
 import type { Note } from "@echo/types";
 import { whatChanged } from "./changes";
+import { countCoOpens, togetherness } from "./co-open";
 import { createObservationService } from "./observations";
 import type { ObservationRepository } from "./ports";
 import { buildAnchors, currentWeek, overlaps, resolveMentions } from "./temporal";
@@ -127,6 +128,9 @@ const memoryObservations = (): ObservationRepository & { rows: number } => {
     async lastSeen() {
       return new Map<string, Date>();
     },
+    async recent() {
+      return [];
+    },
   };
   return state;
 };
@@ -160,4 +164,52 @@ test("clicking back into a project a minute later is the same visit", async () =
   clock = new Date("2026-08-01T09:01:00");
   await observations.seen("project_seen", "hereze");
   expect(repository.rows).toBe(1);
+});
+
+// ── co-opens ──────────────────────────────────────────────────────────────────────────────────
+
+test("notes read in the same breath are counted as a pair", () => {
+  const open = (subject: string, minutes: number) => ({
+    id: crypto.randomUUID(),
+    workspaceId: "00000000-0000-0000-0000-000000000001",
+    type: "note_opened" as const,
+    subject,
+    at: new Date(NOW.getTime() + minutes * 60_000),
+  });
+
+  const pairs = countCoOpens([open("a", 0), open("b", 2), open("c", 90)]);
+
+  expect(pairs.get("a")?.get("b")).toBe(1);
+  expect(pairs.get("b")?.get("a")).toBe(1);
+  // An hour and a half later is a different sitting, not a pair.
+  expect(pairs.get("a")?.get("c")).toBeUndefined();
+});
+
+test("a note read twice in one sitting is not its own partner", () => {
+  const open = (subject: string, minutes: number) => ({
+    id: crypto.randomUUID(),
+    workspaceId: "00000000-0000-0000-0000-000000000001",
+    type: "note_opened" as const,
+    subject,
+    at: new Date(NOW.getTime() + minutes * 60_000),
+  });
+
+  expect(countCoOpens([open("a", 0), open("a", 1)]).get("a")).toBeUndefined();
+});
+
+test("togetherness is measured against the note's own strongest partner", () => {
+  const pairs = new Map([
+    [
+      "a",
+      new Map([
+        ["b", 8],
+        ["c", 2],
+      ]),
+    ],
+  ]);
+
+  expect(togetherness(pairs, "a", "b")).toBe(1);
+  expect(togetherness(pairs, "a", "c")).toBe(0.25);
+  expect(togetherness(pairs, "a", "unknown")).toBe(0);
+  expect(togetherness(pairs, "unknown", "b")).toBe(0);
 });

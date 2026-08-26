@@ -24,9 +24,11 @@ test("recency decays by half every two weeks", () => {
 });
 
 test("weights are the only thing deciding the blend", () => {
-  const signals = { semantic: 1, lexical: 0, recency: 0, interaction: 0 };
+  const signals = { semantic: 1, lexical: 0, recency: 0, interaction: 0, context: 0 };
   expect(combine(signals, DEFAULT_WEIGHTS)).toBeCloseTo(DEFAULT_WEIGHTS.semantic, 5);
-  expect(combine(signals, { semantic: 0, lexical: 1, recency: 0, interaction: 0 })).toBe(0);
+  expect(
+    combine(signals, { semantic: 0, lexical: 1, recency: 0, interaction: 0, context: 0 }),
+  ).toBe(0);
 });
 
 test("what the reader opens breaks ties, and only ties", () => {

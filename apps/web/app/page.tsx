@@ -1,6 +1,14 @@
 "use client";
 
-import { type Change, deriveTitle, folderPath, whatChanged } from "@echo/core";
+import {
+  buildAnchors,
+  type Change,
+  type CoOpens,
+  deriveTitle,
+  folderPath,
+  type Place,
+  whatChanged,
+} from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
 import { adjust, affinity, aliasKey, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
 import { type Destination, DUPLICATE_SIMILARITY, suggestCategories } from "@echo/search";
@@ -33,7 +41,7 @@ import { Tasks } from "@/modules/tasks/_components/tasks";
 import { Timeline } from "@/modules/timeline/_components/timeline";
 import type { Upcoming } from "@/modules/timeline/model";
 import { Label } from "@/shared/_components/label";
-import { byNote, countByCategory, labelsOf } from "@/shared/lib/categories";
+import { byNote, countByCategory, labelsOf, type NoteLabels } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import type { Suggestion } from "@/shared/lib/retrieval";
@@ -108,6 +116,8 @@ const Page = () => {
   const [change, setChange] = useState<Change | null>(null);
   /** What the notes themselves pointed at this week. Read when the timeline is open, and only then. */
   const [upcoming, setUpcoming] = useState<Upcoming[]>([]);
+  /** Which notes this reader reads together. The one thing about a pair neither note can tell you. */
+  const [together, setTogether] = useState<CoOpens>(() => new Map());
 
   /**
    * The note just sent, and the words it was made of. Capture commits with a single keystroke and
@@ -120,13 +130,17 @@ const Page = () => {
   /** Read by retrieval and search so a keystroke never re-subscribes anything. */
   const notesRef = useRef<Note[]>([]);
   const rulesRef = useRef<LearnedRule[]>([]);
-  const labelsRef = useRef<NoteCategory[]>([]);
+  const labelsRef = useRef<NoteLabels>(new Map());
   const editingRef = useRef<string | null>(null);
   /** The narrowed list and the labels behind it, so opening the timeline never re-subscribes. */
   const listedRef = useRef<Note[]>([]);
-  /** The opened runtime, for the two lookups that are answered from memory on a keystroke. */
+  /** The opened runtime, for the one lookup that is answered from memory on a keystroke. */
   const runtime = useRef<Awaited<ReturnType<typeof getEcho>> | null>(null);
   const conceptsRef = useRef<(noteId: string) => readonly string[]>(() => []);
+  /** Read by search on a keystroke, so naming a place never re-subscribes the palette. */
+  const placesRef = useRef<Place[]>([]);
+  const anchorsRef = useRef<ReturnType<typeof buildAnchors>>(new Map());
+  const togetherRef = useRef<CoOpens>(new Map());
   const undoableRef = useRef<{ id: string; content: string } | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const arrivedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -267,6 +281,15 @@ const Page = () => {
         setTasks(listedTasks);
         setRules(learned);
         setLoading(false);
+
+        // Off the critical chain on purpose. Which notes are read together is one signal in
+        // ranking; failing to work it out costs that signal and nothing else. Inside the load
+        // above, a throw here would reach the catch below and tell the reader their database
+        // could not be opened, about a database that is open and holding their notes.
+        echo.observations
+          .together()
+          .then((pairs) => alive && setTogether(pairs))
+          .catch((cause) => console.error("[echo] co-opens could not be read:", cause));
       })
       .catch((cause) => {
         console.error("[echo] the local database could not be opened:", cause);
@@ -281,7 +304,6 @@ const Page = () => {
 
   notesRef.current = notes;
   rulesRef.current = rules;
-  labelsRef.current = assignments;
   editingRef.current = editingId;
   undoableRef.current = undoable;
 
@@ -375,9 +397,55 @@ const Page = () => {
   /** Which project "since you were last here" is measured against. */
   const scopeSubject = categoryFilter ?? folderFilter ?? null;
 
-  // Read by the timeline's effects, so narrowing the list never re-subscribes anything.
+  /**
+   * Everywhere the reader has made, so a question can name one — "notes about auth in my Work
+   * projects". Folders and categories in one list because a question does not distinguish them.
+   */
+  const places = useMemo(
+    (): Place[] => [
+      ...folders.map((folder) => ({
+        kind: "folder" as const,
+        id: folder.id,
+        name: folderPath(folders, folder.id),
+      })),
+      ...categories.map((category) => ({
+        kind: "category" as const,
+        id: category.id,
+        name: category.name,
+      })),
+    ],
+    [folders, categories],
+  );
+
+  /**
+   * When each project started, for a question anchored to one — "desde que comecei HEREZE". A
+   * project began when its first note was written, so this is the earliest note in it.
+   */
+  const anchors = useMemo(() => {
+    // Named once for the whole corpus rather than looked up per note: the notes are the list that
+    // grows, and a `find` inside this loop is the same mistake the note list already had.
+    const folderNames = new Map(folders.map((folder) => [folder.id, folder.name]));
+    const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
+
+    const named: { name: string; at: Date }[] = [];
+    for (const note of notes) {
+      const folder = note.folderId === null ? undefined : folderNames.get(note.folderId);
+      if (folder) named.push({ name: folder, at: note.createdAt });
+      for (const assignment of labels.get(note.id) ?? []) {
+        const category = categoryNames.get(assignment.categoryId);
+        if (category) named.push({ name: category, at: note.createdAt });
+      }
+    }
+    return buildAnchors(named);
+  }, [notes, folders, categories, labels]);
+
+  // Read inside callbacks and effects, so none of them re-subscribes when any of this changes.
   listedRef.current = listed;
+  labelsRef.current = labels;
   conceptsRef.current = conceptsOf;
+  placesRef.current = places;
+  anchorsRef.current = anchors;
+  togetherRef.current = together;
 
   const toggleNavigation = useCallback(() => {
     setNavigationOpen((open) => {
@@ -416,8 +484,18 @@ const Page = () => {
       notes: notesRef.current,
       excludeNoteId,
       limit: RELATED_LIMIT,
+      // Meaning nominates; belonging orders. A note from the same project, about the same things,
+      // written in the same fortnight and opened alongside this one every time is the right answer
+      // even when another is closer in words.
+      surroundings: {
+        conceptsOf: conceptsRef.current,
+        together: togetherRef.current,
+        reference: excludeNoteId
+          ? notesRef.current.find((note) => note.id === excludeNoteId)
+          : undefined,
+      },
     });
-    setRelated(found.map(({ note, semantic }) => ({ note, semantic })));
+    setRelated(found.map(({ note, semantic, because }) => ({ note, semantic, because })));
   }, []);
 
   useEffect(() => {
@@ -528,13 +606,31 @@ const Page = () => {
    * meaning follows when the model has answered, and `receive` is called again with the blend.
    */
   const search = useCallback(
-    async (query: string, receive: (pass: SearchPass) => void): Promise<void> => {
+    async (
+      query: string,
+      ignoring: ReadonlySet<"period" | "place">,
+      receive: (pass: SearchPass) => void,
+    ): Promise<void> => {
       const echo = await getEcho();
       await echo.retrieval.search(
         query,
         {
           notes: notesRef.current,
           affinityOf: (noteId) => affinity(rulesRef.current, noteId),
+          places: placesRef.current,
+          anchors: anchorsRef.current,
+          ignoring,
+          categoriesOf: (noteId) =>
+            (labelsRef.current.get(noteId) ?? []).map((assignment) => assignment.categoryId),
+          // Searching from inside a note is a different question than searching from nowhere: what
+          // is open decides which of two equally-worded answers actually belongs.
+          surroundings: {
+            conceptsOf: conceptsRef.current,
+            together: togetherRef.current,
+            reference: editingRef.current
+              ? notesRef.current.find((note) => note.id === editingRef.current)
+              : undefined,
+          },
           // A pairing the reader has told echo is wrong goes quiet. Nothing here can invent one:
           // the evidence is how they use the words, and history is only ever a second opinion.
           aliasAllowed: (a, b) =>
@@ -706,6 +802,15 @@ const Page = () => {
     // Reading is the end of the moment the undo belonged to.
     setUndoable(null);
     navigate(() => setEditingId(noteId), { from });
+    // Which notes get read together is the one thing about a pair that neither note can say. It is
+    // a fact about how the reader works and never an opinion, which is why it is filed apart from
+    // the corrections the learning engine derives beliefs from.
+    void getEcho()
+      .then(async (echo) => {
+        await echo.observations.opened(noteId);
+        setTogether(await echo.observations.together());
+      })
+      .catch((cause) => console.error("[echo] the open could not be recorded:", cause));
   }, []);
 
   /** Opening a note echo suggested is a vote for it, and votes are what ranking learns from. */

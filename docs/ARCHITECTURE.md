@@ -26,6 +26,10 @@ The same domain runs in the browser, in Tauri, and on a self-hosted server, beca
    and `sync` are pure TypeScript and testable in isolation.
 3. **Tauri holds no business logic.** Filesystem paths, notifications, shortcuts, tray — nothing else.
 4. **Ranking lives in `@echo/search`.** Coefficients are configuration, not code buried in JSX.
+   Five signals: meaning, words, context, recency and habit. Context is what a note's own words
+   cannot say — the same project, the same concepts, the same fortnight, and the note this reader
+   opens beside it — and it exists because meaning alone puts the wrong note first often enough to
+   notice.
 5. **Learning is event-driven.** Corrections emit `LearningEvent`s; rules are derived from the event
    log, never mutated ad hoc.
 6. **Embeddings are derived data.** Note content is the source of truth; any embedding can be
@@ -80,3 +84,5 @@ permanently stale.
 | Temporal mentions as `jsonb` on one row per note | The window query runs when a view opens, never per keystroke; a note with no dates still needs its row, or it is re-parsed forever |
 | Visits in `observations`, apart from `learning_events` | Rules are derived from corrections; being somewhere is not an opinion, and mixing the two would let navigation teach echo things nobody said |
 | Anchors (`depois que comecei X`) resolved in `core`, not `parser` | When a project started is a fact about the corpus; the parser has none, so it names the anchor and core places it |
+| A question is decomposed before it is searched | Time, place and framing are different questions from the subject; extracting them is what makes search precise, and showing them as removable chips is what makes hard filtering safe |
+| Context weighted at 0.18, meaning reduced to 0.45 | Belonging must be able to pass a note that reads closer, and must not be able to pass one that reads much closer |

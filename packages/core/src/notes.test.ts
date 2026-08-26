@@ -70,6 +70,7 @@ const memoryRepositories = (): Repositories => {
     observations: {
       record: async () => {},
       lastSeen: async () => new Map(),
+      recent: async () => [],
     },
     tasks: {
       insert: async (task) => task,

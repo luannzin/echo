@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1 and S2**
+Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1, S2 and S3**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -352,10 +352,59 @@ the pane.
 tagged merchant" to a screen reader — the plural now lives in the component rather than in each
 caller's template string.
 
+### S3 — Query understanding
+Third of the four. A question is taken apart before anything is searched, and what comes back is
+ordered by whether a note *belongs* rather than only by how closely it reads.
+
+- **`@echo/core/query.ts` takes a question apart.** "Notes about auth from last month in my Work
+  projects" is four questions wearing one coat: a subject, a stretch of time, a place, and
+  connective tissue that means nothing alone. Deterministic, and built on what S1 and S2 already
+  had — periods come from `detectPeriods`, anchors from `buildAnchors`, places from the reader's own
+  folders and categories.
+- **Filters narrow, and every one is a chip one press from gone.** Hard filtering is what makes
+  "from last month" mean something instead of nudging a sort order — and it is only fair because
+  nothing is ever hidden by something the reader cannot see. The chip row also says how many notes
+  were set aside, so narrowing is never silent.
+- **Framing is stripped and reported, not eaten.** "Aquela ideia que eu tive sobre fazer o mapa
+  parecer infinito" is a person circling a question; the question is the last six words. Twelve
+  patterns across pt and en, longest first. The words that came off are shown, because a search that
+  quietly ignores half of what you typed is one you stop trusting (item 10).
+- **Place matching is index-safe.** Names are matched whole-word against a fold that preserves length
+  — `foldName` collapses whitespace, which would have slid every index after it and cut the wrong
+  span out of the question.
+- **A filter echo cannot place is dropped, and the words stay.** "Desde que comecei Vênus" against a
+  corpus that never heard of Vênus yields no period *and* leaves `Vênus` in the search terms.
+- **Ranking gained a fifth signal, and meaning gave up ten points to it.** `contextScore`
+  (`@echo/search/context.ts`) blends four things a note's words cannot say: the same project (0.35),
+  being opened together (0.30), shared concepts (0.25), the same fortnight (0.10). Weights are now
+  semantic 0.45 · lexical 0.22 · context 0.18 · recency 0.08 · interaction 0.07, still summing to
+  one. Tested at both ends: a note that belongs completely passes one seventeen points closer in
+  meaning, and does not pass one thirty points closer.
+- **Co-opens** (`@echo/core/co-open.ts`). `note_opened` joins `project_seen` in the `observations`
+  table S1 built for exactly this — still apart from `learning_events`, so browsing never derives a
+  belief. Two notes read within ten minutes are a pair; a note read twice is not its own partner;
+  togetherness is measured against the note's own strongest partner, so a reader with two hundred
+  opens and one with ten thousand get the same scale.
+- **The Related panel answers "why".** Meaning nominates four times what is shown and belonging
+  orders it, and each row carries its reasons as sentences — "you usually open them together", "it
+  is in the same project" — never as a second number.
+- Tests: 21 new (`query.test.ts` 12, `context.test.ts` 8, co-opens 3 in `temporal.test.ts`). 176
+  pass overall.
+
+Verified in the running app: `notes about cache in HEREZE` showed a `HEREZE` chip, said `16 set
+aside` and returned only that folder's notes; `notes about cache from last month` correctly returned
+nothing with `18 set aside`, and pressing the `last month` chip brought every cache note back;
+`aquela ideia que eu tive sobre fazer o mapa parecer infinito` put the mapa note first with the
+framing shown; and after reading two notes together three times, the Related panel ranked the paired
+note above an equally-scoring one and said `you usually open them together`.
+
+**Deliberately not built:** a `type:` filter. Item 9's example decomposes to `type: notes`, but notes
+are the only thing the palette searches — the chip would be decoration until tasks are searchable
+too.
+
 ## In progress
-- Nothing. S3 (query understanding: a question decomposed into filters, contextual reranking, search
-  by memory) is next and has no spec yet. It has both of its dependencies now — S1's temporal spans
-  and S2's vocabulary.
+- Nothing. S4 (project memory: the automatic brief, soft placement, organize inbox, "because you
+  usually") is the last of the four. All three of its dependencies are in.
 
 ## Next
 1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has
@@ -411,6 +460,10 @@ caller's template string.
 | 2026-08-26 | Mobile is CSS, not a second tree | one note list in the document, one drag target, and no guess about the viewport before the browser has said what it is |
 | 2026-08-26 | Service worker precaches nothing | the app loads all of it on the first visit anyway; a precache list would download 13MB before the first note |
 | 2026-08-26 | The document is network-first, everything else cache-first | a stale shell would pin a reader to an old build; hashed assets never go stale |
+| 2026-08-26 | Extracted filters narrow rather than re-order | "from last month" has to mean something; it is only fair because every filter is a chip one press from gone, and the row says how many notes it set aside |
+| 2026-08-26 | Meaning dropped from 0.55 to 0.45 to make room for context | a note can be almost exactly about the same words and still be the wrong note; belonging can pass seventeen points of meaning and no more |
+| 2026-08-26 | `note_opened` in `observations`, not `learning_events` | which notes are read together is a fact about how the reader works, not an opinion about anything echo inferred |
+| 2026-08-26 | No `type:` filter | notes are the only thing the palette searches; the chip would be decoration until tasks are searchable |
 | 2026-08-26 | Aliases decided by near-exclusive usage, not by similarity | measured on a real corpus the noise cosines higher than the true pairs; what makes a synonym is that the reader writes it *instead*, so the two hardly ever share a note |
 | 2026-08-26 | No aliases for a word in fewer than three notes | two notes is not a profile; on thin data half the vocabulary keeps the same company and no threshold tells the half apart |
 | 2026-08-26 | Opposites read as substitutes, accepted | separating them needs something that knows what words mean; the claim on screen is "you may also mean" and one press refuses it |

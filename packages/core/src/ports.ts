@@ -128,6 +128,8 @@ export interface ObservationRepository {
   record(observation: Observation): Promise<void>;
   /** The newest visit per subject, for one type. */
   lastSeen(type: ObservationType): Promise<Map<string, Date>>;
+  /** The most recent observations of one type, newest first. Capped: this is a log, not a table. */
+  recent(type: ObservationType, limit?: number): Promise<Observation[]>;
 }
 
 export type Repositories = {

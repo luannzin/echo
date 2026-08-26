@@ -1,11 +1,25 @@
-import type { LexicalSearch } from "@echo/core";
+import {
+  type Anchors,
+  type CoOpens,
+  type LexicalSearch,
+  type ParsedQuery,
+  type Place,
+  parseQuery,
+  togetherness,
+} from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
 import { foldTerm, type PhraseModel, type VocabularyModel } from "@echo/learning";
 import {
+  type ContextSignals,
+  contextScore,
+  DEFAULT_WEIGHTS,
   type Destination,
+  explainContext,
+  overlap,
   RELATED_SIMILARITY,
   rank,
   type SearchResult,
+  samePeriod,
   suggestDestinations,
   type VectorIndex,
 } from "@echo/search";
@@ -23,6 +37,11 @@ const VOTER_SIMILARITY = 0.4;
 const SUGGESTIONS = 5;
 /** How many other spellings of the word being searched are also searched for. */
 const EXPANSIONS = 2;
+/** How many neighbours meaning nominates per place shown, so belonging has something to re-order. */
+const NOMINEES = 4;
+
+/** A related note, and why it is one. */
+export type RelatedResult = SearchResult & { because: string[] };
 
 /** One of the reader's own words or phrases, offered beside what they typed. */
 export type Suggestion = {
@@ -40,11 +59,30 @@ const lastTerm = (query: string): string => {
   return words[words.length - 1] ?? "";
 };
 
+/** Everything retrieval needs to judge a note by more than its words. */
+export type Surroundings = {
+  /** A note's concepts and categories, by name. */
+  conceptsOf?: (noteId: string) => readonly string[];
+  /** Which notes this reader reads together. */
+  together?: CoOpens;
+  /** The note the reader is looking at, which is what "the same project" is the same as. */
+  reference?: Note;
+};
+
 export type SearchContext = {
   /** The notes already in memory. Retrieval never re-reads what the screen is holding. */
   notes: Note[];
   /** 0..1, what this reader has opened before. */
   affinityOf: (noteId: string) => number;
+  /** Every folder and category, so a question can name one. */
+  places?: readonly Place[];
+  /** Project start dates, for a question anchored to one. */
+  anchors?: Anchors;
+  /** Filters the reader has dropped. A chip they removed is a filter that does not apply. */
+  ignoring?: ReadonlySet<"period" | "place">;
+  /** Which categories each note carries, for applying a category filter. */
+  categoriesOf?: (noteId: string) => readonly string[];
+  surroundings?: Surroundings;
   /**
    * Whether echo may still treat two of the reader's words as the same thing. A pairing the reader
    * has rejected goes quiet; nothing here can invent one, because the notes are the evidence.
@@ -56,9 +94,37 @@ export type SearchContext = {
 /** Which signals an answer had available. The interface says so rather than implying more. */
 export type SearchStage = "words" | "meaning";
 
-export type SearchPass = { results: SearchResult[]; stage: SearchStage };
+export type SearchPass = {
+  results: SearchResult[];
+  stage: SearchStage;
+  /** How the question came apart, so the interface can show the filters and let them go. */
+  query: ParsedQuery;
+  /** How many notes the filters removed, so narrowing is never silent. */
+  filtered: number;
+};
 
 export type Retrieval = ReturnType<typeof createRetrieval>;
+
+/**
+ * What a note has in common with what the reader is looking at, beyond the words. The reference is
+ * whatever note they have open: searching from inside a project is a different question than
+ * searching from nowhere, and with no reference every one of these is simply absent rather than
+ * guessed at.
+ */
+const signalsFor = (note: Note, surroundings: Surroundings | undefined): ContextSignals => {
+  const reference = surroundings?.reference;
+  if (!reference || reference.id === note.id) return {};
+  return {
+    sameProject: reference.folderId !== null && reference.folderId === note.folderId,
+    sharedConcepts: surroundings?.conceptsOf
+      ? overlap(surroundings.conceptsOf(reference.id), surroundings.conceptsOf(note.id))
+      : 0,
+    samePeriod: samePeriod(reference.createdAt, note.createdAt),
+    coOpened: surroundings?.together
+      ? togetherness(surroundings.together, reference.id, note.id)
+      : 0,
+  };
+};
 
 /**
  * Retrieval, arranged so nothing a reader does ever waits on the model. Search runs in two passes:
@@ -128,16 +194,63 @@ export const createRetrieval = ({
      */
     search: async (
       query: string,
-      { notes, affinityOf, aliasAllowed, limit = 8 }: SearchContext,
+      {
+        notes,
+        affinityOf,
+        aliasAllowed,
+        places = [],
+        anchors,
+        ignoring,
+        categoriesOf,
+        surroundings,
+        limit = 8,
+      }: SearchContext,
       receive: (pass: SearchPass) => void,
     ): Promise<void> => {
-      const trimmed = query.trim();
+      /**
+       * The question comes apart before anything is searched: a subject, a stretch of time, a place,
+       * and the words that were only a way of asking. Every filter it finds is reported back with
+       * the words it came from — narrowing that the reader cannot see is narrowing that hides their
+       * answer from them.
+       */
+      const parsed = parseQuery(query, { places, anchors });
+      const period = ignoring?.has("period") ? null : parsed.period;
+      const place = ignoring?.has("place") ? null : parsed.place;
+      // Once the filters are out, what is left is the question. Nothing is a question by itself.
+      const trimmed = (parsed.terms || (period || place ? "" : query)).trim();
+
+      /** Filters narrow rather than re-order, which only stays fair because each one is one press
+       *  from gone in the interface above this. */
+      const passes = (note: Note): boolean => {
+        if (period) {
+          const at = note.createdAt.getTime();
+          if (period.from && at < period.from.getTime()) return false;
+          if (period.to && at > period.to.getTime()) return false;
+        }
+        if (place?.kind === "folder" && note.folderId !== place.id) return false;
+        if (place?.kind === "category" && !(categoriesOf?.(note.id) ?? []).includes(place.id)) {
+          return false;
+        }
+        return true;
+      };
+
+      const allowed = period || place ? notes.filter(passes) : notes;
+      const removed = notes.length - allowed.length;
+
+      // A question that was only filters — "notes from last month" — is answered by the filters.
       if (trimmed.length === 0) {
-        receive({ results: [], stage: "meaning" });
+        receive({
+          results: allowed
+            .slice(0, limit)
+            .map((note) => ({ note, score: 0, semantic: 0, lexical: 0 })),
+          stage: "meaning",
+          query: parsed,
+          filtered: removed,
+        });
         return;
       }
 
-      const byId = new Map(notes.map((note) => [note.id, note]));
+      const byId = new Map(allowed.map((note) => [note.id, note]));
 
       /**
        * The reader's other spellings for the word they are looking for, searched alongside it. This
@@ -155,7 +268,7 @@ export const createRetrieval = ({
               .aliasesOf(term, EXPANSIONS)
               .filter((other) => aliasAllowed?.(term, other) ?? true);
 
-      const passes = await Promise.all([
+      const found = await Promise.all([
         lexical.search(trimmed, CANDIDATES),
         // The trailing word swapped for the other spelling. A slice rather than a replace: `term`
         // is by construction the tail of the query, and building a pattern out of what someone
@@ -166,7 +279,7 @@ export const createRetrieval = ({
       ]);
 
       const words = new Map<string, number>();
-      for (const [pass, matches] of passes.entries()) {
+      for (const [pass, matches] of found.entries()) {
         for (const match of matches) {
           // The word actually typed outranks the word echo worked out is the same thing.
           const rank = pass === 0 ? match.rank : match.rank * 0.8;
@@ -195,6 +308,7 @@ export const createRetrieval = ({
               semantic: embedding ? (index.scoreOf(embedding, noteId) ?? 0) : 0,
               lexical: words.get(noteId) ?? 0,
               interaction: affinityOf(noteId),
+              context: surroundings?.reference ? contextScore(signalsFor(note, surroundings)) : 0,
             },
           ];
         });
@@ -202,11 +316,11 @@ export const createRetrieval = ({
         return rank(candidates, { limit, minimumSemantic: RELATED_SIMILARITY });
       };
 
-      receive({ results: blend(undefined), stage: "words" });
+      receive({ results: blend(undefined), stage: "words", query: parsed, filtered: removed });
 
       const embedding = await queryVector(trimmed);
       if (!embedding) return;
-      receive({ results: blend(embedding), stage: "meaning" });
+      receive({ results: blend(embedding), stage: "meaning", query: parsed, filtered: removed });
     },
 
     /**
@@ -239,27 +353,63 @@ export const createRetrieval = ({
       return suggestDestinations(neighbours, { weightOf });
     },
 
-    /** The notes closest in meaning to what is open or being written. */
+    /**
+     * The notes that belong with what is open or being written — which is not the same question as
+     * the notes closest to it in meaning.
+     *
+     * A note can be almost exactly about the same words and still be the wrong note, while one that
+     * says less of the same is the right one because it comes out of the same project, carries the
+     * same concepts, was written in the same fortnight, and is the note this reader opens alongside
+     * it every time. Meaning nominates; belonging orders.
+     */
     related: async (
       text: string,
       {
         notes,
         excludeNoteId,
+        surroundings,
         limit = 4,
-      }: { notes: Note[]; excludeNoteId?: string; limit?: number },
-    ): Promise<SearchResult[]> => {
+      }: {
+        notes: Note[];
+        excludeNoteId?: string;
+        surroundings?: Surroundings;
+        limit?: number;
+      },
+    ): Promise<RelatedResult[]> => {
       if (text.trim().length < 12 || index.size === 0) return [];
       const embedding = await queryVector(text);
       if (!embedding) return [];
 
       const byId = new Map(notes.map((note) => [note.id, note]));
+      // Wider than what is shown, because the ordering below is allowed to disagree with the
+      // similarity that nominated them — and it cannot promote a note it was never handed.
       return index
-        .nearest(embedding, { excludeNoteId, limit, minimumSimilarity: RELATED_SIMILARITY })
+        .nearest(embedding, {
+          excludeNoteId,
+          limit: limit * NOMINEES,
+          minimumSimilarity: RELATED_SIMILARITY,
+        })
         .flatMap((match) => {
           const note = byId.get(match.noteId);
           if (!note) return [];
-          return [{ note, score: match.similarity, semantic: match.similarity, lexical: 0 }];
-        });
+          const signals = signalsFor(note, surroundings);
+          return [
+            {
+              note,
+              semantic: match.similarity,
+              lexical: 0,
+              // The same blend search uses, minus the halves a neighbourhood has no opinion on:
+              // relatedness is about what a note is, not about when it was touched.
+              score:
+                match.similarity * DEFAULT_WEIGHTS.semantic +
+                contextScore(signals) * DEFAULT_WEIGHTS.context,
+              // Why it is here, as things the reader can check rather than as a number.
+              because: explainContext(signals),
+            },
+          ];
+        })
+        .sort((a, b) => b.score - a.score || a.note.id.localeCompare(b.note.id))
+        .slice(0, limit);
     },
   };
 };

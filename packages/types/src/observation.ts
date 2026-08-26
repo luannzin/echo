@@ -9,9 +9,13 @@ import { z } from "zod";
 export const observationSchema = z.object({
   id: z.uuid(),
   workspaceId: z.uuid(),
-  /** `project_seen` is a folder or category the reader opened. */
-  type: z.enum(["project_seen"]),
-  /** What was looked at: a folder id, a category id. */
+  /**
+   * `project_seen` is a folder or category the reader opened; `note_opened` is a note they read.
+   * The second exists so echo can tell which notes go together for this reader when nothing about
+   * their text says so — that is a fact about how they work, and it is still not an opinion.
+   */
+  type: z.enum(["project_seen", "note_opened"]),
+  /** What was looked at: a folder id, a category id, a note id. */
   subject: z.string().min(1),
   at: z.date(),
 });

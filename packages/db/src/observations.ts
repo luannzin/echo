@@ -1,6 +1,6 @@
 import type { ObservationRepository } from "@echo/core";
 import type { ObservationType } from "@echo/types";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import type { Database } from "./client";
 import { observations } from "./schema";
 
@@ -22,6 +22,21 @@ export const createObservationRepository = (db: Database): ObservationRepository
         .groupBy(observations.subject);
 
       return new Map(rows.map((row) => [row.subject, new Date(row.at)]));
+    },
+
+    /**
+     * The tail of the log. Which notes get read together is a question about lately, and a lifetime
+     * of it would be read on every startup to answer the same thing.
+     */
+    async recent(type: ObservationType, limit = 2000) {
+      const rows = await db
+        .select()
+        .from(observations)
+        .where(eq(observations.type, type))
+        .orderBy(desc(observations.at))
+        .limit(limit);
+
+      return rows.map((row) => ({ ...row, type: row.type as ObservationType }));
     },
   };
 };

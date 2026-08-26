@@ -2,6 +2,7 @@ import type { EmbedderStatus } from "@echo/embeddings";
 import type { SearchResult } from "@echo/search";
 import type { Note } from "@echo/types";
 import type { LucideIcon } from "lucide-react";
+import type { SearchPass } from "@/shared/lib/retrieval";
 
 const EXCERPT_LENGTH = 140;
 const EXCERPT_LEAD = 24;
@@ -16,12 +17,12 @@ export type PaletteCommand = {
   run: () => void;
 };
 
-/** One answer to the question, and which signals were available when it was given. */
-export type SearchPass = {
-  results: SearchResult[];
-  /** `words` came from the text index alone; `meaning` had the model too. */
-  stage: "words" | "meaning";
-};
+/**
+ * One answer to the question, and which signals were available when it was given. Defined by
+ * retrieval, re-exported here so the palette and its helpers agree by construction rather than by
+ * two declarations that have to be kept the same.
+ */
+export type { SearchPass } from "@/shared/lib/retrieval";
 
 export type PaletteRow =
   | { value: string; kind: "command"; command: PaletteCommand }
