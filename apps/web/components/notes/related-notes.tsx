@@ -57,8 +57,9 @@ export function RelatedNotes({
   return (
     <div className="space-y-3">
       {duplicate ? (
-        // Never merged, never rewritten: echo says what it noticed and the writer decides.
-        <Alert variant="info" className="animate-settle">
+        // Never merged, never rewritten: echo says what it noticed and the writer decides. Neutral
+        // on purpose: blue is rationed to focus and selection, and a notice is neither.
+        <Alert className="animate-settle">
           <CopyCheck aria-hidden="true" />
           <AlertTitle>You may have written this before</AlertTitle>
           <AlertDescription>

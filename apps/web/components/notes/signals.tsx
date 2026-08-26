@@ -82,7 +82,7 @@ export function Signals({
                 <Badge
                   render={<button type="button" />}
                   variant={answer === "accepted" ? "secondary" : "outline"}
-                  className="animate-settle gap-1.5 font-normal transition-transform duration-150 ease-[var(--ease-out-quart)] active:scale-[0.97]"
+                  className="animate-settle gap-1.5 font-normal outline-none transition-transform duration-150 ease-[var(--ease-out-quart)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-[0.97]"
                 />
               }
             >

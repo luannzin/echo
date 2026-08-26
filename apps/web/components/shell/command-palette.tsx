@@ -1,7 +1,7 @@
 "use client";
 
 import type { Note } from "@echo/types";
-import type { LucideIcon } from "lucide-react";
+import { type LucideIcon, NotebookPen } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Command,
@@ -18,6 +18,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
+import { formatStamp } from "@/lib/time";
 
 export type PaletteCommand = {
   id: string;
@@ -141,7 +142,7 @@ export function CommandPalette({
             {searching
               ? "Looking…"
               : unavailable
-                ? "Search needs the local database, which could not be opened."
+                ? "Search needs the local database, which could not be opened. Reload the page to try again."
                 : query.trim()
                   ? "Nothing matches that."
                   : null}
@@ -160,9 +161,15 @@ export function CommandPalette({
                           onOpenChange(false);
                           row.command.run();
                         }}
+                        className="gap-2.5"
                       >
-                        <row.command.icon aria-hidden="true" className="text-muted-foreground" />
-                        {row.command.label}
+                        {/* Sized here rather than inherited: the list primitive sets no icon size,
+                            and a Lucide icon left alone renders at 24px beside 14px text. */}
+                        <row.command.icon
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-muted-foreground"
+                        />
+                        <span className="truncate">{row.command.label}</span>
                         {row.command.shortcut ? (
                           <CommandShortcut>{row.command.shortcut}</CommandShortcut>
                         ) : null}
@@ -175,11 +182,24 @@ export function CommandPalette({
                           onOpenChange(false);
                           onOpenNote(row.note.id);
                         }}
-                        className="flex-col items-start gap-0.5 py-2"
+                        className="items-start gap-2.5 py-2"
                       >
-                        <span className="w-full truncate">{row.note.title || "Untitled"}</span>
-                        <span className="w-full truncate text-muted-foreground text-xs">
-                          {snippet(row.note.content)}
+                        <NotebookPen
+                          aria-hidden="true"
+                          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                        />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate">{row.note.title || "Untitled"}</span>
+                          {/* Only when it adds something: a one-line note is its own title, and
+                              printing it twice tells the reader nothing they cannot see already. */}
+                          {body(row.note.content) ? (
+                            <span className="truncate text-muted-foreground text-xs">
+                              {body(row.note.content)}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 whitespace-nowrap font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
+                          {formatStamp(row.note.updatedAt)}
                         </span>
                       </CommandItem>
                     )
@@ -200,9 +220,8 @@ export function CommandPalette({
   );
 }
 
-/** The note's first line of body, so two notes that open the same way are still tellable apart. */
-function snippet(content: string): string {
-  const [first = "", ...rest] = content.split("\n");
-  const body = rest.join(" ").trim();
-  return (body || first).slice(0, 120);
+/** Everything after the line the title came from, and nothing when the note is a single line. */
+function body(content: string): string {
+  const [, ...rest] = content.split("\n");
+  return rest.join(" ").trim().slice(0, 120);
 }
