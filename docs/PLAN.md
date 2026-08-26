@@ -93,9 +93,11 @@ Verify: property tests — N corrections in one direction must flip the suggesti
 
 ---
 
-## Phase 5 — Organization
+## Phase 5 — Organization ✅
 
-Unlimited nesting, drag & drop move (tree + note list), projects as first-class, Inbox triage flow (accept suggested destination in one key), tasks view with due dates and source-note links.
+Unlimited nesting, drag & drop move (tree + note list), Inbox triage flow (accept suggested destination in one key), tasks view with due dates and source-note links. Destination suggestions come from a neighbour vote over the reader's own notes; corrections may damp a folder but never invent one.
+
+Projects were deliberately not built — see `docs/STATE.md`. Nothing in the product distinguishes a project from a folder yet, so the entity is deferred rather than half-built.
 
 ---
 

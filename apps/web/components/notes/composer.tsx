@@ -31,10 +31,14 @@ export function Composer({
   onCorrect,
   undoLabel,
   restore,
+  onRestored,
   docked = false,
 }: {
-  /** Returns the note synchronously: it exists on screen before it exists in the database. */
-  onCapture: (content: string) => Note;
+  /**
+   * Returns the note synchronously: it exists on screen before it exists in the database. A task
+   * comes with it only when the writer agreed to one — echo reads, the writer decides.
+   */
+  onCapture: (content: string, task?: { title: string; dueAt: Date | null }) => Note;
   /** Fires behind the typing, never in front of it: retrieval is allowed to be late. */
   onDraft: (text: string) => void;
   /** What this reader has taught echo, which decides whether a signal is worth mentioning. */
@@ -44,6 +48,8 @@ export function Composer({
   undoLabel?: string;
   /** Text handed back to the writer — an undone note returning to where it was written. */
   restore?: { text: string; at: number };
+  /** Said once the text is back in the box, so it is not handed over a second time. */
+  onRestored?: () => void;
   docked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
@@ -82,19 +88,22 @@ export function Composer({
   }, []);
 
   // An undone note comes back to the box it was written in, with the caret after the last word, so
-  // taking one back leaves the writer exactly where they were before they sent it.
+  // taking one back leaves the writer exactly where they were before they sent it. It is handed
+  // over exactly once: a writer who then empties the box has decided the note is gone, and moving
+  // between screens must not bring it back.
   const restoredAt = restore?.at;
   useEffect(() => {
     if (restoredAt === undefined) return;
     const text = restore?.text ?? "";
     setDraft(text);
     setSettled({});
+    onRestored?.();
     const element = textarea.current;
     if (!element) return;
     element.focus();
     // After the value has been painted, or the caret would be placed in the box's old contents.
     requestAnimationFrame(() => element.setSelectionRange(text.length, text.length));
-  }, [restoredAt, restore?.text]);
+  }, [restoredAt, restore?.text, onRestored]);
 
   const filled = draft.trim().length > 0;
 
@@ -111,7 +120,16 @@ export function Composer({
 
   function commit() {
     if (!filled) return;
-    onCapture(draft);
+    // Parsed once more at the moment of sending: the deferred copy the chips were drawn from may be
+    // a keystroke behind, and a task is made from what was actually written.
+    const parsed = parse(draft);
+    const task = parsed.tasks[0];
+    const agreed = task !== undefined && settled[`task-phrase:${task.trigger}`] === "accepted";
+
+    onCapture(
+      draft,
+      agreed && task ? { title: task.text, dueAt: parsed.deadline?.date ?? null } : undefined,
+    );
     setDraft("");
     setSettled({});
     textarea.current?.focus();

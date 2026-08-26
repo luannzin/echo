@@ -7,6 +7,7 @@ import {
   recencyScore,
 } from "./ranking";
 
+export * from "./destinations";
 export * from "./ranking";
 export * from "./vector-index";
 

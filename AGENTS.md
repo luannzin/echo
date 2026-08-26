@@ -97,6 +97,8 @@ When the user requests a durable behavior change, record it here or in the relev
 - coss registry files (`apps/web/components/ui/**`) are CLI-owned — compose, never hand-edit
 - Keep UI state plain: no React context, no custom hooks, no state library unless prop passing has
   actually broken down. One owner component, props downward
+- Every pointer-only affordance needs a keyboard twin: drag and drop is paired with a context menu,
+  a hover-revealed control stays reachable on focus
 
 ## Child DOX Index
 

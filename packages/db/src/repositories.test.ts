@@ -111,3 +111,45 @@ test("lexical search finds notes by their words and ranks them", async () => {
   expect(hits[0]?.rank).toBeGreaterThan(0);
   expect(await lexical.search("nothing matches this")).toEqual([]);
 });
+
+test("tasks are ordered by when they are due, with undated ones last", async () => {
+  const echo = await testEcho();
+  const note = await echo.notes.create({ content: "ship the landing page" });
+  const someday = await echo.tasks.create({ noteId: note.id, title: "someday" });
+  const later = await echo.tasks.create({
+    noteId: note.id,
+    title: "later",
+    dueAt: new Date("2026-09-10T00:00:00Z"),
+  });
+  const sooner = await echo.tasks.create({
+    noteId: note.id,
+    title: "sooner",
+    dueAt: new Date("2026-09-01T00:00:00Z"),
+  });
+
+  const listed = await echo.tasks.list();
+
+  expect(listed.map((task) => task.id)).toEqual([sooner.id, later.id, someday.id]);
+});
+
+test("completing a task records when, and reopening clears it", async () => {
+  const echo = await testEcho();
+  const note = await echo.notes.create({ content: "call the bank" });
+  const task = await echo.tasks.create({ noteId: note.id, title: "call the bank" });
+
+  const done = await echo.tasks.setCompleted(task.id, true);
+  const reopened = await echo.tasks.setCompleted(task.id, false);
+
+  expect(done.completedAt).toBeInstanceOf(Date);
+  expect(reopened.completedAt).toBeNull();
+});
+
+test("deleting a note takes its tasks with it", async () => {
+  const echo = await testEcho();
+  const note = await echo.notes.create({ content: "temporary" });
+  await echo.tasks.create({ noteId: note.id, title: "temporary" });
+
+  await echo.notes.delete(note.id);
+
+  expect(await echo.tasks.list()).toHaveLength(0);
+});

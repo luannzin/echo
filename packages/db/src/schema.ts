@@ -149,3 +149,24 @@ export const noteVectors = pgTable("note_vectors", {
   values: bytes("values").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * A task the writer agreed to, and the note it came out of. Deleting the note deletes the task:
+ * a task with no source is a list item echo has no way to explain.
+ */
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull().default(DEFAULT_WORKSPACE_ID),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("tasks_note_idx").on(table.noteId), index("tasks_due_at_idx").on(table.dueAt)],
+);

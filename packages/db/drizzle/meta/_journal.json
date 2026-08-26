@@ -43,6 +43,13 @@
       "when": 1787711536190,
       "tag": "0005_futuristic_meggan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787744389341,
+      "tag": "0006_bitter_nuke",
+      "breakpoints": true
     }
   ]
 }

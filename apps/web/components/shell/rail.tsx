@@ -2,8 +2,8 @@
 
 import {
   Brain,
-  FolderTree,
   History,
+  Inbox,
   type LucideIcon,
   PanelLeft,
   PenLine,
@@ -11,21 +11,18 @@ import {
   Settings,
   SquareCheck,
 } from "lucide-react";
+import type { View } from "@/components/shell/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-/** Destinations that exist in the product but not yet in the code. */
-const planned: { label: string; icon: LucideIcon }[] = [
-  { label: "Explorer", icon: FolderTree },
-  { label: "Tasks", icon: SquareCheck },
-  { label: "Recent", icon: History },
-];
 
 export function Rail({
   onToggleNavigation,
   navigationOpen,
   atHome,
   onHome,
+  view,
+  onViewChange,
+  inboxCount,
   intelligenceOpen,
   onToggleIntelligence,
   onSearch,
@@ -34,6 +31,10 @@ export function Rail({
   navigationOpen: boolean;
   atHome: boolean;
   onHome: () => void;
+  view: View;
+  onViewChange: (view: View) => void;
+  /** Printed on the Inbox as a count, because a pile you cannot see is a pile you never clear. */
+  inboxCount: number;
   intelligenceOpen: boolean;
   onToggleIntelligence: () => void;
   onSearch: () => void;
@@ -56,14 +57,20 @@ export function Rail({
         <div className="my-1 h-px w-6 bg-sidebar-border" />
         <RailButton label="Write" icon={PenLine} active={atHome} onClick={onHome} />
         <RailButton label="Search" icon={Search} onClick={onSearch} />
-        {planned.map((item) => (
-          <RailButton
-            key={item.label}
-            label={`${item.label} — soon`}
-            icon={item.icon}
-            unavailable
-          />
-        ))}
+        <RailButton
+          label={inboxCount > 0 ? `Inbox — ${inboxCount} to place` : "Inbox"}
+          icon={Inbox}
+          active={view === "inbox"}
+          badge={inboxCount}
+          onClick={() => onViewChange("inbox")}
+        />
+        <RailButton
+          label="Tasks"
+          icon={SquareCheck}
+          active={view === "tasks"}
+          onClick={() => onViewChange("tasks")}
+        />
+        <RailButton label="Recent — soon" icon={History} unavailable />
         <div className="mt-auto flex flex-col items-center gap-1">
           {/* The intelligence panel only exists from lg up, so its toggle follows the same rule. */}
           <div className="hidden lg:block">
@@ -87,10 +94,13 @@ function RailButton({
   active = false,
   pressed,
   unavailable = false,
+  badge = 0,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
+  /** A count worth noticing, drawn as a dot rather than a number: the number is in the tooltip. */
+  badge?: number;
   /** `active` marks the current destination; `pressed` marks a panel toggle's on state. */
   active?: boolean;
   pressed?: boolean;
@@ -118,7 +128,15 @@ function RailButton({
           />
         }
       >
-        <Icon aria-hidden="true" />
+        <span className="relative flex items-center justify-center">
+          <Icon aria-hidden="true" />
+          {badge > 0 ? (
+            <span
+              aria-hidden="true"
+              className="absolute -end-1 -top-1 size-1.5 rounded-full bg-brand-bright"
+            />
+          ) : null}
+        </span>
       </TooltipTrigger>
       <TooltipPopup side="right">{label}</TooltipPopup>
     </Tooltip>

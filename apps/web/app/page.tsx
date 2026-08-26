@@ -1,30 +1,46 @@
 "use client";
 
-import { deriveTitle } from "@echo/core";
+import { deriveTitle, folderPath } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
-import { affinity, dismissed, type LearnedRule } from "@echo/learning";
+import { adjust, affinity, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
+import type { Destination } from "@echo/search";
 import { DUPLICATE_SIMILARITY } from "@echo/search";
-import { DEFAULT_WORKSPACE_ID, type LearningEventCreate, type Note } from "@echo/types";
-import { Brain, MessageSquareText, PanelLeft, PenLine, Undo2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DEFAULT_WORKSPACE_ID,
+  type Folder,
+  type LearningEventCreate,
+  type Note,
+  type Task,
+} from "@echo/types";
+import {
+  Brain,
+  FolderPlus,
+  Inbox,
+  MessageSquareText,
+  PanelLeft,
+  PenLine,
+  SquareCheck,
+  Undo2,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Composer } from "@/components/notes/composer";
+import { Inbox as InboxView } from "@/components/notes/inbox";
 import { Learned } from "@/components/notes/learned";
 import { NoteEditor } from "@/components/notes/note-editor";
-import { NoteList } from "@/components/notes/note-list";
 import { type Related, RelatedNotes } from "@/components/notes/related-notes";
 import { Stream } from "@/components/notes/stream";
-import { AppShell, Label, Pane } from "@/components/shell/app-shell";
+import { Tasks } from "@/components/notes/tasks";
+import { AppShell, Label, Pane, type View } from "@/components/shell/app-shell";
 import {
   CommandPalette,
   type PaletteCommand,
   type SearchPass,
 } from "@/components/shell/command-palette";
+import { Explorer } from "@/components/shell/explorer";
 import { type AnalysisState, getEcho } from "@/lib/echo";
 import { readPreference, writePreference } from "@/lib/preferences";
 import { shortcutFor, shortcutLabel } from "@/lib/shortcuts";
 import { navigate, noteRow } from "@/lib/transition";
-
-type View = "home" | "stream";
 
 /**
  * The note list is ordered by when a note was last touched. Applying that here rather than asking
@@ -38,8 +54,17 @@ function upsert(notes: Note[], note: Note): Note[] {
   return [...without.slice(0, at), note, ...without.slice(at)];
 }
 
+/** The same shape for folders and tasks, which are small lists kept in the order they arrive in. */
+function replace<T extends { id: string }>(items: T[], item: T): T[] {
+  const at = items.findIndex((existing) => existing.id === item.id);
+  if (at === -1) return [...items, item];
+  return [...items.slice(0, at), item, ...items.slice(at + 1)];
+}
+
 export default function Page() {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<View>("home");
@@ -63,10 +88,18 @@ export default function Page() {
   const undoableRef = useRef<{ id: string; content: string } | null>(null);
   /** Text on its way back to the composer. `at` changes so the same note can be undone twice. */
   const [restore, setRestore] = useState<{ text: string; at: number } | undefined>(undefined);
+  /** Stable, because the composer holds it in an effect's dependencies. */
+  const clearRestore = useCallback(() => setRestore(undefined), []);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const arrivedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
+  const [folderFilter, setFolderFilter] = useState<string | undefined>(undefined);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  /** Where each unfiled note probably belongs. Filled when the Inbox is open, and only then. */
+  const [destinations, setDestinations] = useState<Map<string, Destination>>(new Map());
 
   // Both panels render closed, then open to the stored preference on mount. The first paint always
   // matches the prerendered markup, so nothing jumps — the panels animate into place instead.
@@ -79,9 +112,9 @@ export default function Page() {
   }, []);
 
   /**
-   * Opens the local database, loads the notes once, and then keeps the list in step by applying
-   * each domain event to what is already on screen. Re-reading the workspace on every autosave was
-   * the same answer arrived at expensively — and it replaced the array on every keystroke, which
+   * Opens the local database, loads what is there once, and then keeps the screen in step by
+   * applying each domain event to what is already on it. Re-reading the workspace on every autosave
+   * was the same answer arrived at expensively — and it replaced the array on every keystroke, which
    * re-rendered every row in the stream along with it.
    */
   useEffect(() => {
@@ -102,6 +135,24 @@ export default function Page() {
               case "note.deleted":
                 setNotes((current) => current.filter((note) => note.id !== event.noteId));
                 break;
+              case "folder.created":
+              case "folder.renamed":
+              case "folder.moved":
+                setFolders((current) => replace(current, event.folder));
+                break;
+              case "folder.deleted":
+                // Subfolders go with the parent in the database; the screen re-reads rather than
+                // working out the same subtree a second time.
+                void echo.folders.list().then((listed) => alive && setFolders(listed));
+                void echo.notes.list().then((listed) => alive && setNotes(listed));
+                break;
+              case "task.created":
+              case "task.updated":
+                setTasks((current) => replace(current, event.task));
+                break;
+              case "task.deleted":
+                setTasks((current) => current.filter((task) => task.id !== event.taskId));
+                break;
               case "learning.recorded":
               case "learning.forgotten":
                 void echo.learning.rules().then((learned) => alive && setRules(learned));
@@ -117,11 +168,18 @@ export default function Page() {
           for (const off of stop) off();
         };
 
-        const [list, learned] = await Promise.all([echo.notes.list(), echo.learning.rules()]);
+        const [list, listedFolders, listedTasks, learned] = await Promise.all([
+          echo.notes.list(),
+          echo.folders.list(),
+          echo.tasks.list(),
+          echo.learning.rules(),
+        ]);
         if (!alive) return;
         // Anything captured while the database was opening is already on screen, and it is newer
         // than everything the database has to say about it.
         setNotes((optimistic) => list.reduce(upsert, optimistic));
+        setFolders(listedFolders);
+        setTasks(listedTasks);
         setRules(learned);
         setLoading(false);
       })
@@ -166,6 +224,15 @@ export default function Page() {
   }, []);
 
   const editing = notes.find((note) => note.id === editingId) ?? null;
+  const unfiled = useMemo(() => notes.filter((note) => note.folderId === null), [notes]);
+  const listed = useMemo(
+    () => (folderFilter === undefined ? notes : notes.filter((n) => n.folderId === folderFilter)),
+    [notes, folderFilter],
+  );
+  const countOf = useCallback(
+    (folderId: string) => notes.filter((note) => note.folderId === folderId).length,
+    [notes],
+  );
 
   /**
    * Related notes are retrieved for whatever is in focus — the open note, or what is being written.
@@ -186,6 +253,39 @@ export default function Page() {
     if (!editing) return;
     void findRelated(editing.content, editing.id);
   }, [editing, findRelated]);
+
+  /**
+   * Where the unfiled notes probably belong, worked out only while the Inbox is open. Every note
+   * that has been read already has a vector, so this is a scan of memory rather than a hundred trips
+   * through the model — which is why the whole pile can be answered for at once.
+   */
+  useEffect(() => {
+    if (view !== "inbox" || folders.length === 0) {
+      setDestinations(new Map());
+      return;
+    }
+
+    let alive = true;
+    void (async () => {
+      const echo = await getEcho();
+      const found = new Map<string, Destination>();
+      for (const note of unfiled) {
+        const [best] = await echo.retrieval.destinations(note.content, {
+          notes: notesRef.current,
+          excludeNoteId: note.id,
+          // A folder the reader keeps rejecting goes quiet. Nothing here can invent a suggestion
+          // the notes did not already make: history is a second opinion, never the evidence.
+          weightOf: (folderId) => adjust(1, ruleFor(rulesRef.current, "destination", folderId)),
+        });
+        if (best) found.set(note.id, best);
+      }
+      if (alive) setDestinations(found);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [view, unfiled, folders, rules]);
 
   /**
    * Everything echo knows about the question. Words come back first, from the database's own index;
@@ -224,7 +324,7 @@ export default function Page() {
    * disappears again and the text comes back to the composer.
    */
   const capture = useCallback(
-    (content: string): Note => {
+    (content: string, task?: { title: string; dueAt: Date | null }): Note => {
       const now = new Date();
       const note: Note = {
         id: crypto.randomUUID(),
@@ -255,7 +355,12 @@ export default function Page() {
       else arrive();
 
       void getEcho()
-        .then((echo) => echo.notes.create({ id: note.id, content }))
+        .then(async (echo) => {
+          await echo.notes.create({ id: note.id, content });
+          // The task is created after the note it belongs to, and only when the writer agreed: a
+          // task with no source is a list item echo would have no way to explain.
+          if (task) await echo.tasks.create({ noteId: note.id, ...task });
+        })
         .catch(() => setNotes((current) => current.filter((existing) => existing.id !== note.id)));
 
       return note;
@@ -323,6 +428,100 @@ export default function Page() {
     [view],
   );
 
+  const moveNote = useCallback(async (noteId: string, folderId: string | null) => {
+    const echo = await getEcho();
+    await echo.notes.move(noteId, folderId);
+  }, []);
+
+  /**
+   * Filing a note in the place echo suggested. The move is the lesson: the note becomes one of the
+   * neighbours that will argue for that folder next time. The recorded correction only decides
+   * whether echo keeps offering this folder at all.
+   */
+  const acceptDestination = useCallback(
+    (noteId: string, destination: Destination) => {
+      void moveNote(noteId, destination.folderId);
+      void correct({
+        type: "signal_accepted",
+        kind: "destination",
+        subject: destination.folderId,
+        noteId,
+      });
+    },
+    [correct, moveNote],
+  );
+
+  /** Filing it somewhere else. Echo was wrong about the destination, and that is worth recording. */
+  const chooseDestination = useCallback(
+    (noteId: string, folderId: string, suggested: Destination | undefined) => {
+      void moveNote(noteId, folderId);
+      if (suggested && suggested.folderId !== folderId) {
+        void correct({
+          type: "signal_rejected",
+          kind: "destination",
+          subject: suggested.folderId,
+          noteId,
+        });
+      }
+    },
+    [correct, moveNote],
+  );
+
+  const createFolder = useCallback(async (name: string, parentId: string | null) => {
+    const echo = await getEcho();
+    const folder = await echo.folders.create({ name, parentId });
+    // A folder made inside another is made to be looked at: the parent opens to show it.
+    if (parentId !== null) setExpanded((current) => new Set(current).add(parentId));
+    return folder;
+  }, []);
+
+  const renameFolder = useCallback(async (folderId: string, name: string) => {
+    const echo = await getEcho();
+    await echo.folders.rename(folderId, name);
+  }, []);
+
+  const deleteFolder = useCallback(async (folderId: string) => {
+    const echo = await getEcho();
+    await echo.folders.delete(folderId);
+    setFolderFilter((current) => (current === folderId ? undefined : current));
+  }, []);
+
+  const moveFolder = useCallback(async (folderId: string, parentId: string | null) => {
+    const echo = await getEcho();
+    await echo.folders.move(folderId, parentId);
+    if (parentId !== null) setExpanded((current) => new Set(current).add(parentId));
+  }, []);
+
+  const toggleExpanded = useCallback((folderId: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (!next.delete(folderId)) next.add(folderId);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Naming a folder happens in the tree, wherever it was asked for. The pane opens if it was shut,
+   * and the row that turns into a text field takes the cursor from there.
+   */
+  const startNewFolder = useCallback(() => {
+    setNavigationOpen(true);
+    writePreference("notes-panel", true);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>('[aria-label="New folder"]')?.click(),
+    );
+  }, []);
+
+  const toggleTask = useCallback(async (task: Task, completed: boolean) => {
+    const echo = await getEcho();
+    await echo.tasks.setCompleted(task.id, completed);
+  }, []);
+
+  const deleteTask = useCallback(async (task: Task) => {
+    const echo = await getEcho();
+    await echo.tasks.delete(task.id);
+  }, []);
+
   useEffect(
     () => () => {
       if (arrivedTimer.current) clearTimeout(arrivedTimer.current);
@@ -341,6 +540,7 @@ export default function Page() {
 
       if (shortcut === "palette" || shortcut === "search") setPaletteOpen((open) => !open);
       if (shortcut === "new-note") changeView("home");
+      if (shortcut === "organize") changeView("inbox");
       if (shortcut === "toggle-notes") toggleNavigation();
       if (shortcut === "toggle-intelligence") toggleIntelligence();
       if (shortcut === "undo-capture") undoCapture();
@@ -366,6 +566,28 @@ export default function Page() {
       keywords: "notes history timeline",
       run: () => changeView("stream"),
     },
+    {
+      id: "inbox",
+      label: unfiled.length > 0 ? `Place ${unfiled.length} unfiled notes` : "Open the Inbox",
+      icon: Inbox,
+      shortcut: shortcutLabel("organize"),
+      keywords: "inbox triage file organize move unfiled",
+      run: () => changeView("inbox"),
+    },
+    {
+      id: "tasks",
+      label: "Open tasks",
+      icon: SquareCheck,
+      keywords: "todo due deadlines",
+      run: () => changeView("tasks"),
+    },
+    {
+      id: "new-folder",
+      label: "New folder",
+      icon: FolderPlus,
+      keywords: "create folder project place",
+      run: startNewFolder,
+    },
     ...(undoable
       ? [
           {
@@ -383,7 +605,7 @@ export default function Page() {
       label: navigationOpen ? "Hide the note list" : "Show the note list",
       icon: PanelLeft,
       shortcut: shortcutLabel("toggle-notes"),
-      keywords: "sidebar panel toggle",
+      keywords: "sidebar panel toggle explorer folders",
       run: toggleNavigation,
     },
     {
@@ -404,6 +626,19 @@ export default function Page() {
       ? closest
       : null;
 
+  const composer = (docked: boolean) => (
+    <Composer
+      onCapture={capture}
+      onDraft={findRelated}
+      rules={rules}
+      onCorrect={correct}
+      undoLabel={undoable ? shortcutLabel("undo-capture") : undefined}
+      restore={restore}
+      onRestored={clearRestore}
+      docked={docked}
+    />
+  );
+
   return (
     <>
       <AppShell
@@ -412,6 +647,7 @@ export default function Page() {
         view={view}
         onViewChange={changeView}
         streamAvailable={notes.length > 0}
+        inboxCount={unfiled.length}
         navigationOpen={navigationOpen}
         onToggleNavigation={toggleNavigation}
         intelligenceOpen={intelligenceOpen}
@@ -419,18 +655,55 @@ export default function Page() {
         onSearch={() => setPaletteOpen(true)}
         searchShortcut={shortcutLabel("palette")}
         navigation={
-          <NoteList
-            notes={notes}
+          <Explorer
+            folders={folders}
+            selectedFolderId={folderFilter}
+            onSelectFolder={setFolderFilter}
+            onOpenInbox={() => changeView("inbox")}
+            inboxCount={unfiled.length}
+            countOf={countOf}
+            expanded={expanded}
+            onToggleExpanded={toggleExpanded}
+            onCreateFolder={(name, parentId) => void createFolder(name, parentId)}
+            onRenameFolder={(folderId, name) => void renameFolder(folderId, name)}
+            onDeleteFolder={(folderId) => void deleteFolder(folderId)}
+            onMoveFolder={(folderId, parentId) => void moveFolder(folderId, parentId)}
+            onMoveNote={(noteId, folderId) => void moveNote(noteId, folderId)}
+            notes={listed}
             loading={loading}
             failed={failed}
-            selectedId={editingId}
-            onSelect={openNote}
-            onPreview={previewNote}
+            selectedNoteId={editingId}
+            onSelectNote={openNote}
+            onPreviewNote={previewNote}
           />
         }
         workspace={
           editing ? (
-            <NoteEditor key={editing.id} note={editing} onSave={save} onClose={closeNote} />
+            <NoteEditor
+              key={editing.id}
+              note={editing}
+              location={folderPath(folders, editing.folderId)}
+              onSave={save}
+              onClose={closeNote}
+            />
+          ) : view === "inbox" ? (
+            <InboxView
+              notes={unfiled}
+              folders={folders}
+              suggestionOf={(noteId) => destinations.get(noteId)}
+              onAccept={acceptDestination}
+              onMove={chooseDestination}
+              onOpen={openNote}
+              onNewFolder={startNewFolder}
+            />
+          ) : view === "tasks" ? (
+            <Tasks
+              tasks={tasks}
+              noteOf={(noteId) => notes.find((note) => note.id === noteId)}
+              onToggle={(task, completed) => void toggleTask(task, completed)}
+              onDelete={(task) => void deleteTask(task)}
+              onOpenNote={openNote}
+            />
           ) : view === "stream" ? (
             // The composer scrolls inside the stream rather than beside it: sharing one scroll
             // container is what keeps both columns exactly the same width.
@@ -439,27 +712,10 @@ export default function Page() {
               className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
             >
               <Stream notes={notes} arrivedId={arrivedId} previewId={previewId} onOpen={openNote} />
-              <div className="sticky bottom-0 bg-background pt-2">
-                <Composer
-                  onCapture={capture}
-                  onDraft={findRelated}
-                  rules={rules}
-                  onCorrect={correct}
-                  undoLabel={undoable ? shortcutLabel("undo-capture") : undefined}
-                  restore={restore}
-                  docked
-                />
-              </div>
+              <div className="sticky bottom-0 bg-background pt-2">{composer(true)}</div>
             </div>
           ) : (
-            <Composer
-              onCapture={capture}
-              onDraft={findRelated}
-              rules={rules}
-              onCorrect={correct}
-              undoLabel={undoable ? shortcutLabel("undo-capture") : undefined}
-              restore={restore}
-            />
+            composer(false)
           )
         }
         intelligence={
@@ -487,7 +743,7 @@ export default function Page() {
               <div className="pb-2">
                 <Label>Learned</Label>
               </div>
-              <Learned rules={rules} onForget={(rule) => void forget(rule)} />
+              <Learned rules={rules} folders={folders} onForget={(rule) => void forget(rule)} />
             </div>
           </div>
         }

@@ -49,6 +49,15 @@ function memoryRepositories(): Repositories {
       get: async () => null,
       list: async () => [],
     },
+    tasks: {
+      insert: async (task) => task,
+      update: async () => {
+        throw new Error("unused");
+      },
+      delete: async () => {},
+      get: async () => null,
+      list: async () => [],
+    },
   };
 }
 

@@ -6,9 +6,9 @@
 Open source, no-AI, local-first note taking. Semantic search, automatic organization and adaptive
 learning that run **on your machine** — no AI API key required for any core feature, ever.
 
-Status: **Phase 4 — capture, search, related notes and adaptive learning all work locally.** See
-[docs/PLAN.md](docs/PLAN.md) for the roadmap and [docs/STATE.md](docs/STATE.md) for exactly where the
-build stands right now.
+Status: **Phase 5 — capture, search, related notes, nested folders, Inbox triage and tasks all work
+locally.** See [docs/PLAN.md](docs/PLAN.md) for the roadmap and [docs/STATE.md](docs/STATE.md) for
+exactly where the build stands right now.
 
 ## Requirements
 
@@ -58,7 +58,7 @@ packages/core       Domain logic, services, event bus — no IO, no React
 packages/db         Repositories + migrations (PGlite locally, Postgres on a server)
 packages/parser     Deterministic content analysis: dates, tasks, keywords
 packages/embeddings Local embedding runtime behind a swappable interface
-packages/search     Lexical + semantic retrieval and hybrid ranking
+packages/search     Lexical + semantic retrieval, hybrid ranking, destination suggestions
 packages/learning   Learning events in, learned rules out
 packages/sync       Sync protocol and conflict resolution
 packages/ui         Shared UI primitives (promotion target; coss lives in apps/web for now)

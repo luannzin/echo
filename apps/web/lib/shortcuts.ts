@@ -7,6 +7,7 @@ export type Shortcut =
   | "palette"
   | "search"
   | "new-note"
+  | "organize"
   | "toggle-notes"
   | "toggle-intelligence"
   | "undo-capture";
@@ -21,6 +22,8 @@ export function shortcutLabel(shortcut: Shortcut, mac = onMac()): string {
       return `${mod} ⇧ F`;
     case "new-note":
       return "N";
+    case "organize":
+      return `${mod} ⇧ P`;
     case "toggle-notes":
       return `${mod} B`;
     case "toggle-intelligence":
@@ -43,6 +46,7 @@ export function shortcutFor(event: KeyboardEvent): Shortcut | null {
   if (modifier) {
     if (key === "k") return "palette";
     if (key === "f" && event.shiftKey) return "search";
+    if (key === "p" && event.shiftKey) return "organize";
     if (key === "b" && !event.shiftKey) return "toggle-notes";
     if (key === "i" && !event.shiftKey) return "toggle-intelligence";
     // Only ever claimed away from written text. Inside a box with words in it, undo means the

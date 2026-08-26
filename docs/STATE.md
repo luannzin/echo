@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **4 complete — learning, retrieval and the performance pass**
+Last updated: 2026-08-26 · Phase: **5 complete — organization: folders, the Inbox and tasks**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -117,13 +117,15 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   save-state indicator, focus ring, press feedback. Reduced motion still collapses all of it.
 
 ## In progress
-- Nothing. Phase 4 closed with the performance and feedback pass below.
+- Nothing. Phase 5 closed with the organization pass below.
 
 ## Next
-1. **You:** try `bun run build && bun run start` and confirm the production app opens its database —
-   it did not before this pass, and that is the single most important thing to re-verify.
-2. **Then Phase 5 — Organization:** unlimited nested folders, projects as first-class, drag and drop,
-   the Inbox triage flow, and a tasks view fed by what the parser already detects.
+1. **You:** decide whether projects should be their own entity — see "Projects, deliberately not
+   built" under Phase 5. Today a project would be a folder with a different icon, so nothing was
+   built rather than something that has to be unbuilt later.
+2. **Then Phase 6 — PWA and desktop:** service worker, install manifest, offline as a normal state,
+   the mobile layout (bottom navigation, full-screen editor, intelligence as a bottom sheet), and
+   the Tauri shell around the same web build.
 
 ## Decisions made
 | Date | Decision | Why |
@@ -162,6 +164,11 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 | 2026-08-26 | Production builds use webpack, dev uses Turbopack | Turbopack miscompiles PGlite's runtime module and the app cannot open its database; dev is unaffected |
 | 2026-08-26 | PGlite's wasm served from `public/pglite` | the same arrangement as `public/ort`; a local-first app serves its own runtime rather than having a bundler assemble it |
 | 2026-08-26 | `⌘Z` takes back the last capture | commit is one keystroke with no confirmation, which is only fair if undo is one too |
+| 2026-08-26 | Destinations are suggested by neighbour vote, not a classifier | the corpus is the model: every note the reader files improves it, nothing is trained, and the reason is a list of notes rather than a score |
+| 2026-08-26 | Corrections may only damp a destination, never invent one | filing a note is already the positive signal — it adds a voter — so history is a second opinion and the notes stay the evidence |
+| 2026-08-26 | A task is created only where the writer agreed to the chip | the parser proposes and the reader decides; a task echo invented would be a list item it could not explain |
+| 2026-08-26 | Projects deferred, not built | today a project would be a folder with a different icon; the domain is ready when the product has something to say about them |
+| 2026-08-26 | The tree and the note list are one component | a drag crosses between them, and the row it is heading for must light up mid-air |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
@@ -304,7 +311,68 @@ Reviewed against Emil Kowalski's framework and corrected:
 - The arrival glow is cleared after it plays. Left set, re-entering the stream lit the row again and
   told the reader a note had just landed when it had been there an hour.
 
+### Phase 5 — Organization
+- **Schema** gains `tasks` (migration `0006`): id, workspace, `note_id` with `on delete cascade`,
+  title, `due_at`, `completed_at`. A task always names the note it came out of, so a note leaving
+  takes its tasks with it. Indexed on the note and on the due date.
+- **`@echo/core`** gains `TaskService` (create / complete / reopen / set due / delete / list) and
+  `task.created|updated|deleted` events, plus `tree.ts`: `buildTree`, `flattenTree`, `folderPath`
+  and `subtreeIds` — pure, so the explorer never asks the database how to draw a level. Folder
+  services already existed since Phase 1; this phase is what finally uses them.
+- **`@echo/search`** gains `suggestDestinations`: where a note belongs, decided by where the notes
+  nearest it already are. Each neighbour votes for its own folder weighted by similarity, unfiled
+  neighbours abstain, and a folder below a third of the vote is a coincidence rather than a
+  suggestion. No classifier, nothing trained, and `because` names the notes that argued — so "why
+  there?" is answered with notes the reader can open, never with a score.
+- **The vector index** gains `vectorOf`. A note that has already been read is its own query, so
+  answering for a whole Inbox is a scan of memory rather than a hundred trips through the model.
+- **The navigation pane is now the explorer**: Inbox at the top with a count, the folder tree under
+  it with unlimited nesting, and the note list of whatever is selected below. The tree and the list
+  are one component because a drag crosses between them.
+- **Drag and drop**: notes onto folders or onto the Inbox, folders into folders. A folder cannot be
+  dropped into its own subtree — guarded in the UI by `subtreeIds` and again in `folders.move()`.
+  Every drop target is also reachable without a pointer: right-click a note for "Move to", and every
+  folder row carries the same three actions from a `⋯` menu and from a right-click.
+- **Folders are named in place.** The row turns into a text field — create at the root, create
+  inside, rename. Enter keeps, Escape drops, and clicking away keeps rather than discards. Deleting
+  a folder says, where the decision is made, that its notes go back to the Inbox.
+- **Inbox triage** is one key per note. Each unfiled note shows its suggested destination, the
+  evidence behind it ("3 notes like it are there"), and a menu for somewhere else. Filing one moves
+  the keyboard to the next row's button, so a pile is worked through with Enter alone.
+- **Learning closes the loop.** Accepting records `signal_accepted` on kind `destination`; filing it
+  elsewhere records `signal_rejected` against what echo suggested. A rejected folder is damped by
+  `adjust(1, rule)` — the same function that quiets a task phrase — and can never be promoted by
+  history alone. The positive signal needs no machinery: filing a note *is* the evidence, because it
+  becomes one of the neighbours that votes next time. Destination rules appear in the Learned panel
+  named by path, and "forget this" deletes them like any other.
+- **Tasks** exist only where the writer agreed. Accepting the composer's `Task` chip creates one at
+  commit, with whatever deadline the parser found; nothing reads a note and decides on its own. The
+  Tasks view groups Late / Due / No date / Done, links each task to its source note, and completes
+  with a timestamp rather than a flag.
+- **Rail and palette** caught up: Inbox (with a dot when notes are waiting) and Tasks are real
+  destinations, `⌘⇧P` opens triage, and the palette gained "New folder", the Inbox and Tasks.
+- The note editor now names where the note lives, quietly, beside the save state.
+
+Verified in the production build, at `bun run start`: folder created and nested, note dragged into a
+folder and sent back through the row's context menu, Inbox suggestion earned by one filed neighbour
+and accepted, focus landing on the next row's button, a task created from an agreed chip and
+completed, and all of it surviving a reload. No console errors.
+
+**Projects, deliberately not built.** The plan listed "projects as first-class" here. Nothing in
+echo today tells a project apart from a folder: no status, no deadline, no surface that treats one
+differently. Building the entity now would mean a second tree, a second set of menus, a second
+destination type in the vote and a second thing to choose between at capture — for behaviour a
+folder already provides. The domain is ready for it (`folders` is one table with a parent, and
+`workspace_id` is everywhere), so this is a decision to defer, not a corner cut.
+
 ## Fixed
+
+- **An undone note came back after it had been thrown away.** `⌘Z` returned the text to the composer
+  through page state that was never cleared, so the composer — which is re-created whenever the view
+  changes or a note closes — applied the same restore again on its next mount. Emptying the box and
+  switching views brought the text back. The composer now says `onRestored` the moment the text is
+  in it, and the page drops it: handed over exactly once, and a writer who then clears the box has
+  decided the note is gone.
 
 - **Opening a note wrote to it.** Switching notes reused one editor instance, so the previous note's
   draft stayed in the pending-write ref while the `note` prop had already changed — and because
@@ -336,12 +404,18 @@ Reviewed against Emil Kowalski's framework and corrected:
   element and a DOM node.
 - The composer's grow-to-fit uses a measure-and-set effect. `field-sizing: content` would delete it,
   but Firefox lacks support — revisit when it lands.
-- The composer's metadata row now carries three things (word count, `Local · private`, and the undo
-  hint). Folder and project suggestions want the same slot in Phase 5; it may need to become a row
-  rather than a line.
-- No projects/tasks tables yet — they arrive with Phase 5, on their own migration.
-- The only way to delete a note is `⌘Z` immediately after writing it. Deleting an older note arrives
-  with Phase 5, alongside archive and move.
+- The composer's metadata row carries three things (word count, `Local · private`, and the undo
+  hint) plus the signal chips. Destination suggestions were kept out of it on purpose — they live in
+  the Inbox, where a decision is actually being made, rather than in front of someone writing.
+- No projects table. See "Projects, deliberately not built" under Phase 5.
+- The only way to delete a note is `⌘Z` immediately after writing it. Moving one is now possible from
+  everywhere; deleting an older note and archiving are still missing.
+- Which folders are open is session state — the tree collapses on reload. `lib/preferences.ts` is
+  where it would persist, one line, whenever that starts to annoy.
+- The explorer renders every folder and every note of the selected folder. Fine at hundreds; a deep
+  tree with thousands of notes wants the same virtualization the stream wants.
+- Tasks are created at capture only. A note written before the reader thought of the task cannot be
+  turned into one from the editor yet — the note editor has no signal chips.
 - App shell is desktop-only so far — the mobile layout is Phase 6, and the panes currently just
   hide below `md`/`lg`.
 - Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,

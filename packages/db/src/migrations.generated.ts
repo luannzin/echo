@@ -26,4 +26,8 @@ export const migrations: Migration[] = [
     version: "0005_futuristic_meggan",
     sql: 'CREATE TABLE "note_vectors" (\n\t"note_id" uuid PRIMARY KEY NOT NULL,\n\t"model" text NOT NULL,\n\t"dimensions" integer NOT NULL,\n\t"values" "bytea" NOT NULL,\n\t"created_at" timestamp with time zone DEFAULT now() NOT NULL\n);\n--> statement-breakpoint\nALTER TABLE "note_vectors" ADD CONSTRAINT "note_vectors_note_id_notes_id_fk" FOREIGN KEY ("note_id") REFERENCES "public"."notes"("id") ON DELETE cascade ON UPDATE no action;',
   },
+  {
+    version: "0006_bitter_nuke",
+    sql: 'CREATE TABLE "tasks" (\n\t"id" uuid PRIMARY KEY NOT NULL,\n\t"workspace_id" uuid DEFAULT \'00000000-0000-0000-0000-000000000001\' NOT NULL,\n\t"note_id" uuid NOT NULL,\n\t"title" text NOT NULL,\n\t"due_at" timestamp with time zone,\n\t"completed_at" timestamp with time zone,\n\t"created_at" timestamp with time zone DEFAULT now() NOT NULL,\n\t"updated_at" timestamp with time zone DEFAULT now() NOT NULL\n);\n--> statement-breakpoint\nALTER TABLE "tasks" ADD CONSTRAINT "tasks_note_id_notes_id_fk" FOREIGN KEY ("note_id") REFERENCES "public"."notes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint\nCREATE INDEX "tasks_note_idx" ON "tasks" USING btree ("note_id");--> statement-breakpoint\nCREATE INDEX "tasks_due_at_idx" ON "tasks" USING btree ("due_at");',
+  },
 ];

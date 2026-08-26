@@ -1,11 +1,26 @@
 import type { LexicalSearch } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
-import { RELATED_SIMILARITY, rank, type SearchResult, type VectorIndex } from "@echo/search";
+import {
+  type Destination,
+  RELATED_SIMILARITY,
+  rank,
+  type SearchResult,
+  suggestDestinations,
+  type VectorIndex,
+} from "@echo/search";
 import type { Note } from "@echo/types";
 import type { WorkerEmbedder } from "@/lib/embedder";
 
 /** How many notes each half of the search may nominate before they are ranked together. */
 const CANDIDATES = 60;
+
+/**
+ * How many neighbours vote on where a note belongs. Wider than the four shown as related, because
+ * a vote wants a sample and a panel wants the best few — and looser, because a note that is only
+ * loosely about the same thing still knows which drawer that thing lives in.
+ */
+const VOTERS = 12;
+const VOTER_SIMILARITY = 0.4;
 
 export type SearchContext = {
   /** The notes already in memory. Retrieval never re-reads what the screen is holding. */
@@ -122,6 +137,43 @@ export function createRetrieval({
       const embedding = await queryVector(trimmed);
       if (!embedding) return;
       receive({ results: blend(embedding), stage: "meaning" });
+    },
+
+    /**
+     * Where this note probably belongs, decided by where the notes nearest it already live. No
+     * classifier and nothing trained: every suggestion is a handful of the reader's own notes, and
+     * `because` names them, so the answer to "why here?" is a list of notes they can open.
+     */
+    async destinations(
+      text: string,
+      {
+        notes,
+        excludeNoteId,
+        weightOf,
+      }: { notes: Note[]; excludeNoteId?: string; weightOf?: (folderId: string) => number },
+    ): Promise<Destination[]> {
+      if (index.size === 0) return [];
+      // A note that has already been read is its own query. Only a note echo has never seen has to
+      // go through the model, which is why filing a hundred notes costs one lookup each.
+      const embedding =
+        (excludeNoteId === undefined ? undefined : index.vectorOf(excludeNoteId)) ??
+        (await queryVector(text));
+      if (!embedding) return [];
+
+      const byId = new Map(notes.map((note) => [note.id, note]));
+      const neighbours = index
+        .nearest(embedding, {
+          excludeNoteId,
+          limit: VOTERS,
+          minimumSimilarity: VOTER_SIMILARITY,
+        })
+        .map((match) => ({
+          noteId: match.noteId,
+          folderId: byId.get(match.noteId)?.folderId ?? null,
+          similarity: match.similarity,
+        }));
+
+      return suggestDestinations(neighbours, { weightOf });
     },
 
     /**

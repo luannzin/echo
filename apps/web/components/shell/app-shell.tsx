@@ -6,6 +6,9 @@ import { Rail } from "@/components/shell/rail";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 
+/** Where the reader is. The workspace shows one of these; the panes beside it never change. */
+export type View = "home" | "stream" | "inbox" | "tasks";
+
 /** Shell frame: rail | navigation | workspace | intelligence. */
 export function AppShell({
   navigation,
@@ -22,15 +25,17 @@ export function AppShell({
   onToggleIntelligence,
   onSearch,
   searchShortcut,
+  inboxCount,
 }: {
   navigation: ReactNode;
   workspace: ReactNode;
   intelligence: ReactNode;
   atHome: boolean;
   onHome: () => void;
-  view: "home" | "stream";
-  onViewChange: (view: "home" | "stream") => void;
+  view: View;
+  onViewChange: (view: View) => void;
   streamAvailable: boolean;
+  inboxCount: number;
   /** Panel state belongs to the page: the palette can open these panels too. */
   navigationOpen: boolean;
   onToggleNavigation: () => void;
@@ -52,6 +57,9 @@ export function AppShell({
         onToggleNavigation={onToggleNavigation}
         atHome={atHome}
         onHome={onHome}
+        view={view}
+        onViewChange={onViewChange}
+        inboxCount={inboxCount}
         intelligenceOpen={intelligenceOpen}
         onToggleIntelligence={onToggleIntelligence}
         onSearch={onSearch}
@@ -105,8 +113,8 @@ function TopBar({
   onSearch,
   searchShortcut,
 }: {
-  view: "home" | "stream";
-  onViewChange: (view: "home" | "stream") => void;
+  view: View;
+  onViewChange: (view: View) => void;
   streamAvailable: boolean;
   onSearch: () => void;
   searchShortcut: string;

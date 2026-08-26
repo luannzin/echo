@@ -149,6 +149,16 @@ export function createVectorIndex(dimensions: number) {
       return best;
     },
 
+    /**
+     * One note's own vector, copied out. A note that has already been read is its own best query:
+     * asking what it is near costs a lookup instead of a trip through the model.
+     */
+    vectorOf(noteId: string): Float32Array | undefined {
+      const index = rowOf.get(noteId);
+      if (index === undefined) return undefined;
+      return matrix.slice(index * dimensions, (index + 1) * dimensions);
+    },
+
     /** The similarity between a query and one particular note, or undefined if it has no vector. */
     scoreOf(query: Float32Array, noteId: string): number | undefined {
       const index = rowOf.get(noteId);

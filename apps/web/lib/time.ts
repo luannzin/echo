@@ -1,4 +1,12 @@
-import { differenceInSeconds, format, formatDistanceStrict, isToday, isYesterday } from "date-fns";
+import {
+  differenceInSeconds,
+  format,
+  formatDistanceStrict,
+  isPast,
+  isToday,
+  isTomorrow,
+  isYesterday,
+} from "date-fns";
 
 /**
  * How echo says when. One implementation, because a note stamped one way in the stream and another
@@ -28,6 +36,25 @@ export function formatDay(date: Date, now = new Date()): string {
 /** The whole answer, for when the relative stamp is not enough: a day, and a time on that day. */
 export function formatExact(date: Date): string {
   return format(date, "EEEE d MMMM yyyy, HH:mm");
+}
+
+/**
+ * When a task is due, said the way a person would. A date that has passed is named as such rather
+ * than shown as a date, because the thing a reader needs to know about it is that it is late.
+ */
+export function formatDue(date: Date, now = new Date()): string {
+  if (isToday(date)) return "Today";
+  if (isTomorrow(date)) return "Tomorrow";
+  if (isYesterday(date)) return "Yesterday";
+  if (isPast(date)) return `${formatDistanceStrict(date, now, { roundingMethod: "floor" })} ago`;
+  return format(date, sameYear(date, now) ? "EEEE d MMMM" : "d MMMM yyyy");
+}
+
+/** Which heading a task belongs under. Undated tasks are still tasks; they simply have no when. */
+export function dueBucket(dueAt: Date | null, now = new Date()): "overdue" | "due" | "someday" {
+  if (dueAt === null) return "someday";
+  if (isToday(dueAt)) return "due";
+  return dueAt.getTime() < now.getTime() ? "overdue" : "due";
 }
 
 export function sameDay(a: Date, b: Date): boolean {

@@ -17,10 +17,13 @@ const AUTOSAVE_DELAY_MS = 500;
  */
 export function NoteEditor({
   note,
+  location,
   onSave,
   onClose,
 }: {
   note: Note;
+  /** Where the note lives, written out: `Work / Authentication`, or `Inbox` for an unfiled note. */
+  location: string;
   onSave: (noteId: string, content: string) => Promise<void>;
   onClose: () => void;
 }) {
@@ -93,13 +96,23 @@ export function NoteEditor({
           Back to writing
           <Kbd className="ml-1">Esc</Kbd>
         </button>
-        {saveState === "idle" ? null : (
-          <span key={saveState} className="animate-settle">
-            <Label>
-              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save failed"}
-            </Label>
+        {/* Metadata stays secondary: where the note is, said quietly, next to what it is doing. */}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 truncate">
+            <Label>{location}</Label>
           </span>
-        )}
+          {saveState === "idle" ? null : (
+            <span key={saveState} className="animate-settle">
+              <Label>
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "saved"
+                    ? "Saved"
+                    : "Save failed"}
+              </Label>
+            </span>
+          )}
+        </div>
       </div>
       <textarea
         ref={textarea}

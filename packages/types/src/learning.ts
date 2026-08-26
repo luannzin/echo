@@ -24,8 +24,8 @@ export const learningEventSchema = z.object({
    * Which family the subject belongs to, so two kinds of rule can never collide on one key. A
    * phrase learned about tasks says nothing about deadlines.
    */
-  kind: z.enum(["task-phrase", "deadline-phrase", "note", "duplicate"]),
-  /** What the event is about: the phrase that triggered a signal, or a note id. */
+  kind: z.enum(["task-phrase", "deadline-phrase", "note", "duplicate", "destination"]),
+  /** What the event is about: the phrase that triggered a signal, or a note or folder id. */
   subject: z.string().min(1),
   /** The note the reader was looking at, kept for the trail behind a "why". */
   noteId: z.uuid().nullable(),

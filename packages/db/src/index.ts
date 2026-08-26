@@ -7,6 +7,7 @@ import { createLearningRepository } from "./learning";
 import { migrate } from "./migrate";
 import { createNoteRepository } from "./notes";
 import { createLexicalSearch } from "./search";
+import { createTaskRepository } from "./tasks";
 
 export * as schema from "./schema";
 export type { Database };
@@ -30,6 +31,7 @@ export async function openRepositories(source?: string | PGliteInterface): Promi
     repositories: {
       notes: createNoteRepository(db),
       folders: createFolderRepository(db),
+      tasks: createTaskRepository(db),
       embeddings: createEmbeddingRepository(db),
       learning: createLearningRepository(db),
     },

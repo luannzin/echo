@@ -1,4 +1,4 @@
-import type { Folder, LearningEvent, Note } from "@echo/types";
+import type { Folder, LearningEvent, Note, Task } from "@echo/types";
 
 /** Fields a repository may change after insert. Identity and creation time are immutable. */
 export type NotePatch = Partial<Pick<Note, "title" | "content" | "folderId" | "archivedAt">> & {
@@ -29,6 +29,17 @@ export interface FolderRepository {
   delete(id: string): Promise<void>;
   get(id: string): Promise<Folder | null>;
   list(): Promise<Folder[]>;
+}
+
+export type TaskPatch = Partial<Pick<Task, "title" | "completedAt">> & { updatedAt: Date };
+
+export interface TaskRepository {
+  insert(task: Task): Promise<Task>;
+  update(id: string, patch: TaskPatch): Promise<Task>;
+  delete(id: string): Promise<void>;
+  get(id: string): Promise<Task | null>;
+  /** Due soonest first, undated last. Ordering belongs here, not in whatever renders it. */
+  list(): Promise<Task[]>;
 }
 
 export type StoredEmbedding = {
@@ -64,6 +75,7 @@ export interface LearningRepository {
 export type Repositories = {
   notes: NoteRepository;
   folders: FolderRepository;
+  tasks: TaskRepository;
   embeddings: EmbeddingRepository;
   learning: LearningRepository;
 };
