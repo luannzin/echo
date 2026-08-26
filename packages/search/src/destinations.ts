@@ -1,11 +1,7 @@
 /**
- * Where a note probably belongs, worked out from where notes like it already are.
- *
- * There is no classifier here and no keyword table. The corpus is the model: a note's nearest
- * neighbours have already been filed by the reader, and each one is a vote for its own folder,
- * weighted by how close it is. That means the suggestion improves with every note filed, needs
- * nothing trained, and can always be explained — the neighbours that voted are notes the reader
- * can open and read.
+ * Where a note probably belongs, worked out from where notes like it already are. No classifier and
+ * no keyword table: the corpus is the model, each neighbour votes for its own folder weighted by
+ * how close it is, and the vote can always be explained by opening the notes that cast it.
  */
 
 /** A note near the one being placed, and where its reader put it. Unfiled neighbours abstain. */
@@ -26,12 +22,8 @@ export type Destination = {
 
 export type SuggestOptions = {
   limit?: number;
-  /**
-   * What the reader has taught echo about suggesting this folder, as a multiplier: 1 leaves the
-   * vote alone, below 1 damps a folder they keep rejecting. Corrections may quiet a suggestion the
-   * neighbours made; they may never invent one, because the notes are the evidence and history is
-   * only a second opinion.
-   */
+  /** A multiplier: 1 leaves the vote alone, below 1 damps a folder the reader keeps rejecting.
+   *  Corrections may quiet a suggestion, never invent one. */
   weightOf?: (folderId: string) => number;
   /** Below this share of the vote, a folder is a coincidence rather than a suggestion. */
   minimumConfidence?: number;
@@ -40,10 +32,10 @@ export type SuggestOptions = {
 /** Under this, one neighbour's vote says more about the threshold than about the note. */
 const DEFAULT_MINIMUM = 0.34;
 
-export function suggestDestinations(
+export const suggestDestinations = (
   neighbours: Neighbour[],
   { limit = 3, weightOf, minimumConfidence = DEFAULT_MINIMUM }: SuggestOptions = {},
-): Destination[] {
+): Destination[] => {
   const votes = new Map<string, { weight: number; because: Neighbour[] }>();
 
   for (const neighbour of neighbours) {
@@ -70,4 +62,4 @@ export function suggestDestinations(
     .filter((destination) => destination.confidence >= minimumConfidence)
     .sort((a, b) => b.confidence - a.confidence || a.folderId.localeCompare(b.folderId))
     .slice(0, limit);
-}
+};

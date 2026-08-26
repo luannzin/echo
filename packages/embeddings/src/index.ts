@@ -1,9 +1,8 @@
 export const EMBEDDING_DIMENSIONS = 384;
 
 /**
- * Where the model is up to. A local model is a download before it is a runtime, and the difference
- * between "still arriving" and "not coming" is the difference between a wait and a dead end — the
- * interface has to be able to tell a reader which one they are looking at.
+ * Where the model is up to. A local model is a download before it is a runtime, and "still arriving"
+ * and "not coming" are a wait and a dead end — the interface has to be able to tell them apart.
  */
 export type EmbedderStatus =
   | { state: "idle" }
@@ -29,16 +28,16 @@ export interface Embedder {
 }
 
 /** Cosine similarity for unit-length vectors, which is what both sides of a comparison are. */
-export function similarity(a: Float32Array, b: Float32Array): number {
+export const similarity = (a: Float32Array, b: Float32Array): number => {
   if (a.length !== b.length) throw new Error("Vectors of different widths cannot be compared");
   let dot = 0;
   for (let index = 0; index < a.length; index++) {
     dot += (a[index] as number) * (b[index] as number);
   }
   return dot;
-}
+};
 
-export function normalize(vector: Float32Array): Float32Array {
+export const normalize = (vector: Float32Array): Float32Array => {
   let sum = 0;
   for (const value of vector) sum += value * value;
   const length = Math.sqrt(sum);
@@ -48,7 +47,7 @@ export function normalize(vector: Float32Array): Float32Array {
     unit[index] = (vector[index] as number) / length;
   }
   return unit;
-}
+};
 
 /**
  * The local runtime lives behind `@echo/embeddings/local` rather than here.

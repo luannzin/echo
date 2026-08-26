@@ -9,55 +9,48 @@ export type NearestOptions = {
 };
 
 /**
- * Every note's vector, held in memory for as long as the app is open.
+ * Every note's vector, resident for as long as the app is open. Re-reading them cost 440ms at two
+ * thousand notes on every search and every pause in typing, while the comparison itself cost 5ms —
+ * the round trip was the whole expense.
  *
- * Reading them back from the database was costing 440ms at two thousand notes, and it was happening
- * on every search and every pause in typing — the compute was already free (5ms), the storage round
- * trip was the whole cost. Vectors are small, bounded by the note count, and derived data anyway:
- * keeping them resident is what turns retrieval from a query into a calculation.
- *
- * They live in one contiguous `Float32Array` rather than an array of arrays. At ten thousand notes
- * that is one allocation of 15MB instead of ten thousand small ones, and the scan walks memory in
- * order, which is the difference between a comparison that costs a frame and one that does not.
+ * One contiguous `Float32Array` rather than an array of arrays: at ten thousand notes that is one
+ * 15MB allocation instead of ten thousand small ones, and the scan walks memory in order.
  */
 export type VectorIndex = ReturnType<typeof createVectorIndex>;
 
-export function createVectorIndex(dimensions: number) {
+export const createVectorIndex = (dimensions: number) => {
   /** Row `n` of the matrix occupies `[n * dimensions, (n + 1) * dimensions)`. */
   let matrix = new Float32Array(0);
   /** Which note owns each row. Rows are dense: there are never holes to skip. */
   let ids: string[] = [];
   const rowOf = new Map<string, number>();
 
-  /**
-   * Cosine similarity against one row, read straight out of the matrix. Both sides are unit
-   * vectors, so the dot product is the cosine — and reading in place means comparing every note in
-   * the index allocates nothing at all.
-   */
-  function scoreRow(query: Float32Array, index: number): number {
+  /** Both sides are unit vectors, so the dot product is the cosine — and reading in place means
+   *  comparing every note in the index allocates nothing. */
+  const scoreRow = (query: Float32Array, index: number): number => {
     const offset = index * dimensions;
     let dot = 0;
     for (let d = 0; d < dimensions; d++) {
       dot += (query[d] as number) * (matrix[offset + d] as number);
     }
     return dot;
-  }
+  };
 
-  function grow(rows: number): void {
+  const grow = (rows: number): void => {
     if (rows * dimensions <= matrix.length) return;
     // Doubling, so filling the index from empty stays linear rather than quadratic.
     const capacity = Math.max(rows, ids.length * 2, 64);
     const grown = new Float32Array(capacity * dimensions);
     grown.set(matrix);
     matrix = grown;
-  }
+  };
 
-  function write(index: number, values: Float32Array): void {
+  const write = (index: number, values: Float32Array): void => {
     if (values.length !== dimensions) {
       throw new Error(`Expected ${dimensions} dimensions, received ${values.length}`);
     }
     matrix.set(values, index * dimensions);
-  }
+  };
 
   return {
     get size(): number {
@@ -113,11 +106,9 @@ export function createVectorIndex(dimensions: number) {
     },
 
     /**
-     * The notes closest in meaning to a vector, best first.
-     *
-     * Results are kept in a list the length of the answer rather than sorted at the end: with a
-     * limit of eight, that is eight comparisons per candidate in the worst case and none in the
-     * common one, where a note is simply not good enough to enter.
+     * The notes closest in meaning to a vector, best first. Kept in a list the length of the answer
+     * rather than sorted at the end: with a limit of eight that is at most eight comparisons per
+     * candidate, and usually none.
      */
     nearest(query: Float32Array, options: NearestOptions = {}): VectorMatch[] {
       const { limit = 5, minimumSimilarity = 0, excludeNoteId } = options;
@@ -149,10 +140,8 @@ export function createVectorIndex(dimensions: number) {
       return best;
     },
 
-    /**
-     * One note's own vector, copied out. A note that has already been read is its own best query:
-     * asking what it is near costs a lookup instead of a trip through the model.
-     */
+    /** A note that has already been read is its own best query: a lookup, not a trip through the
+     *  model. */
     vectorOf(noteId: string): Float32Array | undefined {
       const index = rowOf.get(noteId);
       if (index === undefined) return undefined;
@@ -165,4 +154,4 @@ export function createVectorIndex(dimensions: number) {
       return index === undefined ? undefined : scoreRow(query, index);
     },
   };
-}
+};

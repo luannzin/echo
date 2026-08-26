@@ -3,8 +3,7 @@
 import { deriveTitle, folderPath } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
 import { adjust, affinity, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
-import type { Destination } from "@echo/search";
-import { DUPLICATE_SIMILARITY } from "@echo/search";
+import { type Destination, DUPLICATE_SIMILARITY } from "@echo/search";
 import {
   DEFAULT_WORKSPACE_ID,
   type Folder,
@@ -12,87 +11,65 @@ import {
   type Note,
   type Task,
 } from "@echo/types";
-import {
-  Brain,
-  FolderPlus,
-  Inbox,
-  MessageSquareText,
-  PanelLeft,
-  PenLine,
-  SquareCheck,
-  Undo2,
-} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Composer } from "@/components/notes/composer";
-import { Inbox as InboxView } from "@/components/notes/inbox";
-import { Learned } from "@/components/notes/learned";
-import { NoteEditor } from "@/components/notes/note-editor";
-import { type Related, RelatedNotes } from "@/components/notes/related-notes";
-import { Stream } from "@/components/notes/stream";
-import { Tasks } from "@/components/notes/tasks";
-import { AppShell, Label, Pane, type View } from "@/components/shell/app-shell";
-import {
-  CommandPalette,
-  type PaletteCommand,
-  type SearchPass,
-} from "@/components/shell/command-palette";
-import { Explorer } from "@/components/shell/explorer";
-import { type AnalysisState, getEcho } from "@/lib/echo";
-import { readPreference, writePreference } from "@/lib/preferences";
-import { shortcutFor, shortcutLabel } from "@/lib/shortcuts";
-import { navigate, noteRow } from "@/lib/transition";
+import { paletteCommands } from "@/app/commands";
+import { type CapturedTask, Composer } from "@/modules/capture/_components/composer";
+import { Explorer } from "@/modules/explorer/_components/explorer";
+import { Inbox } from "@/modules/inbox/_components/inbox";
+import { Learned } from "@/modules/intelligence/_components/learned";
+import { RelatedNotes } from "@/modules/intelligence/_components/related-notes";
+import type { Related } from "@/modules/intelligence/related";
+import { NoteEditor } from "@/modules/notes/_components/note-editor";
+import { Stream } from "@/modules/notes/_components/stream";
+import { CommandPalette } from "@/modules/search/_components/command-palette";
+import type { SearchPass } from "@/modules/search/model";
+import { AppShell } from "@/modules/shell/_components/app-shell";
+import { Pane } from "@/modules/shell/_components/pane";
+import type { View } from "@/modules/shell/view";
+import { Tasks } from "@/modules/tasks/_components/tasks";
+import { Label } from "@/shared/_components/label";
+
+import { type AnalysisState, getEcho } from "@/shared/lib/echo";
+import { readPreference, writePreference } from "@/shared/lib/preferences";
+import { shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
+import { navigate, noteRow } from "@/shared/lib/transition";
+
+const ARRIVAL_GLOW_MS = 1400;
+const PREVIEW_INTENT_MS = 150;
 
 /**
  * The note list is ordered by when a note was last touched. Applying that here rather than asking
- * the database again is what keeps a keystroke's autosave from re-reading every note in the
- * workspace: an edit moves one row, and the screen already knows which one.
+ * the database again is what keeps a keystroke's autosave from re-reading every note: an edit moves
+ * one row, and the screen already knows which one.
  */
-function upsert(notes: Note[], note: Note): Note[] {
+const upsert = (notes: Note[], note: Note): Note[] => {
   const without = notes.filter((existing) => existing.id !== note.id);
   const at = without.findIndex((existing) => existing.updatedAt <= note.updatedAt);
   if (at === -1) return [...without, note];
   return [...without.slice(0, at), note, ...without.slice(at)];
-}
+};
 
-/** The same shape for folders and tasks, which are small lists kept in the order they arrive in. */
-function replace<T extends { id: string }>(items: T[], item: T): T[] {
+/** Folders and tasks are small lists kept in the order they arrive in. */
+const replace = <T extends { id: string }>(items: T[], item: T): T[] => {
   const at = items.findIndex((existing) => existing.id === item.id);
   if (at === -1) return [...items, item];
   return [...items.slice(0, at), item, ...items.slice(at + 1)];
-}
+};
 
-export default function Page() {
+const Page = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [rules, setRules] = useState<LearnedRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<View>("home");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [related, setRelated] = useState<Related[]>([]);
-  const [rules, setRules] = useState<LearnedRule[]>([]);
-  /** Read by retrieval so a keystroke never triggers another read of every note. */
-  const notesRef = useRef<Note[]>([]);
-  /** Read by search, for the same reason: ranking must not re-subscribe on every correction. */
-  const rulesRef = useRef<LearnedRule[]>([]);
-  /** Read by the close handler, which needs the id it is leaving without depending on it. */
-  const editingRef = useRef<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisState>({ pending: 0, failed: false });
   const [model, setModel] = useState<EmbedderStatus>({ state: "idle" });
   const [arrivedId, setArrivedId] = useState<string | null>(null);
-  /**
-   * The note just sent, and the words it was made of. Capture commits with a single keystroke and
-   * nothing asks whether you meant it — which is only a fair trade if the same gesture undoes.
-   */
-  const [undoable, setUndoable] = useState<{ id: string; content: string } | null>(null);
-  const undoableRef = useRef<{ id: string; content: string } | null>(null);
-  /** Text on its way back to the composer. `at` changes so the same note can be undone twice. */
-  const [restore, setRestore] = useState<{ text: string; at: number } | undefined>(undefined);
-  /** Stable, because the composer holds it in an effect's dependencies. */
-  const clearRestore = useCallback(() => setRestore(undefined), []);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const arrivedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
@@ -100,6 +77,22 @@ export default function Page() {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   /** Where each unfiled note probably belongs. Filled when the Inbox is open, and only then. */
   const [destinations, setDestinations] = useState<Map<string, Destination>>(new Map());
+
+  /**
+   * The note just sent, and the words it was made of. Capture commits with a single keystroke and
+   * nothing asks whether you meant it — which is only fair if the same gesture undoes.
+   */
+  const [undoable, setUndoable] = useState<{ id: string; content: string } | null>(null);
+  /** Text on its way back to the composer. `at` changes so the same note can be undone twice. */
+  const [restore, setRestore] = useState<{ text: string; at: number } | undefined>(undefined);
+
+  /** Read by retrieval and search so a keystroke never re-subscribes anything. */
+  const notesRef = useRef<Note[]>([]);
+  const rulesRef = useRef<LearnedRule[]>([]);
+  const editingRef = useRef<string | null>(null);
+  const undoableRef = useRef<{ id: string; content: string } | null>(null);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const arrivedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Both panels render closed, then open to the stored preference on mount. The first paint always
   // matches the prerendered markup, so nothing jumps — the panels animate into place instead.
@@ -112,10 +105,9 @@ export default function Page() {
   }, []);
 
   /**
-   * Opens the local database, loads what is there once, and then keeps the screen in step by
-   * applying each domain event to what is already on it. Re-reading the workspace on every autosave
-   * was the same answer arrived at expensively — and it replaced the array on every keystroke, which
-   * re-rendered every row in the stream along with it.
+   * Opens the local database, loads what is there once, then keeps the screen in step by applying
+   * each domain event to what is already on it. Re-reading the workspace on every autosave was the
+   * same answer arrived at expensively.
    */
   useEffect(() => {
     let alive = true;
@@ -141,7 +133,7 @@ export default function Page() {
                 setFolders((current) => replace(current, event.folder));
                 break;
               case "folder.deleted":
-                // Subfolders go with the parent in the database; the screen re-reads rather than
+                // Subfolders go with the parent in the database, so the screen re-reads rather than
                 // working out the same subtree a second time.
                 void echo.folders.list().then((listed) => alive && setFolders(listed));
                 void echo.notes.list().then((listed) => alive && setNotes(listed));
@@ -168,7 +160,7 @@ export default function Page() {
           for (const off of stop) off();
         };
 
-        const [list, listedFolders, listedTasks, learned] = await Promise.all([
+        const [listedNotes, listedFolders, listedTasks, learned] = await Promise.all([
           echo.notes.list(),
           echo.folders.list(),
           echo.tasks.list(),
@@ -177,7 +169,7 @@ export default function Page() {
         if (!alive) return;
         // Anything captured while the database was opening is already on screen, and it is newer
         // than everything the database has to say about it.
-        setNotes((optimistic) => list.reduce(upsert, optimistic));
+        setNotes((optimistic) => listedNotes.reduce(upsert, optimistic));
         setFolders(listedFolders);
         setTasks(listedTasks);
         setRules(learned);
@@ -195,6 +187,18 @@ export default function Page() {
   rulesRef.current = rules;
   editingRef.current = editingId;
   undoableRef.current = undoable;
+
+  const editing = notes.find((note) => note.id === editingId) ?? null;
+  const unfiled = useMemo(() => notes.filter((note) => note.folderId === null), [notes]);
+  const listed = useMemo(
+    () =>
+      folderFilter === undefined ? notes : notes.filter((note) => note.folderId === folderFilter),
+    [notes, folderFilter],
+  );
+  const countOf = useCallback(
+    (folderId: string) => notes.filter((note) => note.folderId === folderId).length,
+    [notes],
+  );
 
   const toggleNavigation = useCallback(() => {
     setNavigationOpen((open) => {
@@ -220,24 +224,12 @@ export default function Page() {
       setPreviewId(null);
       return;
     }
-    previewTimer.current = setTimeout(() => setPreviewId(noteId), 150);
+    previewTimer.current = setTimeout(() => setPreviewId(noteId), PREVIEW_INTENT_MS);
   }, []);
 
-  const editing = notes.find((note) => note.id === editingId) ?? null;
-  const unfiled = useMemo(() => notes.filter((note) => note.folderId === null), [notes]);
-  const listed = useMemo(
-    () => (folderFilter === undefined ? notes : notes.filter((n) => n.folderId === folderFilter)),
-    [notes, folderFilter],
-  );
-  const countOf = useCallback(
-    (folderId: string) => notes.filter((note) => note.folderId === folderId).length,
-    [notes],
-  );
-
   /**
-   * Related notes are retrieved for whatever is in focus — the open note, or what is being written.
-   * Comparing vectors is a memory calculation, so the only thing this could ever wait on is the
-   * model, and it does not: an unready model returns nothing rather than holding the panel open.
+   * Related notes are retrieved for whatever is in focus. Comparing vectors is a memory calculation,
+   * so the only thing this could wait on is the model — and it does not.
    */
   const findRelated = useCallback(async (text: string, excludeNoteId?: string) => {
     const echo = await getEcho();
@@ -257,7 +249,7 @@ export default function Page() {
   /**
    * Where the unfiled notes probably belong, worked out only while the Inbox is open. Every note
    * that has been read already has a vector, so this is a scan of memory rather than a hundred trips
-   * through the model — which is why the whole pile can be answered for at once.
+   * through the model.
    */
   useEffect(() => {
     if (view !== "inbox" || folders.length === 0) {
@@ -273,8 +265,8 @@ export default function Page() {
         const [best] = await echo.retrieval.destinations(note.content, {
           notes: notesRef.current,
           excludeNoteId: note.id,
-          // A folder the reader keeps rejecting goes quiet. Nothing here can invent a suggestion
-          // the notes did not already make: history is a second opinion, never the evidence.
+          // A folder the reader keeps rejecting goes quiet. Nothing here can invent a suggestion the
+          // notes did not already make: history is a second opinion, never the evidence.
           weightOf: (folderId) => adjust(1, ruleFor(rulesRef.current, "destination", folderId)),
         });
         if (best) found.set(note.id, best);
@@ -288,9 +280,8 @@ export default function Page() {
   }, [view, unfiled, folders, rules]);
 
   /**
-   * Everything echo knows about the question. Words come back first, from the database's own index;
-   * meaning follows when the model has answered, and `receive` is called again with the blend. A
-   * reader always sees something immediately, and never waits on a download to see anything at all.
+   * Everything echo knows about the question. Words come back first from the database's own index;
+   * meaning follows when the model has answered, and `receive` is called again with the blend.
    */
   const search = useCallback(
     async (query: string, receive: (pass: SearchPass) => void): Promise<void> => {
@@ -307,7 +298,7 @@ export default function Page() {
     [],
   );
 
-  /** A correction is the whole point of the learning engine: it is recorded the moment it is made. */
+  /** A correction is the whole point of the learning engine: recorded the moment it is made. */
   const correct = useCallback(async (event: LearningEventCreate) => {
     const echo = await getEcho();
     await echo.learning.record(event);
@@ -319,12 +310,12 @@ export default function Page() {
   }, []);
 
   /**
-   * Capture is optimistic all the way: the note exists on screen before the database hears about
-   * it. Writing is local, so the write practically always succeeds — and when it does not, the note
+   * Capture is optimistic all the way: the note exists on screen before the database hears about it.
+   * Writing is local, so the write practically always succeeds — and when it does not, the note
    * disappears again and the text comes back to the composer.
    */
   const capture = useCallback(
-    (content: string, task?: { title: string; dueAt: Date | null }): Note => {
+    (content: string, task?: CapturedTask): Note => {
       const now = new Date();
       const note: Note = {
         id: crypto.randomUUID(),
@@ -343,11 +334,10 @@ export default function Page() {
       const arrive = () => {
         setNotes((current) => upsert(current, note));
         setArrivedId(note.id);
-        // The glow belongs to the moment of arriving, not to the note. Left set, it would light the
-        // row again every time the stream was re-entered — telling the reader a note had just
-        // landed when it had been there for an hour.
+        // The glow belongs to the moment of arriving, not to the note: left set, it would light the
+        // row again every time the stream was re-entered.
         if (arrivedTimer.current) clearTimeout(arrivedTimer.current);
-        arrivedTimer.current = setTimeout(() => setArrivedId(null), 1400);
+        arrivedTimer.current = setTimeout(() => setArrivedId(null), ARRIVAL_GLOW_MS);
         setUndoable({ id: note.id, content });
         if (entering) setView("stream");
       };
@@ -357,8 +347,8 @@ export default function Page() {
       void getEcho()
         .then(async (echo) => {
           await echo.notes.create({ id: note.id, content });
-          // The task is created after the note it belongs to, and only when the writer agreed: a
-          // task with no source is a list item echo would have no way to explain.
+          // After the note it belongs to, and only when the writer agreed: a task with no source is
+          // a list item echo would have no way to explain.
           if (task) await echo.tasks.create({ noteId: note.id, ...task });
         })
         .catch(() => setNotes((current) => current.filter((existing) => existing.id !== note.id)));
@@ -370,8 +360,8 @@ export default function Page() {
 
   /**
    * Takes the last note back: it leaves the screen, it leaves the database, and its words return to
-   * the composer with the caret where the writer left it. Nothing is kept — an undo that quietly
-   * archives instead of deleting is a promise the reader did not agree to.
+   * the composer. Nothing is kept — an undo that quietly archives instead of deleting is a promise
+   * the reader did not agree to.
    */
   const undoCapture = useCallback(() => {
     const last = undoableRef.current;
@@ -382,6 +372,8 @@ export default function Page() {
     void getEcho().then((echo) => echo.notes.delete(last.id));
   }, []);
 
+  const clearRestore = useCallback(() => setRestore(undefined), []);
+
   // Stable identity: a new function every render would re-run the editor's autosave effects, and
   // re-running them is how a pending write used to escape onto the wrong note.
   const save = useCallback(async (noteId: string, content: string) => {
@@ -390,13 +382,11 @@ export default function Page() {
   }, []);
 
   /**
-   * Opening a note is a movement, not a swap: the row that was clicked — in the stream, the list or
-   * the related panel — is the shape the editor grows out of, and closing puts it back where it
-   * came from.
+   * Opening a note is a movement, not a swap: the row that was clicked is the shape the editor grows
+   * out of, and closing puts it back where it came from.
    */
   const openNote = useCallback((noteId: string, from?: HTMLElement) => {
-    // Reading is the end of the moment the undo belonged to. Offering it afterwards would mean the
-    // shortcut deletes a note the reader has moved on from.
+    // Reading is the end of the moment the undo belonged to.
     setUndoable(null);
     navigate(() => setEditingId(noteId), { from });
   }, []);
@@ -434,7 +424,7 @@ export default function Page() {
   }, []);
 
   /**
-   * Filing a note in the place echo suggested. The move is the lesson: the note becomes one of the
+   * Filing a note where echo suggested. The move is the lesson: the note becomes one of the
    * neighbours that will argue for that folder next time. The recorded correction only decides
    * whether echo keeps offering this folder at all.
    */
@@ -469,10 +459,9 @@ export default function Page() {
 
   const createFolder = useCallback(async (name: string, parentId: string | null) => {
     const echo = await getEcho();
-    const folder = await echo.folders.create({ name, parentId });
+    await echo.folders.create({ name, parentId });
     // A folder made inside another is made to be looked at: the parent opens to show it.
     if (parentId !== null) setExpanded((current) => new Set(current).add(parentId));
-    return folder;
   }, []);
 
   const renameFolder = useCallback(async (folderId: string, name: string) => {
@@ -500,18 +489,6 @@ export default function Page() {
     });
   }, []);
 
-  /**
-   * Naming a folder happens in the tree, wherever it was asked for. The pane opens if it was shut,
-   * and the row that turns into a text field takes the cursor from there.
-   */
-  const startNewFolder = useCallback(() => {
-    setNavigationOpen(true);
-    writePreference("notes-panel", true);
-    requestAnimationFrame(() =>
-      document.querySelector<HTMLButtonElement>('[aria-label="New folder"]')?.click(),
-    );
-  }, []);
-
   const toggleTask = useCallback(async (task: Task, completed: boolean) => {
     const echo = await getEcho();
     await echo.tasks.setCompleted(task.id, completed);
@@ -522,6 +499,18 @@ export default function Page() {
     await echo.tasks.delete(task.id);
   }, []);
 
+  /**
+   * Naming a folder happens in the tree, wherever it was asked for: the pane opens if it was shut,
+   * and the row that turns into a text field takes the cursor from there.
+   */
+  const startNewFolder = useCallback(() => {
+    setNavigationOpen(true);
+    writePreference("notes-panel", true);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>('[aria-label="New folder"]')?.click(),
+    );
+  }, []);
+
   useEffect(
     () => () => {
       if (arrivedTimer.current) clearTimeout(arrivedTimer.current);
@@ -530,10 +519,10 @@ export default function Page() {
     [],
   );
 
-  // The keyboard map. Bound once, on the window, so a shortcut works wherever the reader is —
-  // including inside the writing surface, where only modified keys are ever claimed.
+  // Bound once, on the window, so a shortcut works wherever the reader is — including inside the
+  // writing surface, where only modified keys are ever claimed.
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
+    const onKeyDown = (event: KeyboardEvent) => {
       const shortcut = shortcutFor(event);
       if (!shortcut) return;
       event.preventDefault();
@@ -544,79 +533,23 @@ export default function Page() {
       if (shortcut === "toggle-notes") toggleNavigation();
       if (shortcut === "toggle-intelligence") toggleIntelligence();
       if (shortcut === "undo-capture") undoCapture();
-    }
+    };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [changeView, toggleNavigation, toggleIntelligence, undoCapture]);
 
-  const commands: PaletteCommand[] = [
-    {
-      id: "write",
-      label: "Write a note",
-      icon: PenLine,
-      shortcut: shortcutLabel("new-note"),
-      keywords: "new capture compose",
-      run: () => changeView("home"),
-    },
-    {
-      id: "stream",
-      label: "Open the stream",
-      icon: MessageSquareText,
-      keywords: "notes history timeline",
-      run: () => changeView("stream"),
-    },
-    {
-      id: "inbox",
-      label: unfiled.length > 0 ? `Place ${unfiled.length} unfiled notes` : "Open the Inbox",
-      icon: Inbox,
-      shortcut: shortcutLabel("organize"),
-      keywords: "inbox triage file organize move unfiled",
-      run: () => changeView("inbox"),
-    },
-    {
-      id: "tasks",
-      label: "Open tasks",
-      icon: SquareCheck,
-      keywords: "todo due deadlines",
-      run: () => changeView("tasks"),
-    },
-    {
-      id: "new-folder",
-      label: "New folder",
-      icon: FolderPlus,
-      keywords: "create folder project place",
-      run: startNewFolder,
-    },
-    ...(undoable
-      ? [
-          {
-            id: "undo-capture",
-            label: "Take back the last note",
-            icon: Undo2,
-            shortcut: shortcutLabel("undo-capture"),
-            keywords: "undo delete remove revert",
-            run: undoCapture,
-          },
-        ]
-      : []),
-    {
-      id: "notes-panel",
-      label: navigationOpen ? "Hide the note list" : "Show the note list",
-      icon: PanelLeft,
-      shortcut: shortcutLabel("toggle-notes"),
-      keywords: "sidebar panel toggle explorer folders",
-      run: toggleNavigation,
-    },
-    {
-      id: "intelligence-panel",
-      label: intelligenceOpen ? "Hide related notes" : "Show related notes",
-      icon: Brain,
-      shortcut: shortcutLabel("toggle-intelligence"),
-      keywords: "intelligence panel related toggle",
-      run: toggleIntelligence,
-    },
-  ];
+  const commands = paletteCommands({
+    unfiledCount: unfiled.length,
+    navigationOpen,
+    intelligenceOpen,
+    undoable: undoable !== null,
+    onView: changeView,
+    onNewFolder: startNewFolder,
+    onUndo: undoCapture,
+    onToggleNavigation: toggleNavigation,
+    onToggleIntelligence: toggleIntelligence,
+  });
 
   // Close enough to be the same thought written twice — unless the reader has already said it is
   // not, in which case echo does not get to ask again.
@@ -638,6 +571,58 @@ export default function Page() {
       docked={docked}
     />
   );
+
+  const workspace = () => {
+    if (editing) {
+      return (
+        <NoteEditor
+          key={editing.id}
+          note={editing}
+          location={folderPath(folders, editing.folderId)}
+          onSave={save}
+          onClose={closeNote}
+        />
+      );
+    }
+    if (view === "inbox") {
+      return (
+        <Inbox
+          notes={unfiled}
+          folders={folders}
+          suggestionOf={(noteId) => destinations.get(noteId)}
+          onAccept={acceptDestination}
+          onMove={chooseDestination}
+          onOpen={openNote}
+          onNewFolder={startNewFolder}
+        />
+      );
+    }
+    if (view === "tasks") {
+      return (
+        <Tasks
+          tasks={tasks}
+          noteOf={(noteId) => notes.find((note) => note.id === noteId)}
+          onToggle={(task, completed) => void toggleTask(task, completed)}
+          onDelete={(task) => void deleteTask(task)}
+          onOpenNote={openNote}
+        />
+      );
+    }
+    if (view === "stream") {
+      return (
+        // The composer scrolls inside the stream rather than beside it: sharing one scroll container
+        // is what keeps both columns exactly the same width.
+        <div
+          data-stream-scroll
+          className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
+        >
+          <Stream notes={notes} arrivedId={arrivedId} previewId={previewId} onOpen={openNote} />
+          <div className="sticky bottom-0 bg-background pt-2">{composer(true)}</div>
+        </div>
+      );
+    }
+    return composer(false);
+  };
 
   return (
     <>
@@ -677,47 +662,7 @@ export default function Page() {
             onPreviewNote={previewNote}
           />
         }
-        workspace={
-          editing ? (
-            <NoteEditor
-              key={editing.id}
-              note={editing}
-              location={folderPath(folders, editing.folderId)}
-              onSave={save}
-              onClose={closeNote}
-            />
-          ) : view === "inbox" ? (
-            <InboxView
-              notes={unfiled}
-              folders={folders}
-              suggestionOf={(noteId) => destinations.get(noteId)}
-              onAccept={acceptDestination}
-              onMove={chooseDestination}
-              onOpen={openNote}
-              onNewFolder={startNewFolder}
-            />
-          ) : view === "tasks" ? (
-            <Tasks
-              tasks={tasks}
-              noteOf={(noteId) => notes.find((note) => note.id === noteId)}
-              onToggle={(task, completed) => void toggleTask(task, completed)}
-              onDelete={(task) => void deleteTask(task)}
-              onOpenNote={openNote}
-            />
-          ) : view === "stream" ? (
-            // The composer scrolls inside the stream rather than beside it: sharing one scroll
-            // container is what keeps both columns exactly the same width.
-            <div
-              data-stream-scroll
-              className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
-            >
-              <Stream notes={notes} arrivedId={arrivedId} previewId={previewId} onOpen={openNote} />
-              <div className="sticky bottom-0 bg-background pt-2">{composer(true)}</div>
-            </div>
-          ) : (
-            composer(false)
-          )
-        }
+        workspace={workspace()}
         intelligence={
           <div className="flex h-full flex-col">
             <div className="min-h-0 flex-1">
@@ -758,4 +703,6 @@ export default function Page() {
       />
     </>
   );
-}
+};
+
+export default Page;

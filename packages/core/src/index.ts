@@ -26,7 +26,7 @@ export type Echo = {
 };
 
 /** Composition root for the domain: repositories in, services out. */
-export function createEcho({
+export const createEcho = ({
   repositories,
   events = createEventBus(),
   now = systemClock,
@@ -36,7 +36,7 @@ export function createEcho({
   events?: EventBus;
   now?: Clock;
   newId?: IdFactory;
-}): Echo {
+}): Echo => {
   return {
     notes: createNoteService({ repository: repositories.notes, events, now, newId }),
     folders: createFolderService({ repository: repositories.folders, events, now, newId }),
@@ -44,4 +44,4 @@ export function createEcho({
     learning: createLearningService({ repository: repositories.learning, events, now, newId }),
     events,
   };
-}
+};

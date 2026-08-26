@@ -22,14 +22,14 @@ export const viewport: Viewport = {
   themeColor: "#0a0a0a",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html
-      lang="en"
-      className={`dark ${sans.variable} ${mono.variable} ${display.variable}`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-dvh font-sans antialiased">{children}</body>
-    </html>
-  );
-}
+const RootLayout = ({ children }: { children: ReactNode }) => (
+  <html
+    lang="en"
+    className={`dark ${sans.variable} ${mono.variable} ${display.variable}`}
+    suppressHydrationWarning
+  >
+    <body className="min-h-dvh font-sans antialiased">{children}</body>
+  </html>
+);
+
+export default RootLayout;

@@ -6,7 +6,7 @@ const NOW = new Date(2026, 7, 26, 12, 0, 0);
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
 
 let sequence = 0;
-function event(partial: Partial<LearningEvent> & Pick<LearningEvent, "type">): LearningEvent {
+const event = (partial: Partial<LearningEvent> & Pick<LearningEvent, "type">): LearningEvent => {
   sequence += 1;
   return {
     id: `00000000-0000-0000-0000-${String(sequence).padStart(12, "0")}`,
@@ -17,7 +17,7 @@ function event(partial: Partial<LearningEvent> & Pick<LearningEvent, "type">): L
     createdAt: NOW,
     ...partial,
   };
-}
+};
 
 test("one correction is a coincidence, two are a rule", () => {
   const once = deriveRules([event({ type: "signal_rejected" })], { now: NOW });

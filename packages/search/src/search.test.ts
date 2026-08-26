@@ -4,7 +4,7 @@ import { combine, DEFAULT_WEIGHTS, normalizeLexical, rank, recencyScore } from "
 
 const NOW = new Date(2026, 7, 26, 12, 0, 0);
 
-function note(id: string, updatedAt = NOW): Note {
+const note = (id: string, updatedAt = NOW): Note => {
   return {
     id,
     workspaceId: "00000000-0000-0000-0000-000000000001",
@@ -15,7 +15,7 @@ function note(id: string, updatedAt = NOW): Note {
     createdAt: updatedAt,
     updatedAt,
   };
-}
+};
 
 test("recency decays by half every two weeks", () => {
   expect(recencyScore(NOW, NOW)).toBe(1);

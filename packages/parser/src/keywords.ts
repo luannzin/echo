@@ -8,7 +8,7 @@ const WORD = /[\p{L}\p{N}][\p{L}\p{N}'’_-]*/gu;
  * Frequency ranking over the words that carry meaning. Ties break alphabetically so the same note
  * always produces the same list — derived data has to be reproducible.
  */
-export function extractKeywords(content: string, limit = DEFAULT_LIMIT): string[] {
+export const extractKeywords = (content: string, limit = DEFAULT_LIMIT): string[] => {
   const counts = new Map<string, number>();
 
   for (const [word] of content.matchAll(WORD)) {
@@ -22,4 +22,4 @@ export function extractKeywords(content: string, limit = DEFAULT_LIMIT): string[
     .sort(([wordA, countA], [wordB, countB]) => countB - countA || wordA.localeCompare(wordB))
     .slice(0, limit)
     .map(([word]) => word);
-}
+};

@@ -4,10 +4,10 @@ import { openRepositories } from "./index";
 import { migrate } from "./migrate";
 
 /** Every test gets a throwaway in-memory PGlite, migrated from the real migration files. */
-async function testEcho() {
+const testEcho = async () => {
   const { repositories } = await openRepositories();
   return createEcho({ repositories });
-}
+};
 
 test("notes survive a round trip through PGlite", async () => {
   const echo = await testEcho();

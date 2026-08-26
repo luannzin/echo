@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **5 complete — organization: folders, the Inbox and tasks**
+Last updated: 2026-08-26 · Phase: **5 complete — organization, then a structural pass**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -364,6 +364,27 @@ differently. Building the entity now would mean a second tree, a second set of m
 destination type in the vote and a second thing to choose between at capture — for behaviour a
 folder already provides. The domain is ready for it (`folders` is one table with a parent, and
 `workspace_id` is everywhere), so this is a decision to defer, not a corner cut.
+
+### Structural pass
+- `apps/web` is modules now: `app/` holds the route entry, the one owner component and its command
+  list; `modules/<module>/_components/*.tsx` holds one component per file with the module's own
+  types and pure helpers beside them; `shared/` holds only what more than one module needs. Modules:
+  `capture`, `explorer`, `inbox`, `intelligence`, `notes`, `search`, `shell`, `tasks`. The coss
+  registry keeps its own paths, which the CLI owns.
+- Nothing is declared inside another component any more. Every nested component became a file —
+  `signal-chip`, `note-row`, `stream-row`, `stream-stamp`, `folder-row`, `place-row`,
+  `folder-name-field`, `inbox-row`, `task-row`, `rail-button`, `top-bar`, `palette-action`,
+  `palette-note`, `marked`, `model-progress`, `duplicate-alert`, `note-list-skeleton`.
+- Logic that was living inside components moved out to plain modules: `capture/signals.ts`,
+  `explorer/model.ts`, `search/model.ts`, `tasks/sections.ts`, `notes/stream-selection.ts`,
+  `shell/view.ts`, `app/commands.ts`.
+- Shared instead of repeated: `Label`, `Count`, `Timestamp`, `EmptyState`, `folderPaths`,
+  `stagger`, and the `quiet` / `numeric` class tokens.
+- Arrow functions everywhere, including page and layout. Comments were cut back to the ones that
+  record a decision, a measured number, a browser quirk or a `ponytail:` ceiling.
+
+Verified after the move: `typecheck` 12/12, `lint` clean, `test` 6/6, `build` clean, and the
+production app still opens its database, files a note from the Inbox and moves one from the tree.
 
 ## Fixed
 

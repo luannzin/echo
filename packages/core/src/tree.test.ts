@@ -4,7 +4,7 @@ import { buildTree, flattenTree, folderPath, subtreeIds } from "./tree";
 
 const epoch = new Date(0);
 
-function folder(id: string, name: string, parentId: string | null = null): Folder {
+const folder = (id: string, name: string, parentId: string | null = null): Folder => {
   return {
     id,
     workspaceId: "w",
@@ -13,7 +13,7 @@ function folder(id: string, name: string, parentId: string | null = null): Folde
     createdAt: epoch,
     updatedAt: epoch,
   };
-}
+};
 
 const tree = [
   folder("work", "Work"),

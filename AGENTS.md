@@ -94,11 +94,38 @@ When the user requests a durable behavior change, record it here or in the relev
 - Tests run on `bun test`; no separate test-runner dependency
 - Schema changes go through `bun run --cwd packages/db db:generate` — never hand-edit generated SQL
   or `src/migrations.generated.ts`
-- coss registry files (`apps/web/components/ui/**`) are CLI-owned — compose, never hand-edit
+- coss registry files are CLI-owned — compose, never hand-edit: `apps/web/components/ui/**`,
+  `apps/web/hooks/**`, `apps/web/lib/utils.ts`, `apps/web/lib/segmented-control.ts`
 - Keep UI state plain: no React context, no custom hooks, no state library unless prop passing has
   actually broken down. One owner component, props downward
 - Every pointer-only affordance needs a keyboard twin: drag and drop is paired with a context menu,
   a hover-revealed control stays reachable on focus
+
+## apps/web layout
+
+```text
+app/                     route entry, the one owner component, and its command list
+modules/<module>/
+  _components/*.tsx      one component per file, exported by name
+  *.ts                   that module's own types and pure helpers
+shared/
+  _components/*.tsx      anything two modules render
+  lib/*.ts               anything two modules import
+components/ui, hooks, lib/utils.ts, lib/segmented-control.ts   coss registry, CLI-owned
+```
+
+Modules today: `capture`, `explorer`, `inbox`, `intelligence`, `notes`, `search`, `shell`, `tasks`.
+A module never reaches into another module's `_components`; anything two of them need moves to
+`shared/`.
+
+## Code style
+
+- TypeScript only, `.ts` / `.tsx`
+- Arrow functions everywhere, including components and default exports
+- One component per file. Nothing is declared inside another component, and nothing is defined
+  inline that a name would explain better
+- Comments earn their place: a decision that is not obvious from the code, a measured number, a
+  browser quirk, or a `ponytail:` ceiling. Nothing that restates the line below it
 
 ## Child DOX Index
 

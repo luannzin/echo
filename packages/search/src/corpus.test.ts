@@ -15,33 +15,33 @@ import { createVectorIndex, rank, type SearchCandidate } from "./index";
 type Seeded = SearchCandidate & { embedding: Float32Array };
 
 /** Scores a whole corpus against one question, exactly the way the application does. */
-function scored(candidates: Seeded[], question: Float32Array): SearchCandidate[] {
+const scored = (candidates: Seeded[], question: Float32Array): SearchCandidate[] => {
   const index = createVectorIndex(DIMENSIONS);
   index.load(candidates.map((c) => ({ noteId: c.note.id, values: c.embedding })));
   return candidates.map(({ embedding: _embedding, ...candidate }) => ({
     ...candidate,
     semantic: index.scoreOf(question, candidate.note.id) ?? 0,
   }));
-}
+};
 
 const NOW = new Date(2026, 7, 26, 12, 0, 0);
 const DIMENSIONS = 8;
 
 /** A deterministic generator, so a failure is always the same failure. */
-function seeded(seed: number): () => number {
+const seeded = (seed: number): (() => number) => {
   let state = seed;
   return () => {
     state = (state * 1103515245 + 12345) % 2 ** 31;
     return state / 2 ** 31;
   };
-}
+};
 
-function unit(values: number[]): Float32Array {
+const unit = (values: number[]): Float32Array => {
   const length = Math.hypot(...values) || 1;
   return Float32Array.from(values.map((value) => value / length));
-}
+};
 
-function note(id: string, content: string, daysOld = 0): Note {
+const note = (id: string, content: string, daysOld = 0): Note => {
   const updatedAt = new Date(NOW.getTime() - daysOld * 24 * 3600_000);
   return {
     id,
@@ -53,17 +53,17 @@ function note(id: string, content: string, daysOld = 0): Note {
     createdAt: updatedAt,
     updatedAt,
   };
-}
+};
 
 /** 200 notes of noise, none of them about the question, spread over half a year. */
-function corpus(): Seeded[] {
+const corpus = (): Seeded[] => {
   const random = seeded(7);
   return Array.from({ length: 200 }, (_, index) => ({
     note: note(`noise-${String(index).padStart(3, "0")}`, `unrelated note number ${index}`, index),
     embedding: unit(Array.from({ length: DIMENSIONS }, () => random() - 0.5)),
     lexical: 0,
   }));
-}
+};
 
 /** The question, as a vector. Everything below is measured against this direction. */
 const query = unit([1, 0.2, 0, 0, 0, 0, 0, 0]);

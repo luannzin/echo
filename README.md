@@ -53,6 +53,9 @@ first use, once, and then cached by the browser.
 
 ```text
 apps/web            Next.js application (PWA target)
+  app/              route entry and the component that owns application state
+  modules/          one folder per feature, each with its own _components
+  shared/           components and helpers more than one module needs
 packages/types      Domain contracts (zod schemas, inferred types)
 packages/core       Domain logic, services, event bus — no IO, no React
 packages/db         Repositories + migrations (PGlite locally, Postgres on a server)

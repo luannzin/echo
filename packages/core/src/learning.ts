@@ -18,7 +18,7 @@ export type LearningService = ReturnType<typeof createLearningService>;
  * events and buys the property that matters: there is exactly one place a belief about the reader
  * can live, so "forget this" is a delete and not a flag that something else might still consult.
  */
-export function createLearningService({
+export const createLearningService = ({
   repository,
   events,
   now,
@@ -28,7 +28,7 @@ export function createLearningService({
   events: EventBus;
   now: Clock;
   newId: IdFactory;
-}) {
+}) => {
   return {
     async record(input: LearningEventCreate): Promise<LearningEvent> {
       const parsed = learningEventCreateSchema.parse(input);
@@ -54,4 +54,4 @@ export function createLearningService({
       events.emit({ type: "learning.forgotten", kind, subject });
     },
   };
-}
+};

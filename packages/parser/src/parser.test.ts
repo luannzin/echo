@@ -6,12 +6,12 @@ const NOW = new Date(2026, 7, 26, 10, 0, 0);
 const on = (content: string) => parse(content, { now: NOW });
 
 /** chrono carries a time of day; the assertions here care about the day it landed on. */
-function dayOf(detected: { date: Date } | null | undefined): Date | undefined {
+const dayOf = (detected: { date: Date } | null | undefined): Date | undefined => {
   if (!detected) return undefined;
   const day = new Date(detected.date);
   day.setHours(0, 0, 0, 0);
   return day;
-}
+};
 
 test("reads relative days in both languages", () => {
   expect(dayOf(on("ship it tomorrow").dates[0])).toEqual(new Date(2026, 7, 27));

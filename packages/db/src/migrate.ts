@@ -6,7 +6,7 @@ import { migrations } from "./migrations.generated";
  * Applies every unapplied migration in order, inside one transaction each. Versioned and additive —
  * no destructive "push" shortcut, on any host.
  */
-export async function migrate(db: Database): Promise<string[]> {
+export const migrate = async (db: Database): Promise<string[]> => {
   await db.execute(sql`
     create table if not exists echo_migrations (
       version text primary key,
@@ -29,4 +29,4 @@ export async function migrate(db: Database): Promise<string[]> {
   }
 
   return pending.map((migration) => migration.version);
-}
+};

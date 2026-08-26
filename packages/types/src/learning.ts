@@ -1,9 +1,8 @@
 import { z } from "zod";
 
 /**
- * What a reader did about something echo inferred. These are the record; the rules echo works from
- * are derived out of them and can always be thrown away and rebuilt — the same relationship note
- * content has with embeddings.
+ * What a reader did about something echo inferred. These are the record; rules are derived from them
+ * and can always be thrown away and rebuilt.
  */
 export const learningEventSchema = z.object({
   id: z.uuid(),
@@ -20,10 +19,7 @@ export const learningEventSchema = z.object({
     /** A note was opened from search or from the related panel — a vote for its usefulness. */
     "result_opened",
   ]),
-  /**
-   * Which family the subject belongs to, so two kinds of rule can never collide on one key. A
-   * phrase learned about tasks says nothing about deadlines.
-   */
+  /** Which family the subject belongs to, so two kinds of rule can never collide on one key. */
   kind: z.enum(["task-phrase", "deadline-phrase", "note", "duplicate", "destination"]),
   /** What the event is about: the phrase that triggered a signal, or a note or folder id. */
   subject: z.string().min(1),

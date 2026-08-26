@@ -13,11 +13,8 @@ export * from "./vector-index";
 
 export type SearchCandidate = {
   note: Note;
-  /**
-   * Cosine similarity to the question, 0..1, already computed. Ranking blends signals; measuring
-   * them belongs to whoever holds the vectors — the index, which can compare a whole corpus without
-   * handing a single one out. Absent means the note has no vector yet, and it competes without one.
-   */
+  /** Cosine similarity to the question, already computed: ranking blends signals, the index
+   *  measures them. Absent means the note has no vector yet and competes without one. */
   semantic?: number;
   /** Raw lexical rank from the database, or 0 when the query did not match textually. */
   lexical?: number;
@@ -38,19 +35,16 @@ export type SearchOptions = {
   limit?: number;
   /** Results below this score are noise; showing them would make search feel wrong. */
   minimumScore?: number;
-  /**
-   * A note that matches the query on neither its words nor its meaning is not a result, however
-   * recently it was written and however often it has been opened. Recency and habit are
-   * tie-breakers between answers, never a reason to be an answer.
-   */
+  /** Recency and habit are tie-breakers between answers, never a reason to be one. */
   minimumSemantic?: number;
 };
 
-/**
- * Hybrid ranking: meaning, words and recency, blended by weights the caller can change. Notes with
- * no vector yet are ranked on what is known about them rather than dropped.
- */
-export function rank(candidates: SearchCandidate[], options: SearchOptions = {}): SearchResult[] {
+/** Meaning, words and recency, blended by weights the caller can change. A note with no vector yet
+ *  is ranked on what is known about it rather than dropped. */
+export const rank = (
+  candidates: SearchCandidate[],
+  options: SearchOptions = {},
+): SearchResult[] => {
   const {
     weights = DEFAULT_WEIGHTS,
     now = new Date(),
@@ -81,17 +75,13 @@ export function rank(candidates: SearchCandidate[], options: SearchOptions = {})
     .filter((result) => result.lexical > 0 || result.semantic >= minimumSemantic)
     .sort((a, b) => b.score - a.score || a.note.id.localeCompare(b.note.id))
     .slice(0, limit);
-}
+};
 
-/**
- * Close enough that it is probably the same thought written twice. High on purpose: a false
- * duplicate warning costs the reader more attention than a missed one.
- */
+/** High on purpose: a false duplicate warning costs more attention than a missed one. */
 export const DUPLICATE_SIMILARITY = 0.9;
 
 /**
- * Below this, two notes are not about the same thing and saying so would be noise. Relatedness is
- * deliberately judged on meaning alone — when a note was last touched says nothing about what it is
- * about — which is why it is the index that answers it, and not `rank`.
+ * Below this, two notes are not about the same thing. Relatedness is judged on meaning alone — when
+ * a note was touched says nothing about what it is about — which is why the index answers it.
  */
 export const RELATED_SIMILARITY = 0.55;

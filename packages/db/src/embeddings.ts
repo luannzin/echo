@@ -7,7 +7,7 @@ import { notes, noteVectors } from "./schema";
  * Vectors are stored as the bytes the model produced. Nothing above this file knows that — the
  * repository takes and returns `Float32Array`, and how it reaches the disk is this file's business.
  */
-export function createEmbeddingRepository(db: Database): EmbeddingRepository {
+export const createEmbeddingRepository = (db: Database): EmbeddingRepository => {
   return {
     async put(embedding) {
       const values = asBytes(embedding.values);
@@ -55,18 +55,17 @@ export function createEmbeddingRepository(db: Database): EmbeddingRepository {
       return rows.map((row) => row.id);
     },
   };
-}
+};
 
-function asBytes(values: Float32Array): Uint8Array {
-  return new Uint8Array(values.buffer, values.byteOffset, values.byteLength);
-}
+const asBytes = (values: Float32Array): Uint8Array =>
+  new Uint8Array(values.buffer, values.byteOffset, values.byteLength);
 
 /**
  * Bytes back into floats. The view is taken over the stored buffer where the driver happens to have
  * aligned it to four bytes, and over a copy where it has not — a `Float32Array` cannot start at an
  * arbitrary offset, and a vector read wrongly is worse than a vector read slowly.
  */
-function asFloats(stored: Uint8Array): Float32Array {
+const asFloats = (stored: Uint8Array): Float32Array => {
   if (stored.byteOffset % Float32Array.BYTES_PER_ELEMENT === 0) {
     return new Float32Array(
       stored.buffer,
@@ -75,4 +74,4 @@ function asFloats(stored: Uint8Array): Float32Array {
     );
   }
   return new Float32Array(stored.slice().buffer);
-}
+};

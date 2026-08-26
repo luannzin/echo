@@ -12,7 +12,7 @@ export type Database = ReturnType<typeof drizzle<typeof schema>>;
  * `dataDir` follows PGlite conventions: `idb://echo` in the browser, a path on disk under Tauri,
  * omitted for an in-memory database in tests.
  */
-export function createDatabase(source?: string | PGliteInterface): Database {
+export const createDatabase = (source?: string | PGliteInterface): Database => {
   const client = typeof source === "string" || source === undefined ? new PGlite(source) : source;
   return drizzle(client as PGlite, { schema });
-}
+};

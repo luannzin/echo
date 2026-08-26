@@ -18,7 +18,7 @@ export type ParseResult = {
  * Everything echo can tell about a note without a model, a network call, or an API key. Pure and
  * deterministic: same content plus same `now` gives the same result, every time.
  */
-export function parse(content: string, { now = new Date() }: { now?: Date } = {}): ParseResult {
+export const parse = (content: string, { now = new Date() }: { now?: Date } = {}): ParseResult => {
   const dates = detectDates(content, now);
   return {
     dates,
@@ -26,4 +26,4 @@ export function parse(content: string, { now = new Date() }: { now?: Date } = {}
     keywords: extractKeywords(content),
     deadline: dates.find((date) => date.kind === "deadline") ?? null,
   };
-}
+};

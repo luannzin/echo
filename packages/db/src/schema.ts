@@ -12,23 +12,16 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-/**
- * Postgres' own full-text type. Drizzle has no built-in for it, and it needs one here because the
- * alternative — building a `tsvector` per row at query time — is a full table scan on every
- * keystroke. Stored and indexed, the same search is a lookup.
- */
+/** Postgres' own full-text type. Built per row at query time it would be a full table scan on
+ *  every keystroke; stored and indexed, the same search is a lookup. */
 const tsvector = customType<{ data: string }>({
   dataType: () => "tsvector",
 });
 
 /**
- * Raw bytes. A vector is 384 floats, and storing them as a Postgres array meant writing them out as
- * text and parsing them back — at ten thousand notes that was two and a half seconds of reading and
- * twice the storage. As bytes they are the same memory the model produced, and they come back the
- * same way.
- *
- * Little-endian, which every platform this runs on is. A sync protocol that ever crosses that line
- * converts here, in one place, rather than everywhere a vector is read.
+ * Raw bytes. As a Postgres array, ten thousand vectors cost 2.5s of parsing and twice the storage;
+ * as bytes they are the memory the model produced. Little-endian — a sync protocol that ever
+ * crosses that line converts here, in one place.
  */
 const bytes = customType<{ data: Uint8Array }>({
   dataType: () => "bytea",
@@ -64,13 +57,10 @@ export const notes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     /**
-     * Derived by the database from the note itself, so it can never drift out of step with what it
-     * indexes. `simple` applies no language-specific stemming, which is what keeps every language
-     * on equal terms — meaning is the embedding model's job.
-     *
-     * The title carries weight A and the body weight B, so a note *about* the question outranks one
-     * that merely mentions it. Never selected: it is an index, not content, and reading it back
-     * would cost more than the query it speeds up.
+     * Derived by the database, so it can never drift out of step with what it indexes. `simple`
+     * applies no stemming, which keeps every language on equal terms — meaning is the model's job.
+     * Title weighs A and body B, so a note *about* the question outranks one that mentions it.
+     * Never selected: it is an index, not content.
      */
     search: tsvector("search")
       .notNull()
@@ -86,10 +76,7 @@ export const notes = pgTable(
   ],
 );
 
-/**
- * Every column of a note except the search index. Repositories select these explicitly, because
- * `select *` would drag a tsvector the size of the note along with every row it returns.
- */
+/** Every column except the search index: `select *` would drag a tsvector along with every row. */
 export const noteColumns = {
   id: notes.id,
   workspaceId: notes.workspaceId,
@@ -103,22 +90,17 @@ export const noteColumns = {
 
 /**
  * Derived data, never the source of truth: a row here can be deleted and rebuilt from the note.
- * `model` records who produced the vector, so changing models invalidates the old ones instead of
+ * `model` records who produced the vector, so changing models invalidates the old ones rather than
  * silently comparing incompatible spaces.
- *
- * It replaces an earlier table that held the same vectors as a Postgres array of reals. Derived data
- * is the one thing a schema may throw away rather than convert: the notes are untouched, and the
- * analyzer rebuilds every vector on the next pass.
  *
  * ponytail: bytes, with similarity computed in TypeScript against an index held in memory. PGlite
  * ships no pgvector build today; on a server this column becomes `vector(384)` and gains an index
- * without touching the domain, because nothing above `@echo/db` knows how a vector is stored.
+ * without touching the domain.
  */
 
 /**
- * Every correction a reader has made, kept as it happened. Rules are derived from these rows by
- * `@echo/learning` and never stored: forgetting a rule means deleting the events behind it, so
- * there is no second place where a belief about the reader can survive.
+ * Every correction as it happened. Rules are derived from these rows and never stored, so forgetting
+ * one means deleting the events behind it — there is no second place a belief can survive.
  */
 export const learningEvents = pgTable(
   "learning_events",

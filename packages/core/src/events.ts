@@ -22,7 +22,7 @@ export type EventBus = {
   subscribe: (listener: EventListener) => () => void;
 };
 
-export function createEventBus(): EventBus {
+export const createEventBus = (): EventBus => {
   const listeners = new Set<EventListener>();
   return {
     emit(event) {
@@ -33,4 +33,4 @@ export function createEventBus(): EventBus {
       return () => listeners.delete(listener);
     },
   };
-}
+};

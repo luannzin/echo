@@ -10,7 +10,7 @@ export type TaskService = ReturnType<typeof createTaskService>;
  * parser proposes, the reader agrees, and only then is there a task. That is the same rule the rest
  * of echo follows: an explicit choice outranks anything inferred.
  */
-export function createTaskService({
+export const createTaskService = ({
   repository,
   events,
   now,
@@ -20,7 +20,7 @@ export function createTaskService({
   events: EventBus;
   now: Clock;
   newId: IdFactory;
-}) {
+}) => {
   return {
     async create(input: TaskCreate): Promise<Task> {
       const { noteId, title, dueAt } = taskCreateSchema.parse(input);
@@ -59,4 +59,4 @@ export function createTaskService({
       return repository.list();
     },
   };
-}
+};

@@ -11,7 +11,7 @@ import type { Database } from "./client";
  * The index is a generated column, so there is nothing to keep in step by hand — writing a note
  * updates it in the same statement.
  */
-export function createLexicalSearch(db: Database): LexicalSearch {
+export const createLexicalSearch = (db: Database): LexicalSearch => {
   return {
     async search(query, limit = 50) {
       const trimmed = query.trim();
@@ -42,4 +42,4 @@ export function createLexicalSearch(db: Database): LexicalSearch {
       })) satisfies LexicalMatch[];
     },
   };
-}
+};

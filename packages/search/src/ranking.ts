@@ -24,10 +24,10 @@ export const DEFAULT_WEIGHTS: RankingWeights = {
 /** A note loses half its recency credit every two weeks. Old notes rank on merit, not freshness. */
 const RECENCY_HALF_LIFE_MS = 14 * 24 * 60 * 60 * 1000;
 
-export function recencyScore(updatedAt: Date, now: Date): number {
+export const recencyScore = (updatedAt: Date, now: Date): number => {
   const age = Math.max(0, now.getTime() - updatedAt.getTime());
   return 2 ** (-age / RECENCY_HALF_LIFE_MS);
-}
+};
 
 export type Signals = {
   /** Cosine similarity, already in 0..1 for unit vectors that point the same way. */
@@ -39,18 +39,18 @@ export type Signals = {
   interaction?: number;
 };
 
-export function combine(signals: Signals, weights: RankingWeights = DEFAULT_WEIGHTS): number {
+export const combine = (signals: Signals, weights: RankingWeights = DEFAULT_WEIGHTS): number => {
   return (
     signals.semantic * weights.semantic +
     signals.lexical * weights.lexical +
     signals.recency * weights.recency +
     (signals.interaction ?? 0) * weights.interaction
   );
-}
+};
 
 /** Scales a set of raw lexical ranks into 0..1 so one engine's scale never dominates the blend. */
-export function normalizeLexical(scores: number[]): number[] {
+export const normalizeLexical = (scores: number[]): number[] => {
   const highest = Math.max(0, ...scores);
   if (highest === 0) return scores.map(() => 0);
   return scores.map((score) => Math.max(0, score) / highest);
-}
+};

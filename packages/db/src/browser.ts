@@ -19,7 +19,7 @@ import type { createLexicalSearch } from "./search";
  * worker build throws `window is not defined` before `fsBundle` is ever consulted. Revisit when
  * PGlite's worker entry stops assuming a document.
  */
-export async function openBrowserRepositories({
+export const openBrowserRepositories = async ({
   dataDir = "idb://echo",
   runtimePath = "/pglite/",
 }: {
@@ -28,7 +28,7 @@ export async function openBrowserRepositories({
 } = {}): Promise<{
   repositories: Repositories;
   lexical: ReturnType<typeof createLexicalSearch>;
-}> {
+}> => {
   const [pgliteWasmModule, initdbWasmModule, fsBundle] = await Promise.all([
     WebAssembly.compileStreaming(fetch(`${runtimePath}pglite.wasm`)),
     WebAssembly.compileStreaming(fetch(`${runtimePath}initdb.wasm`)),
@@ -37,4 +37,4 @@ export async function openBrowserRepositories({
 
   const client = await PGlite.create({ dataDir, pgliteWasmModule, initdbWasmModule, fsBundle });
   return openRepositories(client);
-}
+};

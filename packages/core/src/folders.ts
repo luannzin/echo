@@ -11,7 +11,7 @@ import type { FolderRepository } from "./ports";
 
 export type FolderService = ReturnType<typeof createFolderService>;
 
-export function createFolderService({
+export const createFolderService = ({
   repository,
   events,
   now,
@@ -21,7 +21,7 @@ export function createFolderService({
   events: EventBus;
   now: Clock;
   newId: IdFactory;
-}) {
+}) => {
   return {
     async create(input: FolderCreate): Promise<Folder> {
       const { name, parentId } = folderCreateSchema.parse(input);
@@ -71,14 +71,14 @@ export function createFolderService({
       return repository.list();
     },
   };
-}
+};
 
 /** Guards the tree against cycles: is `candidate` inside the subtree rooted at `ancestorId`? */
-async function isDescendant(
+const isDescendant = async (
   repository: FolderRepository,
   candidate: string,
   ancestorId: string,
-): Promise<boolean> {
+): Promise<boolean> => {
   let current: string | null = candidate;
   while (current) {
     if (current === ancestorId) return true;
@@ -86,4 +86,4 @@ async function isDescendant(
     current = folder?.parentId ?? null;
   }
   return false;
-}
+};

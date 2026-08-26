@@ -23,15 +23,13 @@ const DEADLINE_MARKERS =
  */
 const PARSERS = [chrono.pt.casual, chrono.en.casual];
 
-function fold(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
+const fold = (text: string): string => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
  * Finds dates a person actually writes: "tomorrow", "before Friday", "até sexta", "12/03",
  * "in two weeks". `now` is injected, so the same note always parses the same way.
  */
-export function detectDates(content: string, now: Date): DetectedDate[] {
+export const detectDates = (content: string, now: Date): DetectedDate[] => {
   const claimed: { start: number; end: number }[] = [];
   const found: DetectedDate[] = [];
 
@@ -55,4 +53,4 @@ export function detectDates(content: string, now: Date): DetectedDate[] {
   }
 
   return found.sort((a, b) => a.date.getTime() - b.date.getTime());
-}
+};

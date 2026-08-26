@@ -3,18 +3,13 @@ import type { EventBus } from "./events";
 import type { EmbeddingRepository, NoteRepository } from "./ports";
 
 /**
- * Derived data catches up with the notes, always behind them and never in front. Writing a note
- * finishes the moment it is stored; embedding it happens afterwards, and a failure costs nothing
- * but a retry on the next pass.
- *
- * Work is taken in batches rather than one note at a time. A model pays a fixed cost per call
- * regardless of how much it is given, so handing it several notes at once is most of the difference
- * between a fresh import finishing in a minute and finishing in ten. The batch is small on purpose:
- * progress should be visible while it runs, and a failure should cost a few notes, not all of them.
+ * Derived data catches up with the notes, never runs in front of them, and a failure costs a retry
+ * on the next pass. Batched because a model pays a fixed cost per call — small on purpose, so
+ * progress stays visible and a failure costs a few notes rather than all of them.
  */
 const BATCH = 8;
 
-export function createAnalyzer({
+export const createAnalyzer = ({
   notes,
   embeddings,
   embedder,
@@ -29,7 +24,7 @@ export function createAnalyzer({
   /** Each vector as it is written, so anything holding an index can stay in step without re-reading. */
   onEmbedded?: (embedding: { noteId: string; values: Float32Array }) => void;
   onProgress?: (state: { pending: number; failed: boolean; error?: string }) => void;
-}) {
+}) => {
   let current: Promise<void> | undefined;
   let queued = false;
 
@@ -38,7 +33,7 @@ export function createAnalyzer({
    * than starting a second. Callers always get a promise that resolves when the queue is empty,
    * which is what makes the work testable.
    */
-  function drain(): Promise<void> {
+  const drain = (): Promise<void> => {
     queued = true;
     current ??= (async () => {
       try {
@@ -86,7 +81,7 @@ export function createAnalyzer({
       }
     })();
     return current;
-  }
+  };
 
   const unsubscribe = events.subscribe((event) => {
     if (event.type === "note.created" || event.type === "note.updated") void drain();
@@ -97,4 +92,4 @@ export function createAnalyzer({
     run: drain,
     stop: unsubscribe,
   };
-}
+};

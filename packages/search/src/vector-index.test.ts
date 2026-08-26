@@ -3,11 +3,11 @@ import { normalize } from "@echo/embeddings";
 import { createVectorIndex } from "./vector-index";
 
 /** A unit vector pointing mostly along one axis, so "closest" is predictable. */
-function direction(axis: number, dimensions = 8): Float32Array {
+const direction = (axis: number, dimensions = 8): Float32Array => {
   const values = new Float32Array(dimensions);
   values[axis] = 1;
   return normalize(values);
-}
+};
 
 test("finds the nearest vectors, best first", () => {
   const index = createVectorIndex(8);

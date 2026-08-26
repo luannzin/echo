@@ -19,11 +19,13 @@ export { createDatabase, migrate };
  * `source` is a PGlite data directory, or a client that is already running — which is how the web
  * app hands over the one living in its worker.
  */
-export async function openRepositories(source?: string | PGliteInterface): Promise<{
+export const openRepositories = async (
+  source?: string | PGliteInterface,
+): Promise<{
   db: Database;
   repositories: Repositories;
   lexical: ReturnType<typeof createLexicalSearch>;
-}> {
+}> => {
   const db = createDatabase(source);
   await migrate(db);
   return {
@@ -37,4 +39,4 @@ export async function openRepositories(source?: string | PGliteInterface): Promi
     },
     lexical: createLexicalSearch(db),
   };
-}
+};

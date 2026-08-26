@@ -30,18 +30,18 @@ type LoadProgress = {
  * ponytail: runs wherever it is constructed. The web app builds it inside a worker so the model
  * never shares a thread with the editor.
  */
-export function createLocalEmbedder({
+export const createLocalEmbedder = ({
   runtimePath,
   onStatus,
 }: {
   runtimePath?: string;
   onStatus?: (status: EmbedderStatus) => void;
-} = {}): Embedder {
+} = {}): Embedder => {
   let pipelinePromise: Promise<Pipeline> | undefined;
   /** Bytes seen per file, because the weights arrive as several downloads at once. */
   const received = new Map<string, { loaded: number; total: number }>();
 
-  function reportDownload(progress: LoadProgress): void {
+  const reportDownload = (progress: LoadProgress): void => {
     if (!progress.file || progress.total === undefined) return;
     received.set(progress.file, {
       loaded: progress.loaded ?? 0,
@@ -55,9 +55,9 @@ export function createLocalEmbedder({
       total += file.total;
     }
     onStatus?.({ state: "loading", progress: total === 0 ? 0 : Math.min(1, loaded / total) });
-  }
+  };
 
-  async function getPipeline(): Promise<Pipeline> {
+  const getPipeline = async (): Promise<Pipeline> => {
     if (!pipelinePromise) {
       onStatus?.({ state: "loading", progress: 0 });
       // A failed load is forgotten, so a dropped connection costs one retry rather than the whole
@@ -84,9 +84,9 @@ export function createLocalEmbedder({
       });
       throw cause;
     }
-  }
+  };
 
-  async function run(texts: string[], role: Role): Promise<Float32Array[]> {
+  const run = async (texts: string[], role: Role): Promise<Float32Array[]> => {
     if (texts.length === 0) return [];
     const extractor = await getPipeline();
     const output = await extractor(
@@ -94,7 +94,7 @@ export function createLocalEmbedder({
       { pooling: "mean", normalize: true },
     );
     return output.tolist().map((values) => normalize(Float32Array.from(values)));
-  }
+  };
 
   return {
     id: MODEL_ID,
@@ -115,4 +115,4 @@ export function createLocalEmbedder({
       return vector;
     },
   };
-}
+};

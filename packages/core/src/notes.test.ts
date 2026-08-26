@@ -4,7 +4,7 @@ import { createEcho } from "./index";
 import type { NoteRepository, Repositories } from "./ports";
 
 /** In-memory stand-in: services are tested without a database, repositories are tested with one. */
-function memoryRepositories(): Repositories {
+const memoryRepositories = (): Repositories => {
   const rows = new Map<string, Note>();
   const notes: NoteRepository = {
     async insert(note) {
@@ -59,14 +59,14 @@ function memoryRepositories(): Repositories {
       list: async () => [],
     },
   };
-}
+};
 
-function testEcho() {
+const testEcho = () => {
   const events: string[] = [];
   const echo = createEcho({ repositories: memoryRepositories() });
   echo.events.subscribe((event) => events.push(event.type));
   return { echo, events };
-}
+};
 
 test("a new note derives its title from the first meaningful line", async () => {
   const { echo, events } = testEcho();

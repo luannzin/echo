@@ -42,19 +42,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Below this, a rule is a coincidence. Two corrections the same way are the first real signal. */
 export const CONFIDENT = 0.6;
 
-export function ruleKey(kind: RuleKind, subject: string): string {
-  return `${kind}:${subject}`;
-}
+export const ruleKey = (kind: RuleKind, subject: string): string => `${kind}:${subject}`;
 
 /**
  * Corrections in, rules out — a pure function over the event list, called with whatever slice of
  * history the caller has. Recent corrections outweigh old ones, so a reader who changes their mind
  * is followed rather than argued with.
  */
-export function deriveRules(
+export const deriveRules = (
   events: LearningEvent[],
   { now = new Date(), halfLifeDays = 30 }: DerivationOptions = {},
-): LearnedRule[] {
+): LearnedRule[] => {
   const totals = new Map<string, { rule: LearnedRule; score: number }>();
 
   for (const event of events) {
@@ -93,39 +91,36 @@ export function deriveRules(
     }))
     .filter((rule) => rule.confidence > 0)
     .sort((a, b) => b.confidence - a.confidence || a.key.localeCompare(b.key));
-}
+};
 
-export function ruleFor(
+export const ruleFor = (
   rules: LearnedRule[],
   kind: RuleKind,
   subject: string,
-): LearnedRule | undefined {
-  return rules.find((rule) => rule.kind === kind && rule.subject === subject);
-}
+): LearnedRule | undefined => rules.find((rule) => rule.kind === kind && rule.subject === subject);
 
 /**
  * What echo detected, adjusted by what this reader has taught it. A rule can only strengthen or
  * weaken a signal the parser already found — it never invents one, because an explicit reading of
  * the note outranks anything inferred from history.
  */
-export function adjust(base: number, rule: LearnedRule | undefined): number {
+export const adjust = (base: number, rule: LearnedRule | undefined): number => {
   if (!rule || base <= 0) return base;
   return rule.outcome === "reject"
     ? base * (1 - rule.confidence)
     : base + (1 - base) * rule.confidence;
-}
+};
 
 /**
  * How much a note has earned its place in results by being opened. Recency-weighted like everything
  * else here, and capped at 1 so no note can dominate ranking by being clicked often.
  */
-export function affinity(rules: LearnedRule[], noteId: string): number {
+export const affinity = (rules: LearnedRule[], noteId: string): number => {
   const rule = ruleFor(rules, "note", noteId);
   if (!rule || rule.outcome === "reject") return 0;
   return rule.confidence;
-}
+};
 
 /** A duplicate warning the reader has already waved away, which must not come back. */
-export function dismissed(rules: LearnedRule[], noteId: string): boolean {
-  return ruleFor(rules, "duplicate", noteId)?.outcome === "reject";
-}
+export const dismissed = (rules: LearnedRule[], noteId: string): boolean =>
+  ruleFor(rules, "duplicate", noteId)?.outcome === "reject";

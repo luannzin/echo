@@ -40,7 +40,7 @@ const INTENT_MARKERS: { pattern: RegExp; confidence: number; trigger: string }[]
  * Task intent, line by line. A checkbox is explicit and scores highest; phrasing is a suggestion,
  * never a decision — nothing here mutates the note.
  */
-export function detectTasks(content: string): DetectedTask[] {
+export const detectTasks = (content: string): DetectedTask[] => {
   const tasks: DetectedTask[] = [];
 
   for (const line of content.split("\n")) {
@@ -67,4 +67,4 @@ export function detectTasks(content: string): DetectedTask[] {
   }
 
   return tasks;
-}
+};

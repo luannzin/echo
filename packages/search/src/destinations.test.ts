@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { type Neighbour, suggestDestinations } from "./destinations";
 
-function neighbour(noteId: string, folderId: string | null, similarity: number): Neighbour {
+const neighbour = (noteId: string, folderId: string | null, similarity: number): Neighbour => {
   return { noteId, folderId, similarity };
-}
+};
 
 test("the folder most of the close notes are in wins", () => {
   const [top] = suggestDestinations([

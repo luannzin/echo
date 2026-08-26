@@ -13,7 +13,7 @@ import { deriveTitle } from "./title";
 
 export type NoteService = ReturnType<typeof createNoteService>;
 
-export function createNoteService({
+export const createNoteService = ({
   repository,
   events,
   now,
@@ -23,12 +23,12 @@ export function createNoteService({
   events: EventBus;
   now: Clock;
   newId: IdFactory;
-}) {
-  async function mustGet(id: string): Promise<Note> {
+}) => {
+  const mustGet = async (id: string): Promise<Note> => {
     const note = await repository.get(id);
     if (!note) throw new Error(`Note ${id} not found`);
     return note;
-  }
+  };
 
   return {
     async create(input: NoteCreate = {}): Promise<Note> {
@@ -100,4 +100,4 @@ export function createNoteService({
       return repository.list(options);
     },
   };
-}
+};
