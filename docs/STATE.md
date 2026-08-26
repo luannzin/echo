@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **5 complete — organization, then a structural pass**
+Last updated: 2026-08-26 · Phase: **6 complete — installable, offline, and at home on a phone**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -117,15 +117,16 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   save-state indicator, focus ring, press feedback. Reduced motion still collapses all of it.
 
 ## In progress
-- Nothing. Phase 5 closed with the organization pass below.
+- Nothing. Phase 6 closed with the PWA, the mobile layout and the desktop shell below.
 
 ## Next
-1. **You:** decide whether projects should be their own entity — see "Projects, deliberately not
-   built" under Phase 5. Today a project would be a folder with a different icon, so nothing was
-   built rather than something that has to be unbuilt later.
-2. **Then Phase 6 — PWA and desktop:** service worker, install manifest, offline as a normal state,
-   the mobile layout (bottom navigation, full-screen editor, intelligence as a bottom sheet), and
-   the Tauri shell around the same web build.
+1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has
+   seen the pixels — in particular whether PGlite's WebAssembly and the model runtime behave the same
+   under WebKitGTK as they do in Chrome. Still open from Phase 5: whether projects should be their
+   own entity.
+2. **Then Phase 7 — Sync:** the change-log protocol, a Postgres server running the same migrations,
+   explicit conflict handling, and auth. It is the biggest chunk in the spec and delivers nothing
+   until it is finished, so it goes last before polish.
 
 ## Decisions made
 | Date | Decision | Why |
@@ -169,6 +170,10 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 | 2026-08-26 | A task is created only where the writer agreed to the chip | the parser proposes and the reader decides; a task echo invented would be a list item it could not explain |
 | 2026-08-26 | Projects deferred, not built | today a project would be a folder with a different icon; the domain is ready when the product has something to say about them |
 | 2026-08-26 | The tree and the note list are one component | a drag crosses between them, and the row it is heading for must light up mid-air |
+| 2026-08-26 | Mobile is CSS, not a second tree | one note list in the document, one drag target, and no guess about the viewport before the browser has said what it is |
+| 2026-08-26 | Service worker precaches nothing | the app loads all of it on the first visit anyway; a precache list would download 13MB before the first note |
+| 2026-08-26 | The document is network-first, everything else cache-first | a stale shell would pin a reader to an old build; hashed assets never go stale |
+| 2026-08-26 | Tauri's Rust side is a window and nothing else | filesystem, notifications, tray and shortcuts arrive when a feature asks; the domain lives in the web app either way |
 
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
@@ -386,6 +391,32 @@ folder already provides. The domain is ready for it (`folders` is one table with
 Verified after the move: `typecheck` 12/12, `lint` clean, `test` 6/6, `build` clean, and the
 production app still opens its database, files a note from the Inbox and moves one from the tree.
 
+### Phase 6 — PWA, mobile and desktop
+- **Installable.** `app/manifest.ts` (force-static, because the app is an export) plus an icon set
+  drawn from one source: a bright source dot with echoes fading outward. 192, 512, a maskable 512
+  with the safe zone, an apple touch icon, and the Windows `.ico` for the desktop bundle.
+- **Offline is the normal case.** `public/sw.js` is thirty lines and precaches nothing: the document
+  is network-first so a stale shell can never pin a reader to an old build, and everything else is
+  cache-first because it is content-addressed. Everything the app loads it loads on the first visit
+  anyway, so this costs one visit rather than a thirteen-megabyte download up front.
+- Verified by stopping the server and reloading: the shell, the database, the folder tree and every
+  note came back, and a note written with nothing serving the app saved and stayed saved.
+- **Mobile is not a shrunk desktop.** Below `md` the rail is gone and a bottom bar takes its place —
+  Write, Search, Inbox, Tasks, Places — with the count as a dot and padding for the home indicator.
+  The navigation pane becomes a sheet from the reading edge; the intelligence panel becomes a sheet
+  that rises from the bottom, with its toggle moving into the top bar where the rail cannot reach.
+  Both dismiss on a backdrop.
+- The rearranging is CSS, not a branch: one tree, one note list, no guess about the viewport before
+  the browser has said what it is. Only two things are decided in JavaScript — that neither panel
+  opens over the writing on a small screen.
+- **`apps/desktop`**: a Tauri v2 shell around the same `apps/web/out`. The Rust side is a window and
+  nothing else, and the capability file grants `core:default` and nothing else. Filesystem paths,
+  notifications, a tray and a global shortcut arrive when a feature asks for them — echo's database,
+  search and learning all run inside the web app, so there is no business logic to put in Rust.
+- `cargo build` is clean, and the binary runs: launched against the built `out/`, it held the window
+  open for its whole run and wrote nothing to stderr. What it looks like on screen is the one thing
+  this side cannot check.
+
 ## Fixed
 
 - **An undone note came back after it had been thrown away.** `⌘Z` returned the text to the composer
@@ -437,8 +468,12 @@ production app still opens its database, files a note from the Inbox and moves o
   tree with thousands of notes wants the same virtualization the stream wants.
 - Tasks are created at capture only. A note written before the reader thought of the task cannot be
   turned into one from the editor yet — the note editor has no signal chips.
-- App shell is desktop-only so far — the mobile layout is Phase 6, and the panes currently just
-  hide below `md`/`lg`.
+- The desktop window has never been *looked at* — it builds, launches and stays up, but WebKitGTK is
+  a different engine from the one every other check ran against.
+- `bun run build:desktop` on macOS needs `icon.icns`, which `bun run --cwd apps/desktop tauri icon`
+  generates. The repo carries the PNGs and the `.ico` because those are what Linux and Windows want.
+- No offline indicator, deliberately: there is nothing to say. If the model has not been downloaded
+  before the first offline session, search falls back to words and says so already.
 - Landing page not built yet (Phase 8). The marketing direction is documented and the tokens exist,
   but nothing renders it.
 - Product copy carries no roadmap/phase references any more; empty states describe the product,

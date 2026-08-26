@@ -31,6 +31,7 @@ import { Label } from "@/shared/_components/label";
 
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
+import { registerServiceWorker } from "@/shared/lib/service-worker";
 import { shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
 import { navigate, noteRow } from "@/shared/lib/transition";
 
@@ -99,9 +100,13 @@ const Page = () => {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [intelligenceOpen, setIntelligenceOpen] = useState(false);
 
+  // Both panels open to the stored preference, but never on a screen they would cover: on a phone
+  // they are sheets over the writing, and the writing is what the app opens to.
   useEffect(() => {
-    setNavigationOpen(readPreference("notes-panel", true));
-    setIntelligenceOpen(readPreference("intelligence-panel", true));
+    const room = (query: string) => window.matchMedia(query).matches;
+    setNavigationOpen(readPreference("notes-panel", true) && room("(min-width: 800px)"));
+    setIntelligenceOpen(readPreference("intelligence-panel", true) && room("(min-width: 1024px)"));
+    registerServiceWorker();
   }, []);
 
   /**

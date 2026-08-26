@@ -8,11 +8,9 @@ import { selecting, wasEdited } from "@/modules/notes/stream-selection";
 import { formatExact, formatStamp } from "@/shared/lib/time";
 
 /**
- * One note in the stream.
- *
- * Memoized per note, because the two things that change most often here — the pointer moving down
- * the column, and a note arriving — change one row at a time. Without this, resting the pointer on a
- * row re-rendered every other row to tell them all they are still not the one being pointed at.
+ * One note in the stream. Memoized per note, because the two things that change most often here —
+ * the pointer moving down the column and a note arriving — change one row at a time. Every prop is
+ * a primitive or a stable callback, which is what lets the memo actually hold.
  */
 export const StreamRow = memo(
   ({
@@ -21,21 +19,18 @@ export const StreamRow = memo(
     arrived,
     delay,
     onOpen,
-    register,
   }: {
     note: Note;
     targeted: boolean;
     arrived: boolean;
     delay: number;
     onOpen: (noteId: string, from: HTMLElement) => void;
-    register: (element: HTMLElement | null) => void;
   }) => (
     /* biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the button inside the row,
       which carries the accessible name and handles Enter and Space. Duplicating it as a key handler
       here would make the row a second tab stop. */
     <article
       data-note-id={note.id}
-      ref={register}
       data-targeted={targeted ? "true" : undefined}
       style={{
         animationDelay: `${delay}ms`,

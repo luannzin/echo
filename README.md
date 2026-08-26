@@ -6,9 +6,9 @@
 Open source, no-AI, local-first note taking. Semantic search, automatic organization and adaptive
 learning that run **on your machine** — no AI API key required for any core feature, ever.
 
-Status: **Phase 5 — capture, search, related notes, nested folders, Inbox triage and tasks all work
-locally.** See [docs/PLAN.md](docs/PLAN.md) for the roadmap and [docs/STATE.md](docs/STATE.md) for
-exactly where the build stands right now.
+Status: **Phase 6 — installable, offline, and at home on a phone.** Capture, search, related notes,
+nested folders, Inbox triage and tasks all work locally. See [docs/PLAN.md](docs/PLAN.md) for the
+roadmap and [docs/STATE.md](docs/STATE.md) for exactly where the build stands right now.
 
 ## Requirements
 
@@ -28,8 +28,10 @@ default and always will be.
 
 | Command | What it does |
 | --- | --- |
-| `bun run dev` | Start every dev target (currently the web app) |
+| `bun run dev` | Start the web dev server (the desktop window is opened on purpose, not here) |
 | `bun run dev:web` | Web app only |
+| `bun run dev:desktop` | Desktop app (builds the web app, then opens the Tauri window) |
+| `bun run build:desktop` | Package the desktop app |
 | `bun run build` | Build everything through Turborepo (the web app builds with webpack — see below) |
 | `bun run start` | Serve the built static export (after `bun run build`) |
 | `bun run typecheck` | `tsc --noEmit` in every package |
@@ -37,6 +39,19 @@ default and always will be.
 | `bun run lint:fix` | Biome check with safe fixes applied |
 | `bun run test` | Unit and integration tests (`bun test`, real PGlite) |
 | `bun run --cwd packages/db db:generate` | Regenerate migrations after a schema change |
+
+## Installing it
+
+The web app is a PWA: open it, and the browser offers to install it. A service worker keeps a copy
+of the shell, the WebAssembly and the model runtime, so after the first visit it opens with no
+network at all — which is the normal way to use it, not a fallback.
+
+The desktop app is the same build in a Tauri window. It needs a Rust toolchain and, on Linux,
+`webkit2gtk-4.1`, `gtk+-3.0` and `libsoup-3.0`.
+
+```bash
+bun run dev:desktop
+```
 
 ## A note on the web build
 
@@ -52,10 +67,11 @@ first use, once, and then cached by the browser.
 ## Layout
 
 ```text
-apps/web            Next.js application (PWA target)
+apps/web            Next.js application (PWA)
   app/              route entry and the component that owns application state
   modules/          one folder per feature, each with its own _components
   shared/           components and helpers more than one module needs
+apps/desktop        Tauri shell around the same web build; no business logic in Rust
 packages/types      Domain contracts (zod schemas, inferred types)
 packages/core       Domain logic, services, event bus — no IO, no React
 packages/db         Repositories + migrations (PGlite locally, Postgres on a server)

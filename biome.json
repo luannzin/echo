@@ -13,6 +13,8 @@
       "!**/dist",
       "!**/.turbo",
       "!**/out",
+      "!**/src-tauri/gen",
+      "!**/target",
       "!**/coverage",
       "!**/components/ui",
       "!**/hooks/use-media-query.ts",

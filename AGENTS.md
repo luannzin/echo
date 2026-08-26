@@ -100,6 +100,8 @@ When the user requests a durable behavior change, record it here or in the relev
   actually broken down. One owner component, props downward
 - Every pointer-only affordance needs a keyboard twin: drag and drop is paired with a context menu,
   a hover-revealed control stays reachable on focus
+- Responsive behaviour is CSS, not a second component tree: one list in the document, and no guess
+  about the viewport before the browser has said what it is
 
 ## apps/web layout
 
@@ -117,6 +119,9 @@ components/ui, hooks, lib/utils.ts, lib/segmented-control.ts   coss registry, CL
 Modules today: `capture`, `explorer`, `inbox`, `intelligence`, `notes`, `search`, `shell`, `tasks`.
 A module never reaches into another module's `_components`; anything two of them need moves to
 `shared/`.
+
+`apps/desktop` is a Tauri shell around `apps/web/out`. No business logic in Rust — the domain runs
+in the web app on every host.
 
 ## Code style
 

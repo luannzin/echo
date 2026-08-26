@@ -8,6 +8,7 @@ import {
   ContextMenuPopup,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { MenuNote } from "@/shared/_components/menu-note";
 import { Timestamp } from "@/shared/_components/timestamp";
 import { folderPaths } from "@/shared/lib/folder-paths";
 import { stagger } from "@/shared/lib/stagger";
@@ -82,9 +83,7 @@ export const NoteRow = ({
             </ContextMenuItem>
           )}
           {elsewhere.length === 0 && note.folderId === null ? (
-            <p className="px-2 py-1.5 text-muted-foreground text-xs leading-5">
-              No folders yet. Make one and notes can be sent to it from here.
-            </p>
+            <MenuNote>No folders yet. Make one and notes can be sent to it from here.</MenuNote>
           ) : null}
           {elsewhere.map((choice) => (
             <ContextMenuItem

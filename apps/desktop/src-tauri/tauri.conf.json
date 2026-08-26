@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "echo",
+  "version": "0.0.0",
+  "identifier": "dev.echo.notes",
+  "build": {
+    "frontendDist": "../../web/out",
+    "beforeBuildCommand": "bun run --cwd ../web build",
+    "beforeDevCommand": "bun run --cwd ../web build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "echo",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 480,
+        "minHeight": 480,
+        "theme": "Dark",
+        "backgroundColor": "#0a0a0b"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.hf.co; worker-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "category": "Productivity",
+    "shortDescription": "The note taker that learns with you",
+    "longDescription": "Open source, no-AI, local-first note taking. Semantic search, automatic organization and adaptive learning, all on your own machine."
+  }
+}

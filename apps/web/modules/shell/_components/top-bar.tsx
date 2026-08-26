@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquareText, PenLine, Search } from "lucide-react";
+import { Brain, MessageSquareText, PenLine, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import type { View } from "@/modules/shell/view";
@@ -10,12 +10,18 @@ export const TopBar = ({
   view,
   onViewChange,
   streamAvailable,
+  intelligenceOpen,
+  onToggleIntelligence,
   onSearch,
   searchShortcut,
 }: {
   view: View;
   onViewChange: (view: View) => void;
   streamAvailable: boolean;
+  /** The rail carries this toggle from lg up, where the panel is a column. Below that, it lives
+   *  here, because that is where the reader can reach it. */
+  intelligenceOpen: boolean;
+  onToggleIntelligence: () => void;
   onSearch: () => void;
   searchShortcut: string;
 }) => {
@@ -33,8 +39,18 @@ export const TopBar = ({
           className="gap-2 text-muted-foreground"
         >
           <Search aria-hidden="true" />
-          Search
+          <span className="hidden sm:inline">Search</span>
           <Kbd className="ms-1 hidden sm:inline-flex">{searchShortcut}</Kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleIntelligence}
+          aria-label={intelligenceOpen ? "Hide related notes" : "Show related notes"}
+          aria-pressed={intelligenceOpen}
+          className="text-muted-foreground lg:hidden"
+        >
+          <Brain aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"

@@ -41,7 +41,9 @@ export const Rail = ({
   <TooltipProvider>
     <nav
       aria-label="Primary"
-      className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar py-3"
+      // Below md the bottom bar is the navigation, and only one of the two is ever in the
+      // document's landmarks: `hidden` takes this one out of the accessibility tree entirely.
+      className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar py-3 md:flex"
     >
       {/* The panel only exists from md up, so its toggle stays out of the way below it. */}
       <div className="hidden md:block">

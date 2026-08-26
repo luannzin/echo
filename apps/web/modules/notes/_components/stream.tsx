@@ -5,6 +5,7 @@ import { Fragment, memo, useEffect, useMemo, useRef } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StreamRow } from "@/modules/notes/_components/stream-row";
 import { formatDay, sameDay } from "@/shared/lib/time";
+import { noteRow } from "@/shared/lib/transition";
 
 const STAGGER_MS = 28;
 const STAGGERED_ROWS = 8;
@@ -28,7 +29,6 @@ export const Stream = memo(
     onOpen: (noteId: string, from: HTMLElement) => void;
   }) => {
     const bottom = useRef<HTMLDivElement>(null);
-    const rows = useRef(new Map<string, HTMLElement>());
     const settled = useRef(false);
     const count = notes.length;
 
@@ -54,7 +54,7 @@ export const Stream = memo(
     // a note already on screen is never yanked around under the reader's eyes.
     useEffect(() => {
       if (!previewId) return;
-      const row = rows.current.get(previewId);
+      const row = noteRow(previewId);
       const scroller = row?.closest("[data-stream-scroll]");
       if (!row || !scroller) return;
 
@@ -71,11 +71,6 @@ export const Stream = memo(
     // Reversed once per change of the list rather than once per render: the composer re-renders this
     // view's parent on every keystroke, and copying the whole notebook to answer one is wasted work.
     const chronological = useMemo(() => [...notes].reverse(), [notes]);
-
-    const register = (noteId: string) => (element: HTMLElement | null) => {
-      if (element) rows.current.set(noteId, element);
-      else rows.current.delete(noteId);
-    };
 
     return (
       // One provider for the whole column: once a date has been read, the next answers instantly.
@@ -100,7 +95,6 @@ export const Stream = memo(
                   arrived={note.id === arrivedId}
                   delay={settled.current ? 0 : Math.min(index, STAGGERED_ROWS) * STAGGER_MS}
                   onOpen={onOpen}
-                  register={register(note.id)}
                 />
               </Fragment>
             );

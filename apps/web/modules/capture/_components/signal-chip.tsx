@@ -6,6 +6,7 @@ import { Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { explain, type Signal, WORTH_SAYING } from "@/modules/capture/signals";
+import { MenuNote } from "@/shared/_components/menu-note";
 
 export type Answer = "accepted" | "rejected";
 
@@ -55,9 +56,7 @@ export const SignalChip = ({
           {signal.kind === "task-phrase" ? "Not a task" : "Not a deadline"}
         </MenuItem>
         <MenuSeparator />
-        <p className="px-2 py-1.5 text-muted-foreground text-xs leading-5">
-          {explain(signal, rule)}
-        </p>
+        <MenuNote>{explain(signal, rule)}</MenuNote>
       </MenuPopup>
     </Menu>
   );

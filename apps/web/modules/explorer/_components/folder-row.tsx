@@ -14,6 +14,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@/compone
 import { FolderNameField } from "@/modules/explorer/_components/folder-name-field";
 import { type Draft, type Dragged, folderActions } from "@/modules/explorer/model";
 import { Count } from "@/shared/_components/count";
+import { MenuNote } from "@/shared/_components/menu-note";
 import { quiet } from "@/shared/lib/styles";
 
 const INDENT_PX = 12;
@@ -172,7 +173,7 @@ export const FolderRow = ({
                     </MenuItem>
                   </div>
                 ))}
-                <p className="px-2 py-1.5 text-muted-foreground text-xs leading-5">{DELETE_NOTE}</p>
+                <MenuNote>{DELETE_NOTE}</MenuNote>
               </MenuPopup>
             </Menu>
           </div>
@@ -191,7 +192,7 @@ export const FolderRow = ({
               </ContextMenuItem>
             </div>
           ))}
-          <p className="px-2 py-1.5 text-muted-foreground text-xs leading-5">{DELETE_NOTE}</p>
+          <MenuNote>{DELETE_NOTE}</MenuNote>
         </ContextMenuPopup>
       </ContextMenu>
 

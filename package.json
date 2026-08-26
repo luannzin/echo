@@ -9,7 +9,7 @@
     "tooling/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=!@echo/desktop",
     "dev:web": "turbo run dev --filter=@echo/web",
     "build": "turbo run build",
     "start": "bun run --cwd apps/web start",
@@ -18,7 +18,9 @@
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "dev:desktop": "bun run --cwd apps/desktop dev",
+    "build:desktop": "bun run --cwd apps/desktop package"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",

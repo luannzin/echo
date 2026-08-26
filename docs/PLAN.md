@@ -101,9 +101,11 @@ Projects were deliberately not built — see `docs/STATE.md`. Nothing in the pro
 
 ---
 
-## Phase 6 — PWA + Desktop
+## Phase 6 — PWA + Desktop ✅
 
-Service worker, install manifest, offline-normal behavior, mobile layout (bottom nav, full-screen editor, intelligence as bottom sheet). Tauri app reusing the same web build; Rust side limited to fs paths, notifications, global shortcut, tray.
+Service worker, install manifest, offline-normal behaviour, mobile layout (bottom nav, sheets for both panels). Tauri app reusing the same web build.
+
+The Rust side is a window and nothing else. Filesystem paths, notifications, a global shortcut and a tray are what Tauri is *for*, but nothing in echo asks for them yet — each arrives with the feature that needs it rather than as scaffolding.
 
 ---
 

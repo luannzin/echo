@@ -10,3 +10,5 @@ coverage/
 .DS_Store
 apps/web/public/ort/
 apps/web/public/pglite/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/
