@@ -20,6 +20,7 @@
         "@echo/core": "workspace:*",
         "@echo/db": "workspace:*",
         "@echo/embeddings": "workspace:*",
+        "@echo/learning": "workspace:*",
         "@echo/parser": "workspace:*",
         "@echo/search": "workspace:*",
         "@echo/types": "workspace:*",
@@ -56,6 +57,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@echo/embeddings": "workspace:*",
+        "@echo/learning": "workspace:*",
         "@echo/types": "workspace:*",
       },
       "devDependencies": {
@@ -96,8 +98,12 @@
     "packages/learning": {
       "name": "@echo/learning",
       "version": "0.0.0",
+      "dependencies": {
+        "@echo/types": "workspace:*",
+      },
       "devDependencies": {
         "@echo/tsconfig": "workspace:*",
+        "@types/bun": "^1.4.0",
       },
     },
     "packages/parser": {

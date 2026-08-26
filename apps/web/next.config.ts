@@ -8,7 +8,7 @@ const config: NextConfig = {
    */
   output: "export",
   reactStrictMode: true,
-  transpilePackages: ["@echo/ui", "@echo/core", "@echo/types", "@echo/parser"],
+  transpilePackages: ["@echo/ui", "@echo/core", "@echo/types", "@echo/parser", "@echo/learning"],
 };
 
 export default config;

@@ -18,6 +18,7 @@
     "@echo/core": "workspace:*",
     "@echo/db": "workspace:*",
     "@echo/embeddings": "workspace:*",
+    "@echo/learning": "workspace:*",
     "@echo/parser": "workspace:*",
     "@echo/search": "workspace:*",
     "@echo/types": "workspace:*",

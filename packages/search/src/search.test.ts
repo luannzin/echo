@@ -29,9 +29,43 @@ test("recency decays by half every two weeks", () => {
 });
 
 test("weights are the only thing deciding the blend", () => {
-  const signals = { semantic: 1, lexical: 0, recency: 0 };
-  expect(combine(signals, DEFAULT_WEIGHTS)).toBeCloseTo(0.6, 5);
-  expect(combine(signals, { semantic: 0, lexical: 1, recency: 0 })).toBe(0);
+  const signals = { semantic: 1, lexical: 0, recency: 0, interaction: 0 };
+  expect(combine(signals, DEFAULT_WEIGHTS)).toBeCloseTo(DEFAULT_WEIGHTS.semantic, 5);
+  expect(combine(signals, { semantic: 0, lexical: 1, recency: 0, interaction: 0 })).toBe(0);
+});
+
+test("what the reader opens breaks ties, and only ties", () => {
+  const equal = { queryEmbedding: vector(0), now: NOW };
+  const tied = rank(
+    [
+      { note: note("ignored"), embedding: vector(0) },
+      { note: note("opened-before"), embedding: vector(0), interaction: 1 },
+    ],
+    equal,
+  );
+  expect(tied[0]?.note.id).toBe("opened-before");
+
+  // A note the reader keeps opening still loses to one that actually answers the question.
+  const outranked = rank(
+    [
+      { note: note("familiar"), embedding: vector(Math.PI / 3), interaction: 1 },
+      { note: note("relevant"), embedding: vector(0) },
+    ],
+    equal,
+  );
+  expect(outranked[0]?.note.id).toBe("relevant");
+});
+
+test("recency and habit are tie-breakers, never a reason to be a result", () => {
+  const results = rank(
+    [
+      { note: note("recent-but-unrelated"), embedding: vector(Math.PI / 2), interaction: 1 },
+      { note: note("actually-about-it"), embedding: vector(0) },
+    ],
+    { queryEmbedding: vector(0), now: NOW, minimumSemantic: 0.5 },
+  );
+
+  expect(results.map((result) => result.note.id)).toEqual(["actually-about-it"]);
 });
 
 test("lexical scores are normalized against the best hit", () => {

@@ -63,3 +63,28 @@ export const noteEmbeddings = pgTable("note_embeddings", {
   values: real("values").array().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Every correction a reader has made, kept as it happened. Rules are derived from these rows by
+ * `@echo/learning` and never stored: forgetting a rule means deleting the events behind it, so
+ * there is no second place where a belief about the reader can survive.
+ */
+export const learningEvents = pgTable(
+  "learning_events",
+  {
+    id: uuid("id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull().default(DEFAULT_WORKSPACE_ID),
+    type: text("type").notNull(),
+    /** Which family the subject belongs to: a task phrase, a deadline phrase, a note. */
+    kind: text("kind").notNull(),
+    /** The phrase or note id the correction is about. */
+    subject: text("subject").notNull(),
+    /** Where it happened. The note may go; the lesson stays. */
+    noteId: uuid("note_id").references(() => notes.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("learning_events_subject_idx").on(table.kind, table.subject),
+    index("learning_events_created_at_idx").on(table.createdAt),
+  ],
+);

@@ -1,4 +1,4 @@
-import type { Folder, Note } from "@echo/types";
+import type { Folder, LearningEvent, Note } from "@echo/types";
 
 /** Fields a repository may change after insert. Identity and creation time are immutable. */
 export type NotePatch = Partial<Pick<Note, "title" | "content" | "folderId" | "archivedAt">> & {
@@ -50,8 +50,20 @@ export interface LexicalSearch {
   search(query: string, limit?: number): Promise<LexicalMatch[]>;
 }
 
+/**
+ * Corrections are append-only, and forgetting is a delete rather than a flag: a reader who asks
+ * echo to unlearn something must be able to see it gone.
+ */
+export interface LearningRepository {
+  record(event: LearningEvent): Promise<void>;
+  /** Newest first. The limit exists so deriving rules stays a bounded piece of work. */
+  list(limit?: number): Promise<LearningEvent[]>;
+  forget(kind: LearningEvent["kind"], subject: string): Promise<void>;
+}
+
 export type Repositories = {
   notes: NoteRepository;
   folders: FolderRepository;
   embeddings: EmbeddingRepository;
+  learning: LearningRepository;
 };

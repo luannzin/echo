@@ -1,4 +1,4 @@
-import type { Folder, Note } from "@echo/types";
+import type { Folder, LearningEvent, Note } from "@echo/types";
 
 export type DomainEvent =
   | { type: "note.created"; note: Note }
@@ -8,7 +8,9 @@ export type DomainEvent =
   | { type: "folder.created"; folder: Folder }
   | { type: "folder.renamed"; folder: Folder }
   | { type: "folder.moved"; folder: Folder; previousParentId: string | null }
-  | { type: "folder.deleted"; folderId: string };
+  | { type: "folder.deleted"; folderId: string }
+  | { type: "learning.recorded"; event: LearningEvent }
+  | { type: "learning.forgotten"; kind: LearningEvent["kind"]; subject: string };
 
 export type EventListener = (event: DomainEvent) => void;
 

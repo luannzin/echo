@@ -1,3 +1,4 @@
 export * from "./folder";
 export * from "./ids";
+export * from "./learning";
 export * from "./note";

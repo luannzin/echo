@@ -16,6 +16,8 @@ export type SearchCandidate = {
   embedding?: Float32Array;
   /** Raw lexical rank from the database, or 0 when the query did not match textually. */
   lexical?: number;
+  /** 0..1 affinity from `@echo/learning`. Absent means echo has learned nothing about this note. */
+  interaction?: number;
 };
 
 export type SearchResult = {
@@ -32,6 +34,12 @@ export type SearchOptions = {
   limit?: number;
   /** Results below this score are noise; showing them would make search feel wrong. */
   minimumScore?: number;
+  /**
+   * A note that matches the query on neither its words nor its meaning is not a result, however
+   * recently it was written and however often it has been opened. Recency and habit are
+   * tie-breakers between answers, never a reason to be an answer.
+   */
+  minimumSemantic?: number;
 };
 
 /**
@@ -45,6 +53,7 @@ export function rank(candidates: SearchCandidate[], options: SearchOptions = {})
     now = new Date(),
     limit = 20,
     minimumScore = 0,
+    minimumSemantic = 0,
   } = options;
 
   const lexical = normalizeLexical(candidates.map((candidate) => candidate.lexical ?? 0));
@@ -59,6 +68,7 @@ export function rank(candidates: SearchCandidate[], options: SearchOptions = {})
         semantic,
         lexical: lexical[index] ?? 0,
         recency: recencyScore(candidate.note.updatedAt, now),
+        interaction: candidate.interaction ?? 0,
       };
       return {
         note: candidate.note,
@@ -68,9 +78,16 @@ export function rank(candidates: SearchCandidate[], options: SearchOptions = {})
       };
     })
     .filter((result) => result.score > minimumScore)
+    .filter((result) => result.lexical > 0 || result.semantic >= minimumSemantic)
     .sort((a, b) => b.score - a.score || a.note.id.localeCompare(b.note.id))
     .slice(0, limit);
 }
+
+/**
+ * Close enough that it is probably the same thought written twice. High on purpose: a false
+ * duplicate warning costs the reader more attention than a missed one.
+ */
+export const DUPLICATE_SIMILARITY = 0.9;
 
 /**
  * Notes closest in meaning to one note. Recency is deliberately excluded: relatedness is about what

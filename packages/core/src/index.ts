@@ -1,6 +1,7 @@
 import { type Clock, type IdFactory, systemClock, uuid } from "./clock";
 import { createEventBus, type EventBus } from "./events";
 import { createFolderService, type FolderService } from "./folders";
+import { createLearningService, type LearningService } from "./learning";
 import { createNoteService, type NoteService } from "./notes";
 import type { Repositories } from "./ports";
 
@@ -8,6 +9,7 @@ export * from "./analyzer";
 export * from "./clock";
 export * from "./events";
 export * from "./folders";
+export * from "./learning";
 export * from "./notes";
 export * from "./ports";
 export * from "./title";
@@ -15,6 +17,7 @@ export * from "./title";
 export type Echo = {
   notes: NoteService;
   folders: FolderService;
+  learning: LearningService;
   events: EventBus;
 };
 
@@ -33,6 +36,7 @@ export function createEcho({
   return {
     notes: createNoteService({ repository: repositories.notes, events, now, newId }),
     folders: createFolderService({ repository: repositories.folders, events, now, newId }),
+    learning: createLearningService({ repository: repositories.learning, events, now, newId }),
     events,
   };
 }

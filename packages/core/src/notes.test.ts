@@ -34,6 +34,11 @@ function memoryRepositories(): Repositories {
       list: async () => [],
       pending: async () => [],
     },
+    learning: {
+      record: async () => {},
+      list: async () => [],
+      forget: async () => {},
+    },
     notes,
     folders: {
       insert: async (folder) => folder,

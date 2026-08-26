@@ -1,7 +1,7 @@
 "use client";
 
 import type { Note } from "@echo/types";
-import { Pencil } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Fragment, memo, useEffect, useRef } from "react";
 
 /**
@@ -12,14 +12,15 @@ export const Stream = memo(function Stream({
   notes,
   arrivedId,
   previewId,
-  onEdit,
+  onOpen,
 }: {
   notes: Note[];
   /** The note just written, briefly lit so the eye can follow where it landed. */
   arrivedId: string | null;
   /** A note being pointed at somewhere else — the list — which this view brings into view. */
   previewId: string | null;
-  onEdit: (noteId: string) => void;
+  /** The row travels with the request: it is the shape the editor grows out of. */
+  onOpen: (noteId: string, from: HTMLElement) => void;
 }) {
   const bottom = useRef<HTMLDivElement>(null);
   const rows = useRef(new Map<string, HTMLElement>());
@@ -72,13 +73,23 @@ export const Stream = memo(function Stream({
                 {formatDay(note.createdAt)}
               </p>
             ) : null}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the button
+                inside the row, which carries the accessible name and handles Enter and Space.
+                Duplicating it as a key handler here would make the row a second tab stop. */}
             <article
+              data-note-id={note.id}
               ref={(element) => {
                 if (element) rows.current.set(note.id, element);
                 else rows.current.delete(note.id);
               }}
               data-targeted={note.id === previewId ? "true" : undefined}
               style={{ animationDelay: settled.current ? "0ms" : `${Math.min(index, 8) * 28}ms` }}
+              // The row is the target: reading a note and opening it are the same gesture. Dragging
+              // across it to copy a line is not, so a click that ends a selection is left alone.
+              onClick={(event) => {
+                if (selecting()) return;
+                onOpen(note.id, event.currentTarget);
+              }}
               // The pointer moves a target down the stream: the row under it lights up, and nothing
               // else does. Focus does the same thing, so the target is not something only a mouse
               // can move.
@@ -88,10 +99,15 @@ export const Stream = memo(function Stream({
               // reaches out past the column's gutter by exactly that gutter. A note that just
               // landed borrows the same layer, so arriving and being pointed at look like one thing
               // happening to the row rather than two unrelated colours.
-              className={`group relative isolate animate-rise py-4 before:-inset-x-6 before:-z-10 before:absolute before:inset-y-0 before:rounded-lg before:bg-card/40 before:opacity-0 before:transition-opacity before:duration-150 before:ease-[var(--ease-out-quart)] hover:before:opacity-100 has-[:focus-visible]:before:opacity-100 data-[targeted]:before:opacity-100 ${
+              className={`group relative isolate animate-rise cursor-pointer py-4 before:-inset-x-6 before:-z-10 before:absolute before:inset-y-0 before:rounded-lg before:bg-card/40 before:opacity-0 before:transition-opacity before:duration-150 before:ease-[var(--ease-out-quart)] hover:before:opacity-100 has-[:focus-visible]:before:opacity-100 has-[:focus-visible]:before:ring-1 has-[:focus-visible]:before:ring-ring data-[targeted]:before:opacity-100 ${
                 note.id === arrivedId ? "before:animate-arrive-glow" : ""
               }`}
             >
+              {/* The keyboard's way in. It covers the row but takes no pointer events, so the mouse
+                  keeps talking to the row itself and the text stays selectable. */}
+              <button type="button" className="pointer-events-none absolute inset-0">
+                <span className="sr-only">Open {note.title || "note"}</span>
+              </button>
               <div className="flex items-baseline gap-2">
                 <time
                   dateTime={note.createdAt.toISOString()}
@@ -107,15 +123,11 @@ export const Stream = memo(function Stream({
                     · edited {formatStamp(note.updatedAt)}
                   </time>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => onEdit(note.id)}
-                  aria-label={`Edit ${note.title || "note"}`}
-                  className="-my-1 ms-auto flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[0.6875rem] text-muted-foreground opacity-0 transition-[opacity,color] duration-150 pointer-coarse:opacity-100 focus-visible:opacity-100 group-hover:opacity-100 hover:text-foreground"
-                >
-                  <Pencil aria-hidden="true" className="size-3" />
-                  Edit
-                </button>
+                {/* Says the row opens. The row is the control, so this is a sign, not a stop. */}
+                <ArrowUpRight
+                  aria-hidden="true"
+                  className="ms-auto size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 ease-[var(--ease-out-quart)] pointer-coarse:opacity-100 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100"
+                />
               </div>
               <p className="mt-1.5 whitespace-pre-wrap text-pretty text-base leading-7 sm:text-[0.95rem]">
                 {note.content}
@@ -128,6 +140,12 @@ export const Stream = memo(function Stream({
     </div>
   );
 });
+
+/** True while the reader is holding a selection — the click that ends a drag is not a click. */
+function selecting(): boolean {
+  const selection = window.getSelection();
+  return selection !== null && !selection.isCollapsed && selection.toString().trim().length > 0;
+}
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();

@@ -16,7 +16,6 @@ import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@/compon
 
 /** Destinations that exist in the product but not yet in the code. */
 const planned: { label: string; icon: LucideIcon }[] = [
-  { label: "Search", icon: Search },
   { label: "Explorer", icon: FolderTree },
   { label: "Tasks", icon: SquareCheck },
   { label: "Recent", icon: History },
@@ -29,6 +28,7 @@ export function Rail({
   onHome,
   intelligenceOpen,
   onToggleIntelligence,
+  onSearch,
 }: {
   onToggleNavigation: () => void;
   navigationOpen: boolean;
@@ -36,6 +36,7 @@ export function Rail({
   onHome: () => void;
   intelligenceOpen: boolean;
   onToggleIntelligence: () => void;
+  onSearch: () => void;
 }) {
   return (
     <TooltipProvider>
@@ -54,6 +55,7 @@ export function Rail({
         </div>
         <div className="my-1 h-px w-6 bg-sidebar-border" />
         <RailButton label="Write" icon={PenLine} active={atHome} onClick={onHome} />
+        <RailButton label="Search" icon={Search} onClick={onSearch} />
         {planned.map((item) => (
           <RailButton
             key={item.label}

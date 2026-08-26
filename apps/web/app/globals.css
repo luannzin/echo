@@ -306,3 +306,65 @@
   --warning: var(--color-amber-500);
   --warning-foreground: var(--color-amber-400);
 }
+
+/*
+ * Navigation is one movement, not a swap. The screen cross-fades underneath while two named
+ * surfaces carry themselves across the change: the composer, which travels between the centre of
+ * the screen and the foot of the stream, and the note being opened, which grows out of the row that
+ * was clicked. `lib/transition.ts` never starts a transition when the reader asked for less motion,
+ * so nothing here needs a reduced-motion branch.
+ */
+::view-transition-group(*) {
+  animation-duration: 260ms;
+  animation-timing-function: var(--ease-out-quart);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-out-quart);
+}
+
+/* The composer is moving rather than arriving, and movement wants acceleration at both ends. */
+/* biome-ignore lint/correctness/noUnknownTypeSelector: a view transition name, not an element */
+::view-transition-group(composer) {
+  animation-duration: 340ms;
+  animation-timing-function: var(--ease-in-out-quart);
+}
+
+/*
+ * A row and an open note are very different shapes, and stretching either snapshot to the other's
+ * box would smear the text. Both are held at their own size against the top-left corner, so the
+ * words stay still and only the surface around them grows. The blur is there to keep the eye from
+ * reading two overlapping copies of the same sentence during the cross-fade.
+ */
+::view-transition-old(note-surface),
+::view-transition-new(note-surface) {
+  width: 100%;
+  height: 100%;
+  object-fit: none;
+  object-position: top left;
+  overflow: clip;
+}
+
+::view-transition-old(note-surface) {
+  animation: surface-leave 180ms var(--ease-out-quart) both;
+}
+
+::view-transition-new(note-surface) {
+  animation: surface-arrive 260ms var(--ease-out-quart) both;
+}
+
+@keyframes surface-leave {
+  to {
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@keyframes surface-arrive {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+}

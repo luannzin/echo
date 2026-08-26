@@ -16,7 +16,8 @@ export function NoteList({
   loading: boolean;
   failed: boolean;
   selectedId: string | null;
-  onSelect: (noteId: string) => void;
+  /** The row travels with the request: it is the shape the editor grows out of. */
+  onSelect: (noteId: string, from: HTMLElement) => void;
   /** Announces the note under the pointer or focus, so other views can follow along. */
   onPreview: (noteId: string | null) => void;
 }) {
@@ -50,7 +51,8 @@ export function NoteList({
               >
                 <button
                   type="button"
-                  onClick={() => onSelect(note.id)}
+                  data-note-id={note.id}
+                  onClick={(event) => onSelect(note.id, event.currentTarget)}
                   onMouseEnter={() => onPreview(note.id)}
                   onMouseLeave={() => onPreview(null)}
                   onFocus={() => onPreview(note.id)}

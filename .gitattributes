@@ -1,0 +1,10 @@
+# One line ending everywhere. Without this, a checkout on Windows converts the repository's LF to
+# CRLF and Biome — which formats to LF — reports every file in the repository as unformatted.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.wasm binary
+*.onnx binary
+*.node binary

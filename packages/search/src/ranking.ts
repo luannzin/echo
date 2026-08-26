@@ -2,16 +2,23 @@ export type RankingWeights = {
   semantic: number;
   lexical: number;
   recency: number;
+  /** What this reader has actually opened before. Small on purpose — see below. */
+  interaction: number;
 };
 
 /**
  * Coefficients, not code. Ranking behaviour is configuration a test can pin down and a settings
  * screen could expose — never something buried in a component.
+ *
+ * Interaction is deliberately the smallest weight. It is enough to break a tie between two notes
+ * that are equally about the query, and never enough to put a note the reader merely visits often
+ * above one that actually answers what they asked.
  */
 export const DEFAULT_WEIGHTS: RankingWeights = {
-  semantic: 0.6,
-  lexical: 0.3,
+  semantic: 0.55,
+  lexical: 0.25,
   recency: 0.1,
+  interaction: 0.1,
 };
 
 /** A note loses half its recency credit every two weeks. Old notes rank on merit, not freshness. */
@@ -28,13 +35,16 @@ export type Signals = {
   /** Lexical relevance, normalized by the caller against the best hit in the set. */
   lexical: number;
   recency: number;
+  /** 0..1 from `@echo/learning`: how often this reader has opened this note before. */
+  interaction?: number;
 };
 
 export function combine(signals: Signals, weights: RankingWeights = DEFAULT_WEIGHTS): number {
   return (
     signals.semantic * weights.semantic +
     signals.lexical * weights.lexical +
-    signals.recency * weights.recency
+    signals.recency * weights.recency +
+    (signals.interaction ?? 0) * weights.interaction
   );
 }
 

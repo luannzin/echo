@@ -1,10 +1,11 @@
 "use client";
 
+import type { LearnedRule } from "@echo/learning";
 import { parse } from "@echo/parser";
-import type { Note } from "@echo/types";
+import type { LearningEventCreate, Note } from "@echo/types";
 import { CornerDownLeft } from "lucide-react";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { readSignals, Signals } from "@/components/notes/signals";
 import { Kbd } from "@/components/ui/kbd";
 
 const MAX_HEIGHT = 420;
@@ -26,25 +27,46 @@ const PROMPTS = [
 export function Composer({
   onCapture,
   onDraft,
+  rules,
+  onCorrect,
   docked = false,
 }: {
   /** Returns the note synchronously: it exists on screen before it exists in the database. */
   onCapture: (content: string) => Note;
   /** Fires behind the typing, never in front of it: retrieval is allowed to be late. */
   onDraft: (text: string) => void;
+  /** What this reader has taught echo, which decides whether a signal is worth mentioning. */
+  rules: LearnedRule[];
+  onCorrect: (event: LearningEventCreate) => void;
   docked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  /** Signals answered in this draft. Cleared with the draft, because the next note is a new note. */
+  const [settled, setSettled] = useState<Record<string, "accepted" | "rejected">>({});
   const textarea = useRef<HTMLTextAreaElement>(null);
   // Chosen once per visit: a prompt that changed under the cursor would be a distraction.
   const [prompt] = useState(() => PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
 
   // Grow with the text, then scroll. Measured before paint so the box never jumps.
+  //
+  // Measuring means collapsing the box to nothing for an instant, and while it is collapsed the
+  // stream around it is shorter — so the browser clamps its scroll position and the whole column
+  // slides up under the writer. The scroller's position is taken before the measurement and put
+  // back after it; if it was resting at the bottom it is pinned there again, because the composer
+  // growing must never push the note you just wrote out of sight.
   useLayoutEffect(() => {
     const element = textarea.current;
     if (!element) return;
+    const scroller = element.closest("[data-stream-scroll]");
+    const previousTop = scroller?.scrollTop ?? 0;
+    const atBottom = scroller
+      ? scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 4
+      : false;
+
     element.style.height = "0px";
     element.style.height = `${Math.min(element.scrollHeight, MAX_HEIGHT)}px`;
+
+    if (scroller) scroller.scrollTop = atBottom ? scroller.scrollHeight : previousTop;
   }, [draft]);
 
   // Focused on mount rather than through `autoFocus`, which the browser skips in some hydration and
@@ -59,7 +81,7 @@ export function Composer({
   // first and parses when it has a moment. On a 5k-character note that is the difference between
   // ~6ms and ~0ms of work per character typed.
   const deferredDraft = useDeferredValue(draft);
-  const signals = useMemo(() => parse(deferredDraft), [deferredDraft]);
+  const signals = useMemo(() => readSignals(parse(deferredDraft)), [deferredDraft]);
 
   useEffect(() => {
     const timer = setTimeout(() => onDraft(draft), 400);
@@ -70,6 +92,7 @@ export function Composer({
     if (!filled) return;
     onCapture(draft);
     setDraft("");
+    setSettled({});
     textarea.current?.focus();
   }
 
@@ -91,8 +114,11 @@ export function Composer({
         </h1>
       )}
 
+      {/* Named for the view transition: the same box travels between the centre of the screen and
+          the foot of the stream, so it morphs rather than being replaced. */}
       <div
         id="composer-shell"
+        style={{ viewTransitionName: "composer" }}
         className="rounded-2xl border border-border bg-card shadow-black/20 shadow-lg transition-colors duration-200 focus-within:border-ring"
       >
         <label className="sr-only" htmlFor="composer">
@@ -119,10 +145,18 @@ export function Composer({
             <p className="font-mono text-[0.6875rem] text-muted-foreground uppercase tracking-[0.14em]">
               {filled ? `${countWords(draft)} words` : "Local · private"}
             </p>
-            {signals.tasks.length > 0 ? <Signal tone="bg-brand-bright">Task</Signal> : null}
-            {signals.deadline ? (
-              <Signal tone="bg-warning">Due {signals.deadline.text}</Signal>
-            ) : null}
+            <Signals
+              signals={signals}
+              rules={rules}
+              settled={settled}
+              onCorrect={(event, answer) => {
+                setSettled((current) => ({
+                  ...current,
+                  [`${event.kind}:${event.subject}`]: answer,
+                }));
+                onCorrect(event);
+              }}
+            />
           </div>
           <button
             type="button"
@@ -145,16 +179,6 @@ export function Composer({
         </p>
       )}
     </div>
-  );
-}
-
-/** Detected, not decided: a quiet read-out of what echo noticed, changing nothing about the note. */
-function Signal({ tone, children }: { tone: string; children: React.ReactNode }) {
-  return (
-    <Badge variant="outline" className="animate-settle gap-1.5 font-normal">
-      <span aria-hidden="true" className={`size-1.5 rounded-full ${tone}`} />
-      {children}
-    </Badge>
   );
 }
 

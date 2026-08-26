@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/shell/app-shell";
 import { Kbd } from "@/components/ui/kbd";
+import { NOTE_SURFACE } from "@/lib/transition";
 
 const AUTOSAVE_DELAY_MS = 500;
 
@@ -77,7 +78,11 @@ export function NoteEditor({
   useEffect(() => () => flush.current(), []);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[68ch] flex-col px-8 py-6">
+    // The far end of the morph: the row you clicked in the stream is this surface, opened out.
+    <div
+      style={{ viewTransitionName: NOTE_SURFACE }}
+      className="mx-auto flex h-full w-full max-w-[68ch] flex-col px-8 py-6"
+    >
       <div className="flex h-6 items-center justify-between gap-4">
         <button
           type="button"

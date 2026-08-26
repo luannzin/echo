@@ -1,10 +1,10 @@
 "use client";
 
-import { MessageSquareText, PenLine } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { MessageSquareText, PenLine, Search } from "lucide-react";
+import type { ReactNode } from "react";
 import { Rail } from "@/components/shell/rail";
 import { Button } from "@/components/ui/button";
-import { readPreference, writePreference } from "@/lib/preferences";
+import { Kbd } from "@/components/ui/kbd";
 
 /** Shell frame: rail | navigation | workspace | intelligence. */
 export function AppShell({
@@ -16,6 +16,12 @@ export function AppShell({
   view,
   onViewChange,
   streamAvailable,
+  navigationOpen,
+  onToggleNavigation,
+  intelligenceOpen,
+  onToggleIntelligence,
+  onSearch,
+  searchShortcut,
 }: {
   navigation: ReactNode;
   workspace: ReactNode;
@@ -25,31 +31,14 @@ export function AppShell({
   view: "home" | "stream";
   onViewChange: (view: "home" | "stream") => void;
   streamAvailable: boolean;
+  /** Panel state belongs to the page: the palette can open these panels too. */
+  navigationOpen: boolean;
+  onToggleNavigation: () => void;
+  intelligenceOpen: boolean;
+  onToggleIntelligence: () => void;
+  onSearch: () => void;
+  searchShortcut: string;
 }) {
-  // Both panels render closed, then open to the stored preference on mount. The first paint always
-  // matches the prerendered markup, so nothing jumps — the panels animate into place instead.
-  const [navigationOpen, setNavigationOpen] = useState(false);
-  const [intelligenceOpen, setIntelligenceOpen] = useState(false);
-
-  useEffect(() => {
-    setNavigationOpen(readPreference("notes-panel", true));
-    setIntelligenceOpen(readPreference("intelligence-panel", true));
-  }, []);
-
-  function toggleNavigation() {
-    setNavigationOpen((open) => {
-      writePreference("notes-panel", !open);
-      return !open;
-    });
-  }
-
-  function toggleIntelligence() {
-    setIntelligenceOpen((open) => {
-      writePreference("intelligence-panel", !open);
-      return !open;
-    });
-  }
-
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <a
@@ -60,11 +49,12 @@ export function AppShell({
       </a>
       <Rail
         navigationOpen={navigationOpen}
-        onToggleNavigation={toggleNavigation}
+        onToggleNavigation={onToggleNavigation}
         atHome={atHome}
         onHome={onHome}
         intelligenceOpen={intelligenceOpen}
-        onToggleIntelligence={toggleIntelligence}
+        onToggleIntelligence={onToggleIntelligence}
+        onSearch={onSearch}
       />
       <aside
         aria-label="Navigation"
@@ -79,7 +69,13 @@ export function AppShell({
         <div className="h-full w-60">{navigation}</div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar view={view} onViewChange={onViewChange} streamAvailable={streamAvailable} />
+        <TopBar
+          view={view}
+          onViewChange={onViewChange}
+          streamAvailable={streamAvailable}
+          onSearch={onSearch}
+          searchShortcut={searchShortcut}
+        />
         <main id="workspace" className="min-h-0 flex-1 overflow-y-auto">
           {workspace}
         </main>
@@ -101,33 +97,50 @@ function TopBar({
   view,
   onViewChange,
   streamAvailable,
+  onSearch,
+  searchShortcut,
 }: {
   view: "home" | "stream";
   onViewChange: (view: "home" | "stream") => void;
   streamAvailable: boolean;
+  onSearch: () => void;
+  searchShortcut: string;
 }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4">
       <Label>echo</Label>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onViewChange(view === "home" ? "stream" : "home")}
-        disabled={view === "home" && !streamAvailable}
-        className="text-muted-foreground"
-      >
-        {view === "home" ? (
-          <>
-            <MessageSquareText aria-hidden="true" />
-            Stream
-          </>
-        ) : (
-          <>
-            <PenLine aria-hidden="true" />
-            Write
-          </>
-        )}
-      </Button>
+      <div className="flex items-center gap-1">
+        {/* The shortcut is printed on the control, which is how anyone learns it exists. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onSearch}
+          className="gap-2 text-muted-foreground"
+        >
+          <Search aria-hidden="true" />
+          Search
+          <Kbd className="ms-1 hidden sm:inline-flex">{searchShortcut}</Kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onViewChange(view === "home" ? "stream" : "home")}
+          disabled={view === "home" && !streamAvailable}
+          className="text-muted-foreground"
+        >
+          {view === "home" ? (
+            <>
+              <MessageSquareText aria-hidden="true" />
+              Stream
+            </>
+          ) : (
+            <>
+              <PenLine aria-hidden="true" />
+              Write
+            </>
+          )}
+        </Button>
+      </div>
     </header>
   );
 }
@@ -140,11 +153,21 @@ export function Label({ children }: { children: ReactNode }) {
   );
 }
 
-export function Pane({ title, children }: { title: string; children: ReactNode }) {
+export function Pane({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: ReactNode;
+  /** A control that belongs to the pane's heading rather than to its contents. */
+  action?: ReactNode;
+}) {
   return (
     <section className="flex h-full flex-col">
-      <div className="px-4 pt-4 pb-3">
+      <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
         <Label>{title}</Label>
+        {action}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 text-muted-foreground text-sm">
         {children}

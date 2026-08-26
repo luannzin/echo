@@ -6,6 +6,11 @@ export type DetectedDate = {
   date: Date;
   /** A deadline was framed as a limit ("before Friday"); a date was merely mentioned. */
   kind: "deadline" | "date";
+  /**
+   * The word that framed it as a limit — `before`, `até`, `prazo` — folded to lower case, and null
+   * for a date that was only mentioned. Corrections attach to this word rather than to the date.
+   */
+  marker: string | null;
 };
 
 /** Words that turn a mentioned date into a limit to work against. */
@@ -38,11 +43,13 @@ export function detectDates(content: string, now: Date): DetectedDate[] {
       if (claimed.some((range) => start < range.end && end > range.start)) continue;
       claimed.push({ start, end });
 
+      const framing = DEADLINE_MARKERS.exec(fold(content.slice(0, start)));
       found.push({
         // chrono keeps the punctuation it swallowed; the interface shows this text verbatim.
         text: result.text.replace(/[\s,.;:]+$/, ""),
         date: result.start.date(),
-        kind: DEADLINE_MARKERS.test(fold(content.slice(0, start))) ? "deadline" : "date",
+        kind: framing ? "deadline" : "date",
+        marker: framing ? framing[0].trim().replace(/\s+/g, " ") : null,
       });
     }
   }

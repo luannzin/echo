@@ -55,13 +55,25 @@ test("one phrase yields one date, not one per language", () => {
 
 test("checkboxes are certain, phrasing is not", () => {
   const explicit = on("- [ ] ship the parser");
-  expect(explicit.tasks[0]).toEqual({ text: "ship the parser", confidence: 1 });
+  expect(explicit.tasks[0]).toEqual({
+    text: "ship the parser",
+    confidence: 1,
+    trigger: "checkbox",
+  });
 
   const implied = on("preciso revisar o merchant system");
   expect(implied.tasks[0]?.text).toBe("revisar o merchant system");
   expect(implied.tasks[0]?.confidence).toBeLessThan(1);
 
   expect(on("a note about shipping things").tasks).toHaveLength(0);
+});
+
+test("what gave a signal away is reported, because that is what corrections attach to", () => {
+  expect(on("preciso revisar o merchant system").tasks[0]?.trigger).toBe("preciso");
+  expect(on("I need to ship the parser").tasks[0]?.trigger).toBe("need to");
+  expect(on("finish the auth refactor before Friday").deadline?.marker).toBe("before");
+  expect(on("revisar os preços até sexta").deadline?.marker).toBe("ate");
+  expect(on("we talked about it on Friday").dates[0]?.marker).toBeNull();
 });
 
 test("keywords drop stopwords in both languages and rank by frequency", () => {

@@ -2,6 +2,7 @@ import type { Repositories } from "@echo/core";
 import { createDatabase, type Database } from "./client";
 import { createEmbeddingRepository } from "./embeddings";
 import { createFolderRepository } from "./folders";
+import { createLearningRepository } from "./learning";
 import { migrate } from "./migrate";
 import { createNoteRepository } from "./notes";
 import { createLexicalSearch } from "./search";
@@ -24,6 +25,7 @@ export async function openRepositories(dataDir?: string): Promise<{
       notes: createNoteRepository(db),
       folders: createFolderRepository(db),
       embeddings: createEmbeddingRepository(db),
+      learning: createLearningRepository(db),
     },
     lexical: createLexicalSearch(db),
   };
