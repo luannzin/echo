@@ -49,10 +49,10 @@ export const AppShell = ({
   onToggleIntelligence: () => void;
   onSearch: () => void;
   searchShortcut: string;
-  /** Left off where there is no room for a strip of tabs, which is where the mode is not offered. */
+  /** Left off on the website, where the simpler mode does not exist. */
   onEditorMode?: () => void;
 }) => (
-  <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+  <div data-shell className="flex h-dvh overflow-hidden bg-background text-foreground">
     <a
       href="#workspace"
       className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:start-2 focus-visible:top-2 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-card focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm"

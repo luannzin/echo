@@ -81,6 +81,15 @@
     user-select: text;
   }
 
+  /*
+   * The head script has said the window was left in editor mode, and the markup on screen is the
+   * full shell, because that is what a static export prerenders. Hold it back until React arrives
+   * and renders the mode that was asked for. React owns the attribute from mount onwards.
+   */
+  :root[data-echo-mode="editor"] [data-shell] {
+    display: none;
+  }
+
   :focus-visible {
     outline: 2px solid var(--color-brand-bright);
     outline-offset: 2px;

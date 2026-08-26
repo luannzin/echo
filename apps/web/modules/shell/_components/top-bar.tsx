@@ -25,7 +25,7 @@ export const TopBar = ({
   onToggleIntelligence: () => void;
   onSearch: () => void;
   searchShortcut: string;
-  /** Absent on a screen with no room for the mode. */
+  /** Absent on the website: the simpler mode is the desktop app's. */
   onEditorMode?: () => void;
 }) => {
   const atHome = view === "home";

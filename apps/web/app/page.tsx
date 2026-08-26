@@ -34,6 +34,7 @@ import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import { registerServiceWorker } from "@/shared/lib/service-worker";
 import { shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
+import { isDesktopApp } from "@/shared/lib/tauri";
 import { navigate, noteRow } from "@/shared/lib/transition";
 
 const ARRIVAL_GLOW_MS = 1400;
@@ -73,9 +74,9 @@ const Page = () => {
   const [arrivedId, setArrivedId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  /** The simpler mode. Never on until the effect below has seen the screen it is opening on. */
+  /** The simpler mode. Never on until the effect below has worked out where it is running. */
   const [editorMode, setEditorMode] = useState(false);
-  const [roomForEditor, setRoomForEditor] = useState(false);
+  const [desktopApp, setDesktopApp] = useState(false);
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
   const [folderFilter, setFolderFilter] = useState<string | undefined>(undefined);
@@ -110,17 +111,19 @@ const Page = () => {
     const room = (query: string) => window.matchMedia(query).matches;
     setNavigationOpen(readPreference("notes-panel", true) && room("(min-width: 800px)"));
     setIntelligenceOpen(readPreference("intelligence-panel", true) && room("(min-width: 1024px)"));
-    // A strip of tabs on a 375px screen is not the simpler mode, so the toggle is not offered
-    // there — and a stored preference cannot drag a phone into it either.
-    const wide = window.matchMedia("(min-width: 768px)");
-    const measure = () => {
-      setRoomForEditor(wide.matches);
-      setEditorMode(wide.matches && readPreference("editor-mode", false));
-    };
-    measure();
-    wide.addEventListener("change", measure);
+    // The simpler mode belongs to the desktop app. On the web it is not offered, and a preference
+    // left behind by a build that did offer it is cleared rather than honoured — that stale `true`
+    // is the one thing that could hold the shell back on a page that will never replace it.
+    const desktop = isDesktopApp();
+    setDesktopApp(desktop);
+    if (!desktop) window.localStorage.removeItem("echo:editor-mode");
+
+    const editor = desktop && readPreference("editor-mode", false);
+    setEditorMode(editor);
+    // Taken over from the head script in `layout.tsx`, which set it before anything painted.
+    document.documentElement.dataset.echoMode = editor ? "editor" : "full";
+
     registerServiceWorker();
-    return () => wide.removeEventListener("change", measure);
   }, []);
 
   /**
@@ -194,7 +197,10 @@ const Page = () => {
         setRules(learned);
         setLoading(false);
       })
-      .catch(() => alive && setFailed(true));
+      .catch((cause) => {
+        console.error("[echo] the local database could not be opened:", cause);
+        if (alive) setFailed(true);
+      });
 
     return () => {
       alive = false;
@@ -408,8 +414,10 @@ const Page = () => {
 
   const toggleEditorMode = useCallback(() => {
     setEditorMode((current) => {
-      writePreference("editor-mode", !current);
-      return !current;
+      const next = !current;
+      writePreference("editor-mode", next);
+      document.documentElement.dataset.echoMode = next ? "editor" : "full";
+      return next;
     });
   }, []);
 
@@ -678,7 +686,16 @@ const Page = () => {
   };
 
   if (editorMode) {
-    return <EditorMode notes={notes} onSave={save} onCreate={write} onLeave={toggleEditorMode} />;
+    return (
+      <EditorMode
+        notes={notes}
+        loading={loading}
+        failed={failed}
+        onSave={save}
+        onCreate={write}
+        onLeave={toggleEditorMode}
+      />
+    );
   }
 
   return (
@@ -696,7 +713,7 @@ const Page = () => {
         onToggleIntelligence={toggleIntelligence}
         onSearch={() => setPaletteOpen(true)}
         searchShortcut={shortcutLabel("palette")}
-        onEditorMode={roomForEditor ? toggleEditorMode : undefined}
+        onEditorMode={desktopApp ? toggleEditorMode : undefined}
         navigation={
           <Explorer
             folders={folders}

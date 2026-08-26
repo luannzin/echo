@@ -27,11 +27,16 @@ const HOVER_INTENT_MS = 150;
  */
 export const EditorMode = ({
   notes,
+  loading,
+  failed,
   onSave,
   onCreate,
   onLeave,
 }: {
   notes: Note[];
+  /** True until the notes are in memory. A pane may not open before then — see below. */
+  loading: boolean;
+  failed: boolean;
   onSave: (noteId: string, content: string) => Promise<void>;
   /** Called with the id the tab already carries, the first time someone types into a new note. */
   onCreate: (noteId: string, content: string) => Promise<void>;
@@ -196,27 +201,46 @@ export const EditorMode = ({
           panes[1] === null ? "grid-cols-1" : "grid-cols-2 divide-x divide-border"
         }`}
       >
-        {panes[0] === null ? null : (
-          <EditorPane
-            key={panes[0]}
-            noteId={panes[0]}
-            note={noteOf(panes[0])}
-            focused={focused === 0}
-            split={panes[1] !== null}
-            onSave={save}
-            onFocus={() => setFocused(0)}
-          />
-        )}
-        {panes[1] === null ? null : (
-          <EditorPane
-            key={`split:${panes[1]}`}
-            noteId={panes[1]}
-            note={noteOf(panes[1])}
-            focused={focused === 1}
-            split
-            onSave={save}
-            onFocus={() => setFocused(1)}
-          />
+        {/*
+          Nothing opens until the notes are in memory. A pane takes its text once, when it mounts,
+          and a pane that mounted while the database was still opening would take an empty string —
+          then autosave would notice the note it belongs to says something different, and write the
+          empty string over it. The note is only "new" once there is something to be new against.
+        */}
+        {loading || failed ? (
+          <p
+            role={failed ? "alert" : undefined}
+            className="px-6 py-5 text-muted-foreground text-sm leading-relaxed"
+          >
+            {failed
+              ? "Local storage could not be opened, so nothing typed here can be kept. Reload, or check that this browser allows site data for echo."
+              : null}
+          </p>
+        ) : (
+          <>
+            {panes[0] === null ? null : (
+              <EditorPane
+                key={panes[0]}
+                noteId={panes[0]}
+                note={noteOf(panes[0])}
+                focused={focused === 0}
+                split={panes[1] !== null}
+                onSave={save}
+                onFocus={() => setFocused(0)}
+              />
+            )}
+            {panes[1] === null ? null : (
+              <EditorPane
+                key={`split:${panes[1]}`}
+                noteId={panes[1]}
+                note={noteOf(panes[1])}
+                focused={focused === 1}
+                split
+                onSave={save}
+                onFocus={() => setFocused(1)}
+              />
+            )}
+          </>
         )}
       </div>
 

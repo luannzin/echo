@@ -173,8 +173,10 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   the rail, panels, top bar and bottom nav never mount. Rendering the full frame and then hiding it
   is how you get a rail that flashes on every toggle. Both modes read the same `notes` state above
   the branch, so toggling is a boolean.
-- **Offered at ≥768px only**, tracked with a live `matchMedia` listener: a stored preference cannot
-  drag a phone into a mode whose main control is a strip of tabs.
+- **The desktop app only.** Not a viewport question — the website never offers it, whatever the
+  screen. `shared/lib/tauri.ts` asks whether Tauri injected itself; one build still serves both, so
+  a build-time flag would mean two. The window's own `minWidth` (600) is what guarantees the tab
+  strip has room, which is a config value instead of a media-query listener.
 - **Tabs are session memory** (`modules/editor/session.ts`): a `string[]` in `localStorage`, array
   order *is* the order, so nothing about a note can move its tab. New tabs append; dragging one onto
   another takes that one's place — rightwards lands past it, which is what makes the last position
@@ -203,6 +205,22 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
 - **The note fills the pane.** No measure: a 68ch column is right for reading a stream, and a text
   editor is a page you write on, so the window's own width is the measure.
 - The desktop window opens at 960×700 rather than 1280×820.
+- **It opens in the mode it was closed in**, without passing through the other one. This is a static
+  export, so the prerendered shell is on screen before React loads and nothing inside React can stop
+  it — a blocking script in `layout.tsx`'s head sets `data-echo-mode` on `<html>`, one rule in
+  `globals.css` holds `[data-shell]` back while it says `editor`, and React takes the attribute over
+  on mount. Same trick a theme uses, for the same reason. It fails closed: the script requires Tauri
+  to have injected itself, because holding back a shell that nothing will replace is a blank window,
+  while missing the check only brings the flash back. On the web a leftover `echo:editor-mode` is
+  deleted on mount rather than honoured.
+- **Fixed, and it was data loss:** a pane takes its text once, when it mounts. Mounting while the
+  database was still opening took an empty string, and autosave then noticed the note said something
+  different and wrote the empty string over it — every note opened on a cold start was emptied and
+  its title fell back to `Untitled`. Panes now wait for `loading` to clear, so a note is only "new"
+  once there is something to be new against. Editor mode also renders the storage failure now; it
+  used to say nothing while typing into a database that was not there.
+- The `getEcho` failure path logs its cause instead of swallowing it, so "Local storage could not be
+  opened" is now traceable.
 
 Deliberately not built: tab overflow menu, drag-to-resize the split, more than two panes, per-tab
 unsaved dots (autosave means nothing is ever unsaved), editor mode on phones.
