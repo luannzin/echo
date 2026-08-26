@@ -79,18 +79,19 @@ export const Stream = memo(function Stream({
               }}
               data-targeted={note.id === previewId ? "true" : undefined}
               style={{ animationDelay: settled.current ? "0ms" : `${Math.min(index, 8) * 28}ms` }}
-              // The pointer moves a target down the stream: the row under it lifts out of the page
-              // slightly, and its marker appears on the leading edge. Focus does the same thing, so
-              // the target is not something only a mouse can move.
-              className={`group relative border-border/70 border-b py-4 transition-colors duration-150 ease-[var(--ease-out-quart)] last:border-b-0 hover:bg-card/40 has-[:focus-visible]:bg-card/40 data-[targeted]:bg-card/40 ${
-                note.id === arrivedId ? "animate-arrive" : "animate-rise"
+              // The pointer moves a target down the stream: the row under it lights up, and nothing
+              // else does. Focus does the same thing, so the target is not something only a mouse
+              // can move.
+              //
+              // Nothing rules the rows apart — the highlight is the only thing that ever draws a
+              // row's edges, and it is a layer of its own rather than the row's background, so it
+              // reaches out past the column's gutter by exactly that gutter. A note that just
+              // landed borrows the same layer, so arriving and being pointed at look like one thing
+              // happening to the row rather than two unrelated colours.
+              className={`group relative isolate animate-rise py-4 before:-inset-x-6 before:-z-10 before:absolute before:inset-y-0 before:rounded-lg before:bg-card/40 before:opacity-0 before:transition-opacity before:duration-150 before:ease-[var(--ease-out-quart)] hover:before:opacity-100 has-[:focus-visible]:before:opacity-100 data-[targeted]:before:opacity-100 ${
+                note.id === arrivedId ? "before:animate-arrive-glow" : ""
               }`}
             >
-              <span
-                aria-hidden="true"
-                // Sits outside the text column, so the target marker never nudges the writing sideways.
-                className="-start-3 absolute inset-y-3 w-px origin-center scale-y-0 bg-brand-bright/70 transition-transform duration-200 ease-[var(--ease-out-quart)] group-hover:scale-y-100 group-has-[:focus-visible]:scale-y-100 group-data-[targeted]:scale-y-100"
-              />
               <div className="flex items-baseline gap-2">
                 <time
                   dateTime={note.createdAt.toISOString()}

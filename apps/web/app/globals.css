@@ -11,7 +11,7 @@
 
   --animate-rise: rise 240ms var(--ease-out-quart) both;
   --animate-settle: settle 180ms var(--ease-out-quart) both;
-  --animate-arrive: arrive 1200ms var(--ease-out-quart) both;
+  --animate-arrive-glow: arrive-glow 1200ms var(--ease-out-quart) backwards;
 
   @keyframes rise {
     from {
@@ -21,25 +21,18 @@
   }
 
   /*
-   * One animation, not two: `animation` is a single property, so a separate highlight class would
-   * simply overwrite the entrance. The note rises in the first 240ms, then the highlight fades over
-   * the remaining second — long enough to find the note, short enough to stop mattering.
+   * A note that just landed holds the same highlight the pointer gives any row, then lets it go —
+   * long enough to find the note, short enough to stop mattering. It rides the row's highlight
+   * layer, so it lights exactly the same shape hovering does; the row itself still just rises.
+   * No forwards fill: once it ends, the layer answers the pointer again.
    */
-  @keyframes arrive {
-    0% {
-      opacity: 0;
-      transform: translateY(6px);
-      background-color: --alpha(var(--color-brand-bright) / 12%);
-    }
+  @keyframes arrive-glow {
+    0%,
     20% {
       opacity: 1;
-      transform: none;
-      background-color: --alpha(var(--color-brand-bright) / 12%);
     }
     100% {
-      opacity: 1;
-      transform: none;
-      background-color: transparent;
+      opacity: 0;
     }
   }
 
