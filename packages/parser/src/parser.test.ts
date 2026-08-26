@@ -104,3 +104,10 @@ test("a bare date just gone stays in this year", () => {
   // Far enough back that the writer meant the one coming.
   expect(dayOf(on("06/03").dates[0])).toEqual(new Date(2027, 2, 6));
 });
+
+test("a half-typed unit is not a date", () => {
+  // chrono's English `3 d` is three days; here it is someone two keystrokes into `em 3 dias`.
+  expect(on("preciso pagar a conta em 3 d").dates).toHaveLength(0);
+  expect(on("preciso pagar a conta em 3 di").dates).toHaveLength(0);
+  expect(dayOf(on("preciso pagar a conta em 3 dias").dates[0])).toEqual(new Date(2026, 7, 29));
+});

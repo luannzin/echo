@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, plus a fixes pass on the panels, tasks and dates**
+Last updated: 2026-08-26 · Phase: **6 complete, plus two fixes passes: panels/tasks/dates, then latency and craft**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -141,6 +141,29 @@ survive from IndexedDB, list ordered newest-first, no console errors.
   date carries its exact date as a title, and focus inside the row lights it the way hover does.
 - Deleted the commented-out webpack alias in `apps/web/next.config.ts` and the unused
   `transformersWeb` path it left behind — it was failing `bun run lint`.
+
+### Latency and craft pass
+- **Capture stopped waiting on the disk.** Every note blocked the writing surface for ~80ms inside
+  a single PGlite `INSERT`, flushing to IndexedDB before the query returned. `relaxedDurability`
+  moves the flush behind the query: measured 80ms → 16-30ms in the running app.
+- **Ticking a task is optimistic**, the way capture already was. It moved sections and stamped
+  `Done just now` before the write, instead of after it.
+- **`folderPaths` was being named and sorted once per row**, in the note list and again in the
+  Inbox. Once per list now, and `NoteRow` and `TaskRow` are memoized — a capture appends one row
+  rather than re-drawing the notebook.
+- **Keyboard navigation skips the view transition.** `navigate` takes `instant`, and the shortcuts
+  for Write and Inbox pass it. 260ms of continuity reads as continuity when you clicked, and as lag
+  when you pressed a key you press forty times a day.
+- **`em 3 d` is no longer a date.** chrono's English abbreviation for three days is also what
+  `em 3 dias` looks like two keystrokes in, so the chip appeared, vanished at `em 3 di` and came
+  back at `em 3 dia`. A single-letter unit is now ignored.
+- **Places are one affordance.** The Inbox row never showed as current, and "All notes" was a small
+  link *under* the tree. Both are `PlaceRow` now, above the folders, and one `row` style in
+  `shared/lib/styles.ts` carries the Inbox, All notes, every folder and every note in the list —
+  including the 44px height coarse pointers get and mice do not.
+- **Done folds.** Past four finished tasks the section becomes a `<details>`, so what is still open
+  keeps the screen.
+- Long folder paths truncate in the Inbox's "Move to …" button instead of pushing the row wide.
 
 ## In progress
 - Nothing.

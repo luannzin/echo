@@ -410,15 +410,22 @@ const Page = () => {
     navigate(() => setEditingId(null), { to: () => noteRow(noteId) });
   }, []);
 
-  /** Every view change travels the same way, whoever asked for it. */
+  /**
+   * Every view change is the same change; only the way it arrives differs. A press travels, because
+   * the reader is following where they clicked. A key does not: it is the same gesture forty times
+   * a day, and 260ms of continuity on it reads as the app being slow.
+   */
   const changeView = useCallback(
-    (next: View) => {
+    (next: View, { instant = false }: { instant?: boolean } = {}) => {
       if (next === view && editingRef.current === null) return;
       setUndoable(null);
-      navigate(() => {
-        setEditingId(null);
-        setView(next);
-      });
+      navigate(
+        () => {
+          setEditingId(null);
+          setView(next);
+        },
+        { instant },
+      );
     },
     [view],
   );
@@ -494,9 +501,22 @@ const Page = () => {
     });
   }, []);
 
+  /**
+   * Ticked before the database hears about it, the same way capture is. A checkbox that waits on a
+   * write is a checkbox that feels broken, and the event that comes back replaces this row with the
+   * stored one anyway.
+   */
   const toggleTask = useCallback(async (task: Task, completed: boolean) => {
-    const echo = await getEcho();
-    await echo.tasks.setCompleted(task.id, completed);
+    const at = new Date();
+    setTasks((current) =>
+      replace(current, { ...task, completedAt: completed ? at : null, updatedAt: at }),
+    );
+    try {
+      const echo = await getEcho();
+      await echo.tasks.setCompleted(task.id, completed);
+    } catch {
+      setTasks((current) => replace(current, task));
+    }
   }, []);
 
   const deleteTask = useCallback(async (task: Task) => {
@@ -533,8 +553,8 @@ const Page = () => {
       event.preventDefault();
 
       if (shortcut === "palette" || shortcut === "search") setPaletteOpen((open) => !open);
-      if (shortcut === "new-note") changeView("home");
-      if (shortcut === "organize") changeView("inbox");
+      if (shortcut === "new-note") changeView("home", { instant: true });
+      if (shortcut === "organize") changeView("inbox", { instant: true });
       if (shortcut === "toggle-notes") toggleNavigation();
       if (shortcut === "toggle-intelligence") toggleIntelligence();
       if (shortcut === "undo-capture") undoCapture();
@@ -651,7 +671,9 @@ const Page = () => {
             selectedFolderId={folderFilter}
             onSelectFolder={setFolderFilter}
             onOpenInbox={() => changeView("inbox")}
+            atInbox={view === "inbox" && editingId === null}
             inboxCount={unfiled.length}
+            allCount={notes.length}
             countOf={countOf}
             expanded={expanded}
             onToggleExpanded={toggleExpanded}

@@ -25,10 +25,23 @@ const animatable = (): boolean =>
  *
  * The animation is the part that is allowed to fail. Every path still ends with the state updated
  * exactly once — navigation that depends on an animation succeeding is not navigation.
+ *
+ * `instant` skips it entirely, which is what a keyboard shortcut gets. A movement worth watching
+ * once a session is a movement worth cutting when it is bound to a key someone presses forty times
+ * a day: the animation stops reading as continuity and starts reading as lag.
  */
 export const navigate = (
   update: () => void,
-  { from, to }: { from?: HTMLElement | null; to?: () => HTMLElement | null } = {},
+  {
+    from,
+    to,
+    instant = false,
+  }: {
+    from?: HTMLElement | null;
+    to?: () => HTMLElement | null;
+    /** A movement nobody asked to watch. See `navigate`'s note on keys. */
+    instant?: boolean;
+  } = {},
 ): void => {
   let updated = false;
   const apply = () => {
@@ -37,7 +50,7 @@ export const navigate = (
     update();
   };
 
-  if (!animatable()) {
+  if (instant || !animatable()) {
     apply();
     return;
   }

@@ -3,10 +3,11 @@
 import type { Destination } from "@echo/search";
 import type { Folder, Note } from "@echo/types";
 import { Inbox as InboxIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { InboxRow } from "@/modules/inbox/_components/inbox-row";
 import { EmptyState } from "@/shared/_components/empty-state";
 import { Label } from "@/shared/_components/label";
+import { folderPaths } from "@/shared/lib/folder-paths";
 import { stagger } from "@/shared/lib/stagger";
 
 /**
@@ -36,6 +37,8 @@ export const Inbox = ({
   onNewFolder: () => void;
 }) => {
   const list = useRef<HTMLUListElement>(null);
+  /** Named and sorted once: every row offers the same destinations. */
+  const places = useMemo(() => folderPaths(folders), [folders]);
   /** The row a filed note is leaving, so the row that takes its place can take the keyboard too. */
   const resume = useRef<number | null>(null);
 
@@ -87,6 +90,7 @@ export const Inbox = ({
             <InboxRow
               note={note}
               folders={folders}
+              places={places}
               suggestion={suggestionOf(note.id)}
               onAccept={accept(index)}
               onMove={onMove}

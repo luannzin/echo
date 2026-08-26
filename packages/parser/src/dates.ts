@@ -67,6 +67,12 @@ export const detectDates = (content: string, now: Date): DetectedDate[] => {
 
   for (const parser of PARSERS) {
     for (const result of parser.parse(content, now, { forwardDate: true })) {
+      // `3 d` is chrono's English abbreviation for three days, and it is also what `em 3 dias`
+      // looks like two keystrokes in. A single-letter unit is never worth acting on: reading it
+      // makes a chip appear, vanish at `3 di` and come back at `3 dia`, which is the interface
+      // flickering at someone in the middle of a word.
+      if (/^\d+\s*\p{L}$/u.test(result.text.trim())) continue;
+
       const start = result.index;
       const end = start + result.text.length;
       // One phrase, one date: a later parser never re-reads what an earlier one already claimed.

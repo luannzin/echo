@@ -2,15 +2,16 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Count } from "@/shared/_components/count";
+import { row } from "@/shared/lib/styles";
 
-/** The Inbox: a place notes can be, drawn like a folder without being one. */
+/** A place notes can be, drawn the same whether or not it is a folder. */
 export const PlaceRow = ({
   label,
   icon: Icon,
   count,
   selected,
-  droppable,
-  over,
+  droppable = false,
+  over = false,
   onSelect,
   onDragOver,
   onDragLeave,
@@ -20,12 +21,13 @@ export const PlaceRow = ({
   icon: LucideIcon;
   count: number;
   selected: boolean;
-  droppable: boolean;
-  over: boolean;
+  /** Left off by a place nothing can be dropped into. */
+  droppable?: boolean;
+  over?: boolean;
   onSelect: () => void;
-  onDragOver: () => void;
-  onDragLeave: () => void;
-  onDrop: () => void;
+  onDragOver?: () => void;
+  onDragLeave?: () => void;
+  onDrop?: () => void;
 }) => (
   <button
     type="button"
@@ -34,14 +36,14 @@ export const PlaceRow = ({
     onDragOver={(event) => {
       if (!droppable) return;
       event.preventDefault();
-      onDragOver();
+      onDragOver?.();
     }}
     onDragLeave={onDragLeave}
     onDrop={(event) => {
       event.preventDefault();
-      onDrop();
+      onDrop?.();
     }}
-    className={`flex w-full items-center gap-2 rounded-md py-1.5 pe-2 ps-2 text-start text-sm outline-none transition-[background-color,color,transform] duration-150 ease-[var(--ease-out-quart)] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ring ${
+    className={`${row} w-full gap-2 pe-2 ps-2 ${
       over && droppable ? "bg-brand-bright/15 ring-1 ring-brand-bright/40" : ""
     } ${
       selected ? "bg-sidebar-accent text-foreground" : "text-muted-foreground hover:text-foreground"
@@ -49,6 +51,6 @@ export const PlaceRow = ({
   >
     <Icon aria-hidden="true" className="size-3.5 shrink-0" />
     <span className="min-w-0 flex-1 truncate">{label}</span>
-    <Count of={count} />
+    <Count of={count} label={`notes in ${label}`} />
   </button>
 );

@@ -1,11 +1,12 @@
 "use client";
 
 import type { Folder, Note } from "@echo/types";
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { NoteListSkeleton } from "@/modules/notes/_components/note-list-skeleton";
 import { NoteRow } from "@/modules/notes/_components/note-row";
 import { Count } from "@/shared/_components/count";
 import { Label } from "@/shared/_components/label";
+import { folderPaths } from "@/shared/lib/folder-paths";
 
 export const NoteList = ({
   title,
@@ -35,6 +36,9 @@ export const NoteList = ({
   onMove: (noteId: string, folderId: string | null) => void;
 }) => {
   const headingId = useId();
+  // Named and sorted once for the whole list. Every row offers the same set of destinations, and
+  // working it out per row was the single most expensive thing a capture did.
+  const places = useMemo(() => folderPaths(folders), [folders]);
 
   return (
     <section className="flex h-full flex-col" aria-labelledby={headingId}>
@@ -63,7 +67,7 @@ export const NoteList = ({
               <NoteRow
                 key={note.id}
                 note={note}
-                folders={folders}
+                places={places}
                 index={index}
                 selected={note.id === selectedId}
                 onSelect={onSelect}

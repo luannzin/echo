@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Timestamp } from "@/shared/_components/timestamp";
-import { folderPaths } from "@/shared/lib/folder-paths";
+import type { FolderPath } from "@/shared/lib/folder-paths";
 
 /** The evidence, in the reader's own notes rather than a percentage. */
 const evidence = (destination: Destination): string =>
@@ -19,6 +19,7 @@ const evidence = (destination: Destination): string =>
 export const InboxRow = ({
   note,
   folders,
+  places,
   suggestion,
   onAccept,
   onMove,
@@ -27,14 +28,14 @@ export const InboxRow = ({
 }: {
   note: Note;
   folders: Folder[];
+  /** Every folder, named and ordered once by the list rather than once per row. */
+  places: FolderPath[];
   suggestion: Destination | undefined;
   onAccept: (noteId: string, destination: Destination) => void;
   onMove: (noteId: string, folderId: string, suggested: Destination | undefined) => void;
   onOpen: (noteId: string, from: HTMLElement) => void;
   onNewFolder: () => void;
 }) => {
-  const choices = folderPaths(folders);
-
   return (
     <div className="flex flex-col gap-2.5">
       <button
@@ -61,10 +62,14 @@ export const InboxRow = ({
             variant="secondary"
             data-triage
             onClick={() => onAccept(note.id, suggestion)}
-            className="gap-2"
+            className="max-w-full gap-2"
           >
-            <Sparkles aria-hidden="true" className="text-brand-bright" />
-            Move to {folderPath(folders, suggestion.folderId)}
+            <Sparkles aria-hidden="true" className="shrink-0 text-brand-bright" />
+            {/* A folder nested four deep has a long name. The button gives up the name before it
+                gives up the row. */}
+            <span className="min-w-0 truncate">
+              Move to {folderPath(folders, suggestion.folderId)}
+            </span>
           </Button>
         ) : null}
 
@@ -85,16 +90,16 @@ export const InboxRow = ({
             <ArrowRight aria-hidden="true" />
           </MenuTrigger>
           <MenuPopup align="start" className="max-h-80 max-w-72 overflow-y-auto">
-            {choices.map((choice) => (
+            {places.map((choice) => (
               <MenuItem
                 key={choice.id}
                 closeOnClick
                 onClick={() => onMove(note.id, choice.id, suggestion)}
               >
-                {choice.label}
+                <span className="min-w-0 truncate">{choice.label}</span>
               </MenuItem>
             ))}
-            {choices.length > 0 ? <MenuSeparator /> : null}
+            {places.length > 0 ? <MenuSeparator /> : null}
             <MenuItem closeOnClick onClick={onNewFolder}>
               <FolderPlus aria-hidden="true" />
               New folder

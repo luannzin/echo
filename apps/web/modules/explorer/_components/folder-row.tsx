@@ -15,7 +15,7 @@ import { FolderNameField } from "@/modules/explorer/_components/folder-name-fiel
 import { type Draft, type Dragged, folderActions } from "@/modules/explorer/model";
 import { Count } from "@/shared/_components/count";
 import { MenuNote } from "@/shared/_components/menu-note";
-import { quiet } from "@/shared/lib/styles";
+import { quiet, row } from "@/shared/lib/styles";
 
 const INDENT_PX = 12;
 
@@ -110,7 +110,7 @@ export const FolderRow = ({
               aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
               aria-expanded={expanded}
               onClick={onToggle}
-              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-5 shrink-0 items-center justify-center self-stretch rounded text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-8"
             >
               <ChevronRight
                 aria-hidden="true"
@@ -136,7 +136,7 @@ export const FolderRow = ({
               onClick={onSelect}
               aria-current={selected ? "page" : undefined}
               title={folder.name}
-              className={`flex min-w-0 flex-1 items-baseline gap-2 rounded-md py-1.5 pe-1 ps-1 text-start text-sm outline-none transition-[background-color,color,transform] duration-150 ease-[var(--ease-out-quart)] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`${row} min-w-0 flex-1 gap-2 pe-1 ps-1 ${
                 selected
                   ? "bg-sidebar-accent text-foreground"
                   : "text-muted-foreground hover:text-foreground"

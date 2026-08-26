@@ -35,6 +35,17 @@ export const openBrowserRepositories = async ({
     fetch(`${runtimePath}pglite.data`).then((response) => response.blob()),
   ]);
 
-  const client = await PGlite.create({ dataDir, pgliteWasmModule, initdbWasmModule, fsBundle });
+  // Relaxed durability: the query returns as soon as Postgres has the row, and the flush to
+  // IndexedDB happens behind it. Without it every capture blocked the writing surface for ~80ms
+  // waiting on a store nothing was reading. The window it opens is a tab killed in the moments
+  // between those two, against a database whose whole job is to survive a reload — worth it for a
+  // capture that keeps up with typing.
+  const client = await PGlite.create({
+    dataDir,
+    pgliteWasmModule,
+    initdbWasmModule,
+    fsBundle,
+    relaxedDurability: true,
+  });
   return openRepositories(client);
 };

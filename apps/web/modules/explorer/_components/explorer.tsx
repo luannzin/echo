@@ -2,7 +2,7 @@
 
 import { buildTree, flattenTree, subtreeIds } from "@echo/core";
 import type { Folder, Note } from "@echo/types";
-import { Inbox, Plus } from "lucide-react";
+import { Inbox, Layers, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FolderNameField } from "@/modules/explorer/_components/folder-name-field";
@@ -27,7 +27,9 @@ export const Explorer = ({
   selectedFolderId,
   onSelectFolder,
   onOpenInbox,
+  atInbox,
   inboxCount,
+  allCount,
   countOf,
   expanded,
   onToggleExpanded,
@@ -48,7 +50,11 @@ export const Explorer = ({
   selectedFolderId: string | undefined;
   onSelectFolder: (folderId: string | undefined) => void;
   onOpenInbox: () => void;
+  /** Whether the workspace is showing the Inbox, so the row that leads there can say so. */
+  atInbox: boolean;
   inboxCount: number;
+  /** Every note there is, filed or not — what "All notes" is offering. */
+  allCount: number;
   /** How many notes are in a folder, its subfolders excluded. */
   countOf: (folderId: string) => number;
   expanded: ReadonlySet<string>;
@@ -130,13 +136,25 @@ export const Explorer = ({
               label="Inbox"
               icon={Inbox}
               count={inboxCount}
-              selected={false}
+              selected={atInbox}
               droppable={accepts(null)}
               over={over === INBOX}
               onSelect={onOpenInbox}
               onDragOver={() => setOver(INBOX)}
               onDragLeave={leave(INBOX)}
               onDrop={() => drop(null)}
+            />
+          </li>
+
+          {/* What the list shows, above the folders that narrow it. It was a small link under the
+              tree, which made the one row that is always available the hardest one to find. */}
+          <li>
+            <PlaceRow
+              label="All notes"
+              icon={Layers}
+              count={allCount}
+              selected={!atInbox && selectedFolderId === undefined}
+              onSelect={() => onSelectFolder(undefined)}
             />
           </li>
 
@@ -180,19 +198,6 @@ export const Explorer = ({
             No folders yet. Everything you write waits in the Inbox until you make one.
           </p>
         ) : null}
-
-        <button
-          type="button"
-          onClick={() => onSelectFolder(undefined)}
-          aria-current={selectedFolderId === undefined ? "true" : undefined}
-          className={`mt-1 rounded-md px-2 py-1 text-start text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring ${
-            selectedFolderId === undefined
-              ? "text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          All notes
-        </button>
       </div>
 
       <div className="min-h-0 flex-1">
