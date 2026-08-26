@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "next build --webpack",
     "clean": "rm -rf .next .turbo *.tsbuildinfo",
     "dev": "next dev",
     "prebuild": "bun run scripts/sync-onnx-runtime.ts && bun run scripts/sync-pglite-runtime.ts",
