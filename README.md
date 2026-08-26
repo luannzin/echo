@@ -30,6 +30,7 @@ default and always will be.
 | `bun run dev` | Start every dev target (currently the web app) |
 | `bun run dev:web` | Web app only |
 | `bun run build` | Build everything through Turborepo |
+| `bun run start` | Serve the built static export (after `bun run build`) |
 | `bun run typecheck` | `tsc --noEmit` in every package |
 | `bun run lint` | Biome check (lint + format + import sort) |
 | `bun run lint:fix` | Biome check with safe fixes applied |
