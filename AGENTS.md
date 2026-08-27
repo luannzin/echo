@@ -106,7 +106,8 @@ When the user requests a durable behavior change, record it here or in the relev
 ## apps/web layout
 
 ```text
-app/                     route entry, the one owner component, and its command list
+app/                     route entries and their owner components, plus the command list
+app/postit/              the desktop sticky note: its own window, its own owner, no database
 modules/<module>/
   _components/*.tsx      one component per file, exported by name
   *.ts                   that module's own types and pure helpers

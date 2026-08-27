@@ -4,9 +4,11 @@ import {
   moveTab,
   neighbourOf,
   openTab,
+  readActive,
   readClosed,
   rememberClosed,
   takeClosed,
+  writeActive,
 } from "./session";
 
 test("opening appends, and opening twice lands on the tab that is there", () => {
@@ -69,4 +71,14 @@ test("the stack forgets past ten", () => {
   expect(readClosed()).toHaveLength(10);
   expect(readClosed()[0]).toBe("note-4");
   expect(takeClosed()).toBe("note-13");
+});
+
+test("where you were is remembered apart from the order the tabs are in", () => {
+  stored.clear();
+  expect(readActive()).toBeNull();
+
+  writeActive("b");
+  // Dragging reorders the session; it must not move where the window reopens.
+  expect(moveTab(["a", "b", "c"], "b", "c")).toEqual(["a", "c", "b"]);
+  expect(readActive()).toBe("b");
 });

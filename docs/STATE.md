@@ -1,7 +1,7 @@
 # STATE
 
 Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
-rebuild, E1, E2**
+rebuild, E1, E2, desktop fixes pass**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -220,7 +220,7 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   opened in the full app — the reading is what is left, and it is honest about being one.
 - `useAutosave` (`modules/notes/autosave.ts`) is now shared by `NoteEditor` and `EditorPane`: one
   debounce, one flush-on-unmount, one definition of "saved".
-- `apps/web` has a `test` script and bun types now, so `session.ts` is covered (3 tests).
+- `apps/web` has a `test` script and bun types now, so `session.ts` is covered (7 tests).
 
 - **It is a window, not a page.** The header carries `data-tauri-drag-region`, so the empty stretch
   of the tab strip drags the window the way a native title bar does (children with their own
@@ -251,9 +251,36 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
 - The `getEcho` failure path logs its cause instead of swallowing it, so "Local storage could not be
   opened" is now traceable.
 
+- **A tab closes on a middle click**, the way a browser tab does. `mousedown` is preventDefaulted
+  because that is where the autoscroll cursor would otherwise open, before the click ever lands.
+- **A tab has a context menu**: pin to the desktop, close. The menu is the keyboard twin of both the
+  middle click and the hover-revealed close control.
+- **The aside opens on a click and closes on one.** Hover-to-open and leave-to-close are both gone:
+  a panel that appears because the cursor crossed a button on its way somewhere else is a panel
+  nobody asked for. Escape closes it, and so does clicking the writing behind it.
+- **It reopens onto the tab that was being written in** (`echo:editor-active`), not the last tab in
+  the strip. Its own key rather than a position in the session, because dragging a tab reorders the
+  session and reordering must not move where you were.
+- **A tab can be pinned to the desktop as a sticky note** (`app/postit/page.tsx`,
+  `shared/lib/postit.ts`): its own Tauri window, `decorations: false`, `alwaysOnTop`, out of the
+  taskbar, dragged by its header (`data-tauri-drag-region`) and resized by a corner grip
+  (`startResizeDragging`). Fixed paper colour rather than a theme — it sits among other windows and
+  a sticky note that follows the app's theme stops reading as one.
+  - **It never opens the database.** PGlite has one writer and the main window is it, so the words
+    travel over Tauri's event bus: `postit:ready` asks, `postit:note` answers, `postit:write` hands
+    each edit back (500ms debounce), `postit:open` sends the note home and closes the window.
+    `app/page.tsx` holds the listeners, so they outlive a trip back to the full shell.
+  - Pinning closes the tab, and sending it back reopens it — while a note is on the desktop that
+    window is the one editing it. Window labels are `postit-<note id>`, so pinning a note already
+    out there focuses it instead of opening a second one.
+  - `capabilities/default.json` covers `main` and `postit-*`, and adds
+    `core:webview:allow-create-webview-window` plus window `close`, `set-focus`, `start-dragging`
+    and `start-resize-dragging`.
+
 Deliberately not built: tab overflow menu, drag-to-resize the split, more than two panes, per-tab
 unsaved dots (autosave means nothing is ever unsaved), editor mode on phones, filing a task or a
-label from this mode.
+label from this mode, sticky notes on the website (there is no second window to open), a sticky
+note that survives echo being closed.
 
 ### S1 — Temporal context
 First of four sub-projects turning echo from a note app that reads notes into one that holds a
@@ -829,11 +856,17 @@ unrelated to this work) and they have not been driven. That is the next thing to
     covers the rest, and one phrase never yields two dates.
   - Deadlines: a date framed as a limit (`before Friday`, `até sexta`, `by`, `prazo`) is a deadline;
     a mention is not.
-  - Tasks: checkboxes score 1.0, phrasing (`need to`, `preciso`, `tenho que`, `lembrar de`, `TODO`)
-    scores lower. Nothing mutates the note.
+  - Tasks: checkboxes score 1.0, phrasing scores lower and by how explicit it is — `TODO` and
+    `fazer:` at 0.9+, `need to` / `preciso` / `tenho que|de` at 0.8, everyday intent
+    (`eu quero fazer`, `want to`, `devo`, `must`, `agendar`, `falta`) at 0.6–0.65, and bare
+    narration-shaped futures (`vou`, `I'll`) at 0.55 with `vou ser`/`I will be` excluded. Order in
+    `INTENT_MARKERS` is precedence: the first pattern a line matches wins, so explicit spellings sit
+    above everyday ones. Every marker files its corrections under a written-down trigger name, so
+    one rejection takes the whole phrasing back out. Nothing mutates the note.
   - Keywords: frequency ranking with English + Portuguese stopwords, ties broken alphabetically so
     the same note always parses the same way. `now` is injected for determinism.
-  - 7 tests covering both languages, deadline vs mention, invalid dates and reproducibility.
+  - 9 tests covering both languages, deadline vs mention, invalid dates, everyday task phrasing
+    against narration, and reproducibility.
 - `@echo/embeddings`: `Embedder` interface (`embed` / `embedMany` / `embedQuery`) plus a local
   runtime — `Xenova/multilingual-e5-small` through transformers.js, so notes in any language land in
   one space. The ONNX runtime is **served by the app itself** (`public/ort`, synced by

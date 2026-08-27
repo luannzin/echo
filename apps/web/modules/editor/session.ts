@@ -1,5 +1,6 @@
 const KEY = "echo:editor-tabs";
 const CLOSED_KEY = "echo:editor-closed";
+const ACTIVE_KEY = "echo:editor-active";
 
 /** How far Ctrl Shift T reaches back. Ten is what a browser gives you and nobody asks for eleven. */
 const CLOSED_LIMIT = 10;
@@ -33,6 +34,22 @@ const writeIds = (key: string, ids: Session): void => {
 export const readSession = (): Session => readIds(KEY);
 
 export const writeSession = (session: Session): void => writeIds(KEY, session);
+
+/**
+ * Which of the open tabs was being written in. Its own key rather than a position in the session,
+ * because dragging a tab reorders the session and reordering must not change where you were.
+ *
+ * Reopening onto the last tab in the strip was only ever right by accident — it is where a new note
+ * lands, not where anyone was.
+ */
+export const readActive = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ACTIVE_KEY);
+};
+
+export const writeActive = (noteId: string): void => {
+  window.localStorage.setItem(ACTIVE_KEY, noteId);
+};
 
 /**
  * What Ctrl Shift T reaches for: the tabs that were closed, most recent last. Its own key, because

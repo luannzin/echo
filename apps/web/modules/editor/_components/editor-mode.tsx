@@ -14,18 +14,18 @@ import {
   moveTab,
   neighbourOf,
   openTab,
+  readActive,
   readSession,
   rememberClosed,
   type Session,
   takeClosed,
+  writeActive,
   writeSession,
 } from "@/modules/editor/session";
+import { openPostit } from "@/shared/lib/postit";
 import { saveCopy } from "@/shared/lib/save-copy";
 import { editorShortcutFor } from "@/shared/lib/shortcuts";
 import type { Filing } from "@/shared/lib/slash";
-
-/** Long enough that crossing the button on the way somewhere else does not open the aside. */
-const HOVER_INTENT_MS = 150;
 
 /** How long the header says what just happened before going quiet again. */
 const NOTICE_MS = 2600;
@@ -49,6 +49,8 @@ export const EditorMode = ({
   onCreate,
   onDelete,
   onLeave,
+  summon,
+  desktop,
 }: {
   /**
    * When the app's own next undo step happened — a note deleted, a note just sent. Ctrl Z is one
@@ -76,6 +78,13 @@ export const EditorMode = ({
   /** Really deletes. The page owns the undo, so Ctrl Z works from this mode too. */
   onDelete: (note: Note) => void;
   onLeave: () => void;
+  /**
+   * A note asking for its tab back — a sticky note that was sent back to echo. `at` changes so the
+   * same note can come home twice.
+   */
+  summon?: { noteId: string; at: number };
+  /** Whether a tab can be lifted onto the desktop at all, which only the desktop app can do. */
+  desktop: boolean;
 }) => {
   const [session, setSession] = useState<Session>([]);
   const [panes, setPanes] = useState<[string | null, string | null]>([null, null]);
@@ -86,13 +95,14 @@ export const EditorMode = ({
   const [watched, setWatched] = useState({ text: "", line: 0 });
   /** Carries when it was said, so saying the same thing twice reads as twice. */
   const [notice, setNotice] = useState<{ text: string; at: number } | null>(null);
-  const intent = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * The words in the pane right now, ahead of autosave. Kept in a ref rather than in state because
    * only two things read it — the preview, which asks through state, and exporting, which asks at
    * the moment it is pressed — and neither is worth re-rendering the tab strip on every keystroke.
    */
   const live = useRef({ text: "", line: 0 });
+  /** Which summons has already been answered, so a re-render never re-opens the same one. */
+  const summoned = useRef(0);
 
   const noteOf = useCallback((noteId: string) => notes.find((note) => note.id === noteId), [notes]);
   const taskOf = useCallback(
@@ -141,8 +151,18 @@ export const EditorMode = ({
       return;
     }
     setSession(stored);
-    setPanes([stored[stored.length - 1] ?? null, null]);
+    // Where the window was left, not where the strip ends — the last tab is where a new note lands.
+    const active = readActive();
+    setPanes([
+      (active !== null && stored.includes(active) ? active : stored[stored.length - 1]) ?? null,
+      null,
+    ]);
   }, []);
+
+  // And kept, so closing the window in the middle of something opens back onto it.
+  useEffect(() => {
+    if (panes[0] !== null) writeActive(panes[0]);
+  }, [panes[0]]);
 
   const close = useCallback(
     (noteId: string) => {
@@ -196,6 +216,30 @@ export const EditorMode = ({
     setTimeout(() => setNotice((current) => (current?.at === at ? null : current)), NOTICE_MS);
   }, []);
 
+  /**
+   * Lifts a tab onto the desktop as a sticky note, and takes the tab with it. While a note is out
+   * there, that window is the one editing it — two carets on one note is how a sentence goes
+   * missing. Sending it back from the sticky note puts the tab where it was.
+   */
+  const pin = useCallback(
+    (noteId: string) => {
+      void openPostit(noteId).then((opened) => {
+        if (!opened) return say("This note could not be pinned");
+        close(noteId);
+        say("Pinned to the desktop");
+      });
+    },
+    [close, say],
+  );
+
+  // A sticky note sent back to echo lands on its tab again. The moment is what is answered, not the
+  // note: `open` changes identity as panes move, and re-running would steal the caret each time.
+  useEffect(() => {
+    if (summon === undefined || summon.at === summoned.current) return;
+    summoned.current = summon.at;
+    open(summon.noteId);
+  }, [summon, open]);
+
   const exportCopy = useCallback(async () => {
     const noteId = panes[0];
     if (noteId === null) return;
@@ -208,16 +252,6 @@ export const EditorMode = ({
       say("The copy could not be written");
     }
   }, [panes, noteOf, say]);
-
-  const hoverOpen = () => {
-    if (intent.current) clearTimeout(intent.current);
-    intent.current = setTimeout(() => setAsideOpen(true), HOVER_INTENT_MS);
-  };
-  const cancelHover = () => {
-    if (intent.current) clearTimeout(intent.current);
-  };
-
-  useEffect(() => () => cancelHover(), []);
 
   // The tab keys, which are a browser's tab keys. They are claimed from the window rather than from
   // the writing surface, because Ctrl W has to work while the caret is in the middle of a sentence.
@@ -299,9 +333,6 @@ export const EditorMode = ({
           aria-label={asideOpen ? "Hide notes" : "Show notes"}
           aria-expanded={asideOpen}
           onClick={() => setAsideOpen((current) => !current)}
-          onMouseEnter={hoverOpen}
-          onMouseLeave={cancelHover}
-          onFocus={cancelHover}
           className="shrink-0 text-muted-foreground"
         >
           <PanelLeft aria-hidden="true" />
@@ -324,6 +355,7 @@ export const EditorMode = ({
           onSelect={show}
           onClose={close}
           onMove={(noteId, targetId) => remember(moveTab(session, noteId, targetId))}
+          onPin={desktop ? pin : undefined}
         />
 
         {/* One slot, saying what just happened and then going quiet. Live, because a save dialog

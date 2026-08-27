@@ -48,6 +48,13 @@ import { Label } from "@/shared/_components/label";
 import { byNote, countByCategory, labelsOf, type NoteLabels } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { folderPaths } from "@/shared/lib/folder-paths";
+import {
+  POSTIT_NOTE,
+  POSTIT_OPEN,
+  POSTIT_READY,
+  POSTIT_WRITE,
+  type PostitNote,
+} from "@/shared/lib/postit";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import type { Suggestion } from "@/shared/lib/retrieval";
 import { saveCopy } from "@/shared/lib/save-copy";
@@ -132,6 +139,8 @@ const Page = () => {
   /** The simpler mode. Never on until the effect below has worked out where it is running. */
   const [editorMode, setEditorMode] = useState(false);
   const [desktopApp, setDesktopApp] = useState(false);
+  /** A sticky note asking for its tab back. `at` changes so the same note can come home twice. */
+  const [summon, setSummon] = useState<{ noteId: string; at: number } | undefined>(undefined);
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
   const [folderFilter, setFolderFilter] = useState<string | undefined>(undefined);
@@ -978,6 +987,56 @@ const Page = () => {
     await echo.notes.create({ id: noteId, content });
   }, []);
 
+  /**
+   * The sticky notes out on the desktop. Each one is its own window with no database behind it —
+   * PGlite has a single writer and this window is it — so they ask here for the words they were
+   * opened with, and hand every edit straight back.
+   */
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    let alive = true;
+    let stops: (() => void)[] = [];
+
+    void (async () => {
+      const { emit, listen } = await import("@tauri-apps/api/event");
+      const listeners = await Promise.all([
+        listen<{ noteId: string }>(POSTIT_READY, ({ payload }) => {
+          const note = notesRef.current.find((held) => held.id === payload.noteId);
+          void emit(POSTIT_NOTE, {
+            noteId: payload.noteId,
+            title: note?.title ?? "",
+            content: note?.content ?? "",
+          } satisfies PostitNote);
+        }),
+        listen<{ noteId: string; content: string }>(POSTIT_WRITE, ({ payload }) => {
+          const known = notesRef.current.some((held) => held.id === payload.noteId);
+          // A tab pinned before anyone typed into it is an id and nothing else, and stays that way
+          // until there are words to make a note out of.
+          if (!known && payload.content.trim().length === 0) return;
+          void (known
+            ? save(payload.noteId, payload.content)
+            : write(payload.noteId, payload.content));
+        }),
+        listen<{ noteId: string }>(POSTIT_OPEN, ({ payload }) => {
+          setEditorMode(true);
+          writePreference("editor-mode", true);
+          document.documentElement.dataset.echoMode = "editor";
+          setSummon({ noteId: payload.noteId, at: performance.now() });
+        }),
+      ]);
+      if (!alive) {
+        for (const stop of listeners) stop();
+        return;
+      }
+      stops = listeners;
+    })();
+
+    return () => {
+      alive = false;
+      for (const stop of stops) stop();
+    };
+  }, [save, write]);
+
   const toggleEditorMode = useCallback(() => {
     setEditorMode((current) => {
       const next = !current;
@@ -1520,6 +1579,8 @@ const Page = () => {
         onCreate={write}
         onDelete={(note) => void deleteNote(note)}
         onLeave={toggleEditorMode}
+        summon={summon}
+        desktop={desktopApp}
       />
     );
   }

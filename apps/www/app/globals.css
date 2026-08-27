@@ -277,8 +277,8 @@
    */
   .tour-panel .shot {
     mask-image:
-      linear-gradient(to left, black 60%, transparent 97%),
-      linear-gradient(to bottom, black 66%, transparent 98%);
+      linear-gradient(to bottom, black 60%, transparent 100%),
+      linear-gradient(to left, black 70%, transparent 100%);
     mask-composite: intersect;
   }
 

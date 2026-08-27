@@ -68,6 +68,34 @@ test("checkboxes are certain, phrasing is not", () => {
   expect(on("a note about shipping things").tasks).toHaveLength(0);
 });
 
+test("everyday phrasing counts as intent, in both languages", () => {
+  const wanted = on("eu quero fazer o deploy do parser");
+  expect(wanted.tasks[0]?.text).toBe("o deploy do parser");
+  expect(wanted.tasks[0]?.trigger).toBe("quero");
+
+  expect(on("vou mandar o resumo").tasks[0]?.text).toBe("mandar o resumo");
+  expect(on("I want to rewrite the importer").tasks[0]?.trigger).toBe("want to");
+  expect(on("I'll send the summary").tasks[0]?.text).toBe("send the summary");
+  expect(on("devo revisar o contrato").tasks[0]?.trigger).toBe("devo");
+  expect(on("tenho de pagar a conta").tasks[0]?.trigger).toBe("tenho que");
+  expect(on("falta revisar o contrato").tasks[0]?.text).toBe("revisar o contrato");
+  expect(on("don't forget to renew the domain").tasks[0]?.text).toBe("renew the domain");
+  expect(on("nao posso esquecer de ligar pro banco").tasks[0]?.trigger).toBe("não esquecer");
+  expect(on("fazer: limpar o backlog").tasks[0]?.text).toBe("limpar o backlog");
+
+  // Weaker than an explicit one, so a reader who disagrees can argue it away.
+  expect(on("vou mandar o resumo").tasks[0]?.confidence).toBeLessThan(
+    on("preciso mandar o resumo").tasks[0]?.confidence ?? 0,
+  );
+});
+
+test("narration is not a plan", () => {
+  expect(on("vou estar em casa amanha").tasks).toHaveLength(0);
+  expect(on("I will be late").tasks).toHaveLength(0);
+  expect(on("that should be fine").tasks).toHaveLength(0);
+  expect(on("a note about shipping things").tasks).toHaveLength(0);
+});
+
 test("what gave a signal away is reported, because that is what corrections attach to", () => {
   expect(on("preciso revisar o merchant system").tasks[0]?.trigger).toBe("preciso");
   expect(on("I need to ship the parser").tasks[0]?.trigger).toBe("need to");
