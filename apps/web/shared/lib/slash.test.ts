@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { applyCommand, matching, readSlash, SLASH_COMMANDS, type SlashQuery } from "./slash";
+import {
+  applyCommand,
+  matching,
+  needsArgument,
+  openArgument,
+  readSlash,
+  SLASH_COMMANDS,
+  type SlashQuery,
+} from "./slash";
 
 const command = (id: string) => {
   const found = SLASH_COMMANDS.find((candidate) => candidate.id === id);
@@ -125,5 +133,45 @@ describe("applyCommand", () => {
     const query = readSlash(text, 3);
     if (query === null) throw new Error("expected a query");
     expect(applyCommand(text, query, 3, command("h1")).text).toBe("#  and the rest");
+  });
+});
+
+describe("needsArgument", () => {
+  test("a command that takes words, with none typed, asks for them", () => {
+    const query = read("/category");
+    if (query === null) throw new Error("expected a query");
+    expect(needsArgument(command("category"), query)).toBe(true);
+    expect(needsArgument(command("h1"), query)).toBe(false);
+  });
+
+  test("a space and nothing after it is still nothing", () => {
+    const query = read("/category ");
+    if (query === null) throw new Error("expected a query");
+    expect(needsArgument(command("category"), query)).toBe(true);
+  });
+
+  test("words typed are words to run with", () => {
+    const query = read("/category deploy");
+    if (query === null) throw new Error("expected a query");
+    expect(needsArgument(command("category"), query)).toBe(false);
+  });
+});
+
+describe("openArgument", () => {
+  test("writes the command out in full and waits at the end of it", () => {
+    const text = "a note /cat";
+    const query = read(text);
+    if (query === null) throw new Error("expected a query");
+    expect(openArgument(text, query, text.length, command("category"))).toEqual({
+      text: "a note /category ",
+      caret: 17,
+    });
+  });
+
+  test("leaves what came after the caret where it was", () => {
+    const text = "/due and more";
+    const query = readSlash(text, 4);
+    if (query === null) throw new Error("expected a query");
+    expect(openArgument(text, query, 4, command("due")).text).toBe("/due  and more");
   });
 });

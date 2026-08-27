@@ -21,7 +21,8 @@ import { believes, readSignals, type Signal, signalKey } from "@/modules/capture
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
-import { SlashMenu, slashOptionId } from "@/shared/_components/slash-menu";
+import { SlashMenu } from "@/shared/_components/slash-menu";
+import { slashOptionId } from "@/shared/_components/slash-option";
 import { useCompletion } from "@/shared/lib/completion";
 import type { SlashCommand } from "@/shared/lib/slash";
 import { numeric } from "@/shared/lib/styles";
@@ -209,6 +210,7 @@ export const Composer = ({
     const query = slash.query;
     if (query === null || query.argument === null) return null;
     if (query.name === "due") {
+      if (query.argument.trim().length === 0) return "When? tomorrow, friday, in 2 weeks…";
       const when = parse(query.argument).dates[0];
       return when ? `Due ${formatDue(when.date)}` : "No date in that yet";
     }
@@ -366,6 +368,7 @@ export const Composer = ({
               id={MENU_ID}
               commands={slash.commands}
               active={slash.active}
+              argument={slash.query?.argument ?? null}
               point={slash.point}
               room={textarea.current?.clientWidth ?? 0}
               reading={reading}

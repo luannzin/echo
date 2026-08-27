@@ -709,7 +709,20 @@ exported to a file, and there is no second representation to keep in step with t
   reading — `/task` files one whether or not the words look like something to do.
 - A command is an edit like any other in the simpler mode: it goes through the same `edit` the
   keyboard does, so Ctrl Z reaches back past it.
-- Tests: 17 new in `slash.test.ts` over opening, closing, matching and applying. 231 pass overall.
+- **A command that takes words asks for them rather than complaining.** Pressing Enter on
+  `/category` is choosing the command, not filing an unnamed category — so it writes `/category `
+  out in full and the menu drops into a second step: one row carrying what is being typed, and the
+  strip below given over to what echo makes of it. `needsArgument` and `openArgument` are pure and
+  tested; the strip says `↵ to name it` before the step and the reading after it.
+- **Space takes the command too**, the way it does in a shell: naming one and reaching for the next
+  word is agreeing to it. Only while the command's own name is being typed — inside an argument a
+  space is a space — and never on a bare `/`, which is somebody writing a slash rather than choosing
+  whatever happens to be first.
+- **The list is in two halves**, `Write` and `This note`, which is the split the commands actually
+  have: what goes into the words, and what happens to the note. Rows carry the icon in a tinted box
+  so the current one reads at a glance, and the markdown each one writes stays on the right.
+- Tests: 22 new in `slash.test.ts` over opening, closing, matching, applying and the second step.
+  236 pass overall.
 
 Verified in the running app, full mode: `/` opened the twelve commands with `aria-expanded` and
 `aria-activedescendant` set; `/h` narrowed to the three headings and ⌄ + Enter wrote `## ` without

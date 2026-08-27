@@ -5,6 +5,8 @@ import { type CaretPoint, caretPoint } from "@/shared/lib/caret-point";
 import {
   applyCommand,
   matching,
+  needsArgument,
+  openArgument,
   readSlash,
   type SlashCommand,
   type SlashQuery,
@@ -37,7 +39,13 @@ export const useSlash = ({
   const [active, setActive] = useState(0);
   const [point, setPoint] = useState<CaretPoint>({ top: 0, left: 0, height: 0 });
 
-  const commands = useMemo(() => (query === null ? [] : matching(query.name)), [query]);
+  const commands = useMemo(() => {
+    if (query === null) return [];
+    const found = matching(query.name);
+    // Once its words are being typed the command is already chosen. The list stops being a list —
+    // it is the one command, and what matters below it is what echo makes of the words.
+    return query.argument === null ? found : found.slice(0, 1);
+  }, [query]);
   const open = query !== null && commands.length > 0;
 
   const close = useCallback(() => setQuery(null), []);
@@ -59,6 +67,19 @@ export const useSlash = ({
     (command: SlashCommand) => {
       const element = surface.current;
       if (!element || query === null) return;
+
+      if (needsArgument(command, query)) {
+        // Choosing `/category` is choosing the command, not filing an unnamed category. It becomes
+        // a second step: the command is written out in full and the menu waits for its words.
+        // Nothing to do where the writer is already there and has typed nothing yet.
+        if (query.argument !== null) return;
+        const opened = openArgument(element.value, query, element.selectionStart, command);
+        apply(opened.text, opened.caret);
+        setQuery({ start: query.start, name: command.id, argument: "" });
+        setActive(0);
+        return;
+      }
+
       const written = applyCommand(element.value, query, element.selectionStart, command);
       apply(written.text, written.caret);
       if (command.action.kind === "note") run(command, query.argument ?? "", written.text);
@@ -82,7 +103,13 @@ export const useSlash = ({
         return true;
       }
 
-      if (event.key === "Enter" || event.key === "Tab") {
+      // Space takes the command too: naming one and reaching for the next word is agreeing to it.
+      // Only while its own name is being typed — inside an argument a space is a space — and never
+      // on a bare `/`, which is somebody writing a slash rather than choosing the first thing shown.
+      const spaceTakes =
+        event.key === " " && query !== null && query.argument === null && query.name.length > 0;
+
+      if (event.key === "Enter" || event.key === "Tab" || spaceTakes) {
         const chosen = commands[active];
         if (chosen === undefined) return false;
         event.preventDefault();
@@ -98,7 +125,7 @@ export const useSlash = ({
 
       return false;
     },
-    [open, commands, active, pick, close],
+    [open, commands, active, query, pick, close],
   );
 
   return { open, commands, active, query, point, refresh, close, pick, onKeyDown };

@@ -214,6 +214,31 @@ export const matching = (name: string): SlashCommand[] => {
 export type Applied = { text: string; caret: number };
 
 /**
+ * Whether choosing this command should ask for its words rather than run. Pressing Enter on
+ * `/category` is choosing the command, not filing an unnamed category — so it becomes a second
+ * step instead of an error message.
+ */
+export const needsArgument = (command: SlashCommand, query: SlashQuery): boolean =>
+  command.takes !== undefined && (query.argument ?? "").trim().length === 0;
+
+/**
+ * The command written out in full with a space after it, waiting for what it takes. Whatever was
+ * typed towards its name is replaced, so `/cat` becomes `/category ` with the caret at the end.
+ */
+export const openArgument = (
+  text: string,
+  query: SlashQuery,
+  caret: number,
+  command: SlashCommand,
+): Applied => {
+  const written = `/${command.id} `;
+  return {
+    text: text.slice(0, query.start) + written + text.slice(caret),
+    caret: query.start + written.length,
+  };
+};
+
+/**
  * Runs a command against the text it was typed into. The command itself always disappears — nobody
  * wants `/h1` left in their note — and a `note` command changes nothing else, because what it does
  * happens to the note rather than to the words.

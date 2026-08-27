@@ -1,18 +1,30 @@
 "use client";
 
+import { CornerDownLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Frame, FramePanel } from "@/components/ui/frame";
 import { Kbd } from "@/components/ui/kbd";
 import { Label } from "@/shared/_components/label";
+import { SlashOption } from "@/shared/_components/slash-option";
 import type { CaretPoint } from "@/shared/lib/caret-point";
 import type { SlashCommand } from "@/shared/lib/slash";
 
-const WIDTH = 288;
+const WIDTH = 320;
 /** Roughly what the list stands in when it is full. Below this much room it opens downwards. */
-const REACH = 260;
+const REACH = 280;
 
-/** Where a row lives in the accessibility tree, so the textarea can point the reader at it. */
-export const slashOptionId = (base: string, at: number): string => `${base}-option-${at}`;
+/** What each half of the list is for, in the writer's terms rather than the code's. */
+const GROUPS = [
+  { id: "write", label: "Write", holds: (command: SlashCommand) => command.action.kind !== "note" },
+  {
+    id: "note",
+    label: "This note",
+    holds: (command: SlashCommand) => command.action.kind === "note",
+  },
+] as const;
+
+/** What pressing Enter will do, said in the words of the thing it is about to ask for. */
+const ASKS_FOR: Record<string, string> = { date: "to say when", name: "to name it" };
 
 /**
  * The `/` menu: what you can write and what you can do, beside the caret that asked.
@@ -20,11 +32,16 @@ export const slashOptionId = (base: string, at: number): string => `${base}-opti
  * It never takes focus — the caret stays in the words, and typing keeps narrowing the list, which is
  * the whole difference between this and a dialog. That means the surface below has to lend it its
  * accessibility: `aria-activedescendant` on the textarea points at the row named here.
+ *
+ * It has two states. Choosing a command is a list in two halves — what goes into the words, and what
+ * happens to the note. A command that takes words drops into the second: one row, and everything
+ * underneath given over to what echo makes of what is being typed.
  */
 export const SlashMenu = ({
   id,
   commands,
   active,
+  argument,
   point,
   room,
   reading,
@@ -33,6 +50,8 @@ export const SlashMenu = ({
   id: string;
   commands: readonly SlashCommand[];
   active: number;
+  /** The words being typed for a command that takes some. Null while one is still being chosen. */
+  argument: string | null;
   point: CaretPoint;
   /** How wide the surface is, so a menu opened at the end of a long line stays on screen. */
   room: number;
@@ -51,6 +70,10 @@ export const SlashMenu = ({
 
   // Opens upwards, which is where the writing is not. Downwards only when there is no room above.
   const below = point.top < REACH;
+  const chosen = commands[active];
+  const asking = argument === null && chosen?.takes !== undefined;
+  /** Words are only worth acting on once there are some — until then the strip only prompts. */
+  const ready = argument !== null && argument.trim().length > 0;
 
   return (
     <div
@@ -68,58 +91,88 @@ export const SlashMenu = ({
             {/*
               Divs rather than a list of buttons: a row here is never focused — the caret stays in
               the words, and the textarea points at the current row with `aria-activedescendant`.
-              The keyboard is handled there too, which is why there is no key handler on a row.
+              The keyboard is answered there too, which is why there is no key handler on a row.
             */}
             <div
               ref={list}
               id={id}
               role="listbox"
               aria-label="Commands"
-              className="max-h-56 overflow-y-auto"
+              className="max-h-64 overflow-y-auto"
             >
-              {commands.map((command, at) => (
-                // biome-ignore lint/a11y/useFocusableInteractive: a listbox option under `aria-activedescendant` is never focused — the textarea holds focus throughout
-                // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard is answered by the textarea, which owns the caret and the selection
-                <div
-                  key={command.id}
-                  id={slashOptionId(id, at)}
-                  role="option"
-                  aria-selected={at === active}
-                  data-active={at === active}
-                  // The caret must not leave the words: pressing here is choosing, not focusing.
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onPick(command)}
-                  className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-start transition-colors duration-100 ${
-                    at === active
-                      ? "bg-brand-bright/15 text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60"
-                  }`}
-                >
-                  <command.icon
-                    aria-hidden="true"
-                    className={`size-4 shrink-0 ${at === active ? "text-brand-bright" : ""}`}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm">{command.label}</span>
-                  <span className="shrink-0 font-mono text-[0.6875rem] text-muted-foreground/70">
-                    {command.hint}
-                  </span>
-                </div>
-              ))}
+              {argument !== null
+                ? commands.map((command) => (
+                    <SlashOption
+                      key={command.id}
+                      command={command}
+                      id={id}
+                      at={0}
+                      active
+                      argument={argument}
+                      onPick={() => onPick(command)}
+                    />
+                  ))
+                : GROUPS.map((group) => {
+                    const held = commands.filter(group.holds);
+                    if (held.length === 0) return null;
+                    return (
+                      <div key={group.id} className="pb-0.5 last:pb-0">
+                        <p className="px-2 pt-1.5 pb-1">
+                          <Label>{group.label}</Label>
+                        </p>
+                        {held.map((command) => {
+                          const at = commands.indexOf(command);
+                          return (
+                            <SlashOption
+                              key={command.id}
+                              command={command}
+                              id={id}
+                              at={at}
+                              active={at === active}
+                              argument={null}
+                              onPick={() => onPick(command)}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
             </div>
           </FramePanel>
 
-          <FramePanel className="flex items-center justify-between gap-2 px-2.5 py-1.5">
-            {/* One slot: what echo makes of what is being typed, or how to drive the list. */}
-            {reading === null ? (
-              <p className="flex items-center gap-1.5">
+          <FramePanel className="flex items-center justify-between gap-3 px-2.5 py-1.5">
+            {/*
+              One slot, three things it can be saying: what echo makes of the words being typed,
+              that Enter is about to ask for some, or how to drive the list.
+            */}
+            {reading !== null ? (
+              <>
+                <p className="min-w-0 truncate">
+                  <Label>
+                    <span className="text-foreground/75">{reading}</span>
+                  </Label>
+                </p>
+                {ready ? (
+                  <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                    <CornerDownLeft aria-hidden="true" className="size-3" />
+                    <Label>use</Label>
+                  </span>
+                ) : null}
+              </>
+            ) : asking ? (
+              <p>
                 <Label>
-                  <Kbd>↑</Kbd> <Kbd>↓</Kbd> to choose · <Kbd>↵</Kbd> to use · <Kbd>esc</Kbd>
+                  <Kbd>↵</Kbd>{" "}
+                  <span className="text-foreground/75">
+                    {ASKS_FOR[chosen?.takes ?? ""] ?? "for the next step"}
+                  </span>
                 </Label>
               </p>
             ) : (
-              <p className="min-w-0 truncate">
+              <p>
                 <Label>
-                  <span className="text-foreground/70">{reading}</span>
+                  <Kbd>↑</Kbd> <Kbd>↓</Kbd> choose · <Kbd>↵</Kbd> or <Kbd>space</Kbd> use ·{" "}
+                  <Kbd>esc</Kbd>
                 </Label>
               </p>
             )}
