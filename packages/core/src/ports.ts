@@ -61,7 +61,9 @@ export interface CategoryRepository {
   unassign(noteId: string, categoryId: string): Promise<void>;
 }
 
-export type TaskPatch = Partial<Pick<Task, "title" | "completedAt">> & { updatedAt: Date };
+export type TaskPatch = Partial<Pick<Task, "title" | "completedAt" | "dueAt">> & {
+  updatedAt: Date;
+};
 
 export interface TaskRepository {
   insert(task: Task): Promise<Task>;

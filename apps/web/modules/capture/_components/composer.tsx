@@ -1,17 +1,32 @@
 "use client";
 
+import { deriveTitle } from "@echo/core";
 import type { LearnedRule } from "@echo/learning";
 import { parse } from "@echo/parser";
 import type { Category, LearningEventCreate, Note } from "@echo/types";
-import { CornerDownLeft } from "lucide-react";
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { CalendarClock, CircleDashed, CornerDownLeft } from "lucide-react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
 import { type Answer, SignalChip } from "@/modules/capture/_components/signal-chip";
 import { believes, readSignals, type Signal, signalKey } from "@/modules/capture/signals";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
+import { SlashMenu, slashOptionId } from "@/shared/_components/slash-menu";
 import { useCompletion } from "@/shared/lib/completion";
+import type { SlashCommand } from "@/shared/lib/slash";
+import { numeric } from "@/shared/lib/styles";
+import { formatDue } from "@/shared/lib/time";
+import { useSlash } from "@/shared/lib/use-slash";
 
 const MAX_HEIGHT = 420;
 const DRAFT_SETTLE_MS = 400;
@@ -26,6 +41,16 @@ const PROMPTS = [
 ];
 
 export type CapturedTask = { title: string; dueAt: Date | null };
+
+/**
+ * What the writer asked for outright, with a slash command, as against what echo read in the words.
+ * A command is a statement, so it beats a reading — and it is still one press from gone.
+ */
+type Commanded = { task: boolean; dueAt: Date | null; categories: readonly string[] };
+
+const NOTHING_COMMANDED: Commanded = { task: false, dueAt: null, categories: [] };
+
+const MENU_ID = "composer-commands";
 
 /**
  * The writing surface's own type, given to the textarea and to the suggestion drawn behind it. One
@@ -47,6 +72,7 @@ export const Composer = ({
   rules,
   onCorrect,
   predicted,
+  categories,
   complete,
   undoLabel,
   restore,
@@ -54,13 +80,21 @@ export const Composer = ({
   docked = false,
 }: {
   /** Returns the note synchronously. A task comes with it unless the writer said it was not one. */
-  onCapture: (content: string, task?: CapturedTask, categoryIds?: string[]) => Note;
+  onCapture: (
+    content: string,
+    task?: CapturedTask,
+    categoryIds?: string[],
+    /** Named outright with `/category`. Created where echo has not heard the name before. */
+    categoryNames?: string[],
+  ) => Note;
   /** Fires behind the typing, never in front of it: retrieval is allowed to be late. */
   onDraft: (text: string) => void;
   rules: LearnedRule[];
   onCorrect: (event: LearningEventCreate) => void;
   /** What the notes nearest this draft are labelled with. Empty until there are neighbours to ask. */
   predicted: Category[];
+  /** Every category there is, so `/category` can say whether a name is a new one. */
+  categories: Category[];
   /** Finishes the sentence from the reader's own writing. Absent until the database has opened. */
   complete?: (text: string) => string;
   /** Named when the note just sent can still be taken back, so the way back is on screen. */
@@ -76,8 +110,39 @@ export const Composer = ({
   const [settled, setSettled] = useState<Record<string, Answer>>({});
   /** Labels echo offered and the writer took off. Cleared with the draft, like every other answer. */
   const [declined, setDeclined] = useState<ReadonlySet<string>>(() => new Set());
+  /**
+   * What the writer asked for outright with a slash command, as against what echo read in the
+   * words. Cleared with the draft, like every other answer: the next note is a new note.
+   */
+  const [commanded, setCommanded] = useState<Commanded>(NOTHING_COMMANDED);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const completion = useCompletion(textarea, complete);
+
+  const slash = useSlash({
+    surface: textarea,
+    apply: (text, caret) => {
+      setDraft(text);
+      completion.reset();
+      requestAnimationFrame(() => textarea.current?.setSelectionRange(caret, caret));
+    },
+    run: useCallback((command: SlashCommand, argument: string) => {
+      if (command.action.kind !== "note") return;
+      if (command.action.note === "task") setCommanded((c) => ({ ...c, task: true }));
+      if (command.action.note === "due") {
+        const when = parse(argument).dates[0]?.date ?? null;
+        // A date echo could not read is not a date. Saying so is the chip's job, not a silent no-op.
+        setCommanded((c) => (when === null ? c : { ...c, task: true, dueAt: when }));
+      }
+      if (command.action.note === "category") {
+        const name = argument.trim();
+        if (name.length > 0) {
+          setCommanded((c) =>
+            c.categories.includes(name) ? c : { ...c, categories: [...c.categories, name] },
+          );
+        }
+      }
+    }, []),
+  });
   // Chosen once per visit: a prompt that changed under the cursor would be a distraction.
   const [prompt] = useState(() => PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
 
@@ -114,6 +179,7 @@ export const Composer = ({
     setDraft(text);
     setSettled({});
     setDeclined(new Set());
+    setCommanded(NOTHING_COMMANDED);
     completion.reset();
     onRestored?.();
     const element = textarea.current;
@@ -133,6 +199,28 @@ export const Composer = ({
   }, [draft, onDraft]);
 
   const filled = draft.trim().length > 0;
+
+  /**
+   * What echo makes of the argument being typed, shown under the list. A command that takes words
+   * has to say what it read out of them before it is pressed — `/due sexta` that quietly means
+   * nothing is worse than no command at all.
+   */
+  const reading = useMemo(() => {
+    const query = slash.query;
+    if (query === null || query.argument === null) return null;
+    if (query.name === "due") {
+      const when = parse(query.argument).dates[0];
+      return when ? `Due ${formatDue(when.date)}` : "No date in that yet";
+    }
+    if (query.name === "category") {
+      const name = query.argument.trim();
+      if (name.length === 0) return "Name the category";
+      return categories.some((category) => category.name.toLowerCase() === name.toLowerCase())
+        ? `Add ${name}`
+        : `New category — ${name}`;
+    }
+    return null;
+  }, [slash.query, categories]);
 
   /** What echo will put on this note if the writer says nothing — minus whatever they took off. */
   const offered = predicted.filter((category) => !declined.has(category.id));
@@ -169,21 +257,34 @@ export const Composer = ({
     };
     const when = parsed.deadline ?? parsed.dates[0];
 
+    // A command is a statement and a reading is a guess, so `/task` files one whether or not the
+    // words look like something to do, and `/due` carries its date whatever chrono made of the note.
+    const filed =
+      commanded.task || (task !== undefined && wanted("task-phrase"))
+        ? {
+            title: task?.text ?? deriveTitle(draft),
+            dueAt: commanded.dueAt ?? (when && wanted("deadline-phrase") ? when.date : null),
+          }
+        : undefined;
+
     onCapture(
       draft,
-      task && wanted("task-phrase")
-        ? { title: task.text, dueAt: when && wanted("deadline-phrase") ? when.date : null }
-        : undefined,
+      filed,
       offered.map((category) => category.id),
+      [...commanded.categories],
     );
     setDraft("");
     setSettled({});
     setDeclined(new Set());
+    setCommanded(NOTHING_COMMANDED);
     completion.reset();
     textarea.current?.focus();
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // The menu answers first. While it is open Enter chooses from it, which is the one moment in
+    // this box where Enter does not send — and the line under the box says so while it is true.
+    if (slash.onKeyDown(event)) return;
     // Tab takes the completion and Escape puts it away, both before anything else looks at the key.
     if (completion.onKeyDown(event, setDraft)) return;
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -228,7 +329,7 @@ export const Composer = ({
         <div className="relative">
           <GhostText
             text={draft}
-            suggestion={completion.ghost}
+            suggestion={slash.open ? "" : completion.ghost}
             className={WRITING}
             from={textarea}
           />
@@ -239,16 +340,38 @@ export const Composer = ({
             onChange={(event) => {
               setDraft(event.target.value);
               completion.refresh();
+              slash.refresh();
             }}
             // Fires for the caret moving as well as for typing, which is what keeps a suggestion
-            // from being drawn at the end of a line the caret has left.
-            onSelect={completion.refresh}
+            // from being drawn at the end of a line the caret has left — and what closes the menu
+            // when the caret walks away from the `/` that opened it.
+            onSelect={() => {
+              completion.refresh();
+              slash.refresh();
+            }}
             onKeyDown={onKeyDown}
+            role="combobox"
+            aria-expanded={slash.open}
+            aria-controls={MENU_ID}
+            aria-autocomplete="list"
+            aria-activedescendant={slash.open ? slashOptionId(MENU_ID, slash.active) : undefined}
             rows={1}
             spellCheck={false}
             placeholder={docked ? "Write another…" : "Write anything…"}
             className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
           />
+
+          {slash.open ? (
+            <SlashMenu
+              id={MENU_ID}
+              commands={slash.commands}
+              active={slash.active}
+              point={slash.point}
+              room={textarea.current?.clientWidth ?? 0}
+              reading={reading}
+              onPick={slash.pick}
+            />
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between gap-3 px-5 pb-3">
@@ -271,6 +394,55 @@ export const Composer = ({
                 )}
               </Label>
             </p>
+            {commanded.task ? (
+              <Badge
+                variant="secondary"
+                title="You asked for this to be a task"
+                className="gap-1 font-normal"
+              >
+                <CircleDashed aria-hidden="true" className="size-3" />
+                Task
+                <button
+                  type="button"
+                  aria-label="Not a task after all"
+                  onClick={() => setCommanded((c) => ({ ...c, task: false, dueAt: null }))}
+                  className="-me-1 rounded-full px-1 text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              </Badge>
+            ) : null}
+            {commanded.dueAt ? (
+              <Badge
+                variant="secondary"
+                title="When you said this is due"
+                className={`gap-1 font-normal ${numeric}`}
+              >
+                <CalendarClock aria-hidden="true" className="size-3" />
+                {formatDue(commanded.dueAt)}
+                <button
+                  type="button"
+                  aria-label="Take the due date off"
+                  onClick={() => setCommanded((c) => ({ ...c, dueAt: null }))}
+                  className="-me-1 rounded-full px-1 text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              </Badge>
+            ) : null}
+            {commanded.categories.map((name) => (
+              <CategoryChip
+                key={name}
+                name={name}
+                source="user"
+                onRemove={() =>
+                  setCommanded((c) => ({
+                    ...c,
+                    categories: c.categories.filter((held) => held !== name),
+                  }))
+                }
+              />
+            ))}
             {offered.map((category) => (
               <CategoryChip
                 key={category.id}
@@ -309,7 +481,16 @@ export const Composer = ({
 
       {docked ? null : (
         <p className="text-center text-muted-foreground text-xs">
-          <Kbd>Enter</Kbd> to save · <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> for a new line
+          {slash.open ? (
+            <>
+              <Kbd>Enter</Kbd> to use the command · <Kbd>Esc</Kbd> to keep writing
+            </>
+          ) : (
+            <>
+              <Kbd>Enter</Kbd> to save · <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> for a new line ·{" "}
+              <Kbd>/</Kbd> for commands
+            </>
+          )}
         </p>
       )}
     </div>

@@ -22,6 +22,7 @@ import {
 } from "@/modules/editor/session";
 import { saveCopy } from "@/shared/lib/save-copy";
 import { editorShortcutFor } from "@/shared/lib/shortcuts";
+import type { Filing } from "@/shared/lib/slash";
 
 /** Long enough that crossing the button on the way somewhere else does not open the aside. */
 const HOVER_INTENT_MS = 150;
@@ -37,6 +38,7 @@ const NOTICE_MS = 2600;
 export const EditorMode = ({
   undoableAt,
   onUndo,
+  onFile,
   notes,
   tasks,
   categoriesOf,
@@ -56,6 +58,8 @@ export const EditorMode = ({
   undoableAt: number | undefined;
   /** Takes the app's step back and names it, or null when there was nothing there. */
   onUndo: () => string | null;
+  /** Files what a slash command asked for, against a note that is already in the database. */
+  onFile: (noteId: string, ask: Filing) => Promise<void>;
   notes: Note[];
   /** Every task there is; a pane shows the one its note produced, when its note produced one. */
   tasks: Task[];
@@ -252,6 +256,25 @@ export const EditorMode = ({
     [noteOf, onSave, onCreate],
   );
 
+  /**
+   * A command from a pane. The words are written first: a task cannot belong to a note that is not
+   * there yet, and a tab nobody has typed into is an id and nothing else.
+   */
+  const file = useCallback(
+    async (noteId: string, text: string, ask: Filing) => {
+      await save(noteId, text);
+      await onFile(noteId, ask);
+      say(
+        ask.category !== undefined
+          ? `Filed under ${ask.category}`
+          : ask.dueAt !== undefined
+            ? "Filed as a task, with its date"
+            : "Filed as a task",
+      );
+    },
+    [save, onFile, say],
+  );
+
   const onWrite = useCallback(
     (text: string, line: number) => {
       live.current = { text, line };
@@ -393,6 +416,7 @@ export const EditorMode = ({
                 undoableAt={undoableAt}
                 onUndo={onUndo}
                 onNotice={say}
+                onFile={(noteId, text, ask) => void file(noteId, text, ask)}
               />
             )}
             {preview ? <PreviewPane markdown={watched.text} line={watched.line} /> : null}
@@ -411,6 +435,7 @@ export const EditorMode = ({
                 undoableAt={undoableAt}
                 onUndo={onUndo}
                 onNotice={say}
+                onFile={(noteId, text, ask) => void file(noteId, text, ask)}
               />
             )}
           </>

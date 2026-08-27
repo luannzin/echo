@@ -50,6 +50,13 @@ export const createTaskService = ({
       return task;
     },
 
+    /** When it is due, said outright rather than read out of the words. Null takes the date off. */
+    async setDue(id: string, dueAt: Date | null): Promise<Task> {
+      const task = await repository.update(id, { dueAt, updatedAt: now() });
+      events.emit({ type: "task.updated", task });
+      return task;
+    },
+
     async delete(id: string): Promise<void> {
       await repository.delete(id);
       events.emit({ type: "task.deleted", taskId: id });

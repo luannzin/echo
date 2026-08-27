@@ -19,10 +19,13 @@ import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
+import { SlashMenu, slashOptionId } from "@/shared/_components/slash-menu";
 import { useCompletion } from "@/shared/lib/completion";
 import { isRedoChord, isUndoChord } from "@/shared/lib/shortcuts";
+import type { Filing, SlashCommand } from "@/shared/lib/slash";
 import { numeric } from "@/shared/lib/styles";
 import { formatDue } from "@/shared/lib/time";
+import { useSlash } from "@/shared/lib/use-slash";
 
 /**
  * Given to the textarea and to the suggestion behind it; they only line up while they agree.
@@ -34,6 +37,8 @@ import { formatDue } from "@/shared/lib/time";
  * a page you write on wants anyway. The caret takes the brand colour for the same reason: a full
  * line-height of pure white reads as a bar, and a blue one reads as a cursor.
  */
+const MENU_ID = "pane-commands";
+
 const WRITING =
   "min-h-full w-full flex-1 resize-none bg-transparent px-6 py-4 text-[17px] leading-[1.55] caret-brand-bright";
 
@@ -59,6 +64,7 @@ export const EditorPane = ({
   undoableAt: appUndoAt,
   onUndo,
   onNotice,
+  onFile,
 }: {
   noteId: string;
   /** Missing until the first keystroke makes it real. */
@@ -82,6 +88,11 @@ export const EditorPane = ({
   onUndo?: () => string | null;
   /** Says what a keystroke just did, where the writer can read it. */
   onNotice?: (message: string) => void;
+  /**
+   * Files what a slash command asked for. The note is written first, because a task cannot belong
+   * to a note that is not there yet — a tab nobody has typed into is an id and nothing else.
+   */
+  onFile?: (noteId: string, text: string, ask: Filing) => void;
 }) => {
   const { draft, setDraft, state } = useAutosave(noteId, note?.content ?? "", onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -106,6 +117,36 @@ export const EditorPane = ({
     },
     [noteId, setDraft],
   );
+
+  const slash = useSlash({
+    surface: textarea,
+    apply: (text, caret) => {
+      // Through `edit`, not `setDraft`: a command is a change like any other, and Ctrl Z has to
+      // reach back past it.
+      edit(text, caret);
+      completion.reset();
+      requestAnimationFrame(() => textarea.current?.setSelectionRange(caret, caret));
+    },
+    run: (command: SlashCommand, argument: string, text: string) => {
+      if (command.action.kind !== "note") return;
+      const ask: Filing =
+        command.action.note === "task"
+          ? { task: true }
+          : command.action.note === "due"
+            ? { task: true, dueAt: parse(argument).dates[0]?.date }
+            : { category: argument.trim() };
+      // A date echo cannot read is not a date, and an unnamed category is not a category.
+      if (command.action.note === "due" && ask.dueAt === undefined) {
+        onNotice?.("No date in that yet");
+        return;
+      }
+      if (command.action.note === "category" && ask.category === "") {
+        onNotice?.("Name the category");
+        return;
+      }
+      onFile?.(noteId, text, ask);
+    },
+  });
 
   // Where the caret is, for whatever is following it — the preview, today. Reported from the
   // element rather than from React state because the caret moves without the text changing.
@@ -182,6 +223,21 @@ export const EditorPane = ({
   const deferred = useDeferredValue(draft);
   const read = useMemo(() => parse(deferred), [deferred]);
 
+  /** What echo makes of the argument being typed, said under the list before it is pressed. */
+  const reading = useMemo(() => {
+    const query = slash.query;
+    if (query === null || query.argument === null) return null;
+    if (query.name === "due") {
+      const when = parse(query.argument).dates[0];
+      return when ? `Due ${formatDue(when.date)}` : "No date in that yet";
+    }
+    if (query.name === "category") {
+      const name = query.argument.trim();
+      return name.length === 0 ? "Name the category" : `Add ${name}`;
+    }
+    return null;
+  }, [slash.query]);
+
   const due = task?.dueAt ?? read.deadline?.date ?? null;
   /** Stored beats read: once a task exists, it is what the note *is*, not what it looks like. */
   const stated = task !== undefined;
@@ -252,19 +308,28 @@ export const EditorPane = ({
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <GhostText text={draft} suggestion={completion.ghost} className={WRITING} from={textarea} />
+        <GhostText
+          text={draft}
+          suggestion={slash.open ? "" : completion.ghost}
+          className={WRITING}
+          from={textarea}
+        />
         <textarea
           ref={textarea}
           value={draft}
           onChange={(event) => {
             edit(event.target.value, event.target.selectionStart);
             completion.refresh();
+            slash.refresh();
           }}
           onSelect={() => {
             completion.refresh();
+            slash.refresh();
             report();
           }}
           onKeyDown={(event) => {
+            // The menu answers first: while it is open, Enter is choosing from it.
+            if (slash.onKeyDown(event)) return;
             if (completion.onKeyDown(event, (text) => edit(text, text.length))) return;
             const undoing = isUndoChord(event.nativeEvent);
             if (!undoing && !isRedoChord(event.nativeEvent)) return;
@@ -278,10 +343,27 @@ export const EditorPane = ({
             else putForward();
           }}
           aria-label="Note content"
+          role="combobox"
+          aria-expanded={slash.open}
+          aria-controls={MENU_ID}
+          aria-autocomplete="list"
+          aria-activedescendant={slash.open ? slashOptionId(MENU_ID, slash.active) : undefined}
           placeholder="Write anything…"
           spellCheck={false}
           className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
         />
+
+        {slash.open ? (
+          <SlashMenu
+            id={MENU_ID}
+            commands={slash.commands}
+            active={slash.active}
+            point={slash.point}
+            room={textarea.current?.clientWidth ?? 0}
+            reading={reading}
+            onPick={slash.pick}
+          />
+        ) : null}
       </div>
     </section>
   );

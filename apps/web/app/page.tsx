@@ -822,7 +822,13 @@ const Page = () => {
    * disappears again and the text comes back to the composer.
    */
   const capture = useCallback(
-    (content: string, task?: CapturedTask, categoryIds: string[] = []): Note => {
+    (
+      content: string,
+      task?: CapturedTask,
+      categoryIds: string[] = [],
+      /** Categories the writer named with `/category`, which may not exist yet. */
+      categoryNames: string[] = [],
+    ): Note => {
       const now = new Date();
       const note: Note = {
         id: crypto.randomUUID(),
@@ -873,12 +879,56 @@ const Page = () => {
           for (const categoryId of categoryIds) {
             await echo.categories.assign(note.id, categoryId, "auto");
           }
+          // Named outright rather than read off the neighbours, so these are the writer's own:
+          // filed as `user`, and created where the name is one echo has not heard before.
+          for (const name of categoryNames) {
+            // `create` hands back the category that is already there for a name it has heard, so
+            // there is nothing to look up first and no way to end with two of the same label.
+            const category = await echo.categories.create({ name });
+            setCategories((current) => replace(current, category));
+            await echo.categories.assign(note.id, category.id, "user");
+          }
         })
         .catch(() => setNotes((current) => current.filter((existing) => existing.id !== note.id)));
 
       return note;
     },
     [view, remember],
+  );
+
+  /**
+   * What a slash command asked for, filed against a note that is already in the database. The
+   * simpler mode reaches this: it reads a note's words and never files anything on the strength of
+   * them, but a command is not a reading — it is the writer saying so, and that has always been
+   * enough for echo to act.
+   */
+  const fileCommand = useCallback(
+    async (noteId: string, ask: { task?: true; dueAt?: Date; category?: string }) => {
+      const echo = await getEcho();
+
+      if (ask.category !== undefined) {
+        const category = await echo.categories.create({ name: ask.category });
+        setCategories((current) => replace(current, category));
+        await echo.categories.assign(noteId, category.id, "user");
+        setAssignments(await echo.categories.assignments());
+      }
+
+      if (ask.task === undefined && ask.dueAt === undefined) return;
+
+      const existing = tasksRef.current.find((task) => task.noteId === noteId);
+      const note = notesRef.current.find((held) => held.id === noteId);
+      const task = existing
+        ? ask.dueAt === undefined
+          ? existing
+          : await echo.tasks.setDue(existing.id, ask.dueAt)
+        : await echo.tasks.create({
+            noteId,
+            title: note?.title || "Untitled",
+            dueAt: ask.dueAt ?? null,
+          });
+      setTasks((current) => replace(current, task));
+    },
+    [],
   );
 
   /**
@@ -1345,6 +1395,7 @@ const Page = () => {
   const composer = (docked: boolean) => (
     <Composer
       onCapture={capture}
+      categories={categories}
       onDraft={findRelated}
       rules={rules}
       onCorrect={correct}
@@ -1458,6 +1509,7 @@ const Page = () => {
       <EditorMode
         undoableAt={undoStack.at(-1)?.at}
         onUndo={undo}
+        onFile={fileCommand}
         notes={notes}
         tasks={tasks}
         categoriesOf={conceptsOf}

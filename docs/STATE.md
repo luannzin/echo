@@ -1,7 +1,7 @@
 # STATE
 
 Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
-rebuild, E1**
+rebuild, E1, E2**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -669,12 +669,62 @@ characters.
 registered and permitted but have never been through a real `cargo build` — that needs
 `bun run dev:desktop`.
 
+### E2 — Slash commands
+A `/` menu in both writing surfaces. Notion's gesture over echo's material: choosing a heading writes
+`# `, not a style — so a note is still the characters somebody typed, survives being copied out or
+exported to a file, and there is no second representation to keep in step with the words.
+
+- **`shared/lib/slash.ts` is the whole of it, and it is pure.** The command list, reading what has
+  been typed after a `/`, matching it, and applying it. No React, so it is tested directly.
+- **A `/` only opens the menu at the start of a line or after a space.** Mid-word it is a date, a
+  fraction or a path — `06/08`, `packages/core`, `and/or` — and a menu over those is a menu in the
+  way. A space closes it, because `/n something` is a sentence; `/due` and `/category` are the two
+  exceptions, and only for the rest of that line.
+- **Matched on the start of a word, never inside one.** On a substring `/h` offered the divider and
+  the to-do, because both happen to contain the letter. Keywords carry both languages, so `/titulo`
+  finds the heading and `/tarefa` finds the to-do.
+- **Nine commands write markdown** — three heading levels, to-do, bulleted and numbered lists,
+  quote, code fence, divider. A prefix goes on the line wherever on it the command was typed, and
+  asking twice does not stack `## ` under a `# `. A fence puts the caret on the empty line between
+  its own backticks.
+- **Three change what the note *is* rather than what it says.** `/task`, `/due <when>` and
+  `/category <name>` take their own words back out of the note and leave the rest alone. `/due` reads
+  its argument with `@echo/parser`, so `sexta` and `friday` both work, and the menu says what it read
+  before the key is pressed — a command that quietly means nothing is worse than no command.
+- **Enter chooses while the menu is open**, and the line under the composer says so for exactly as
+  long as it is true. That is the one moment in that box where Enter does not send.
+- **The menu never takes focus.** The caret stays in the words and typing keeps narrowing the list,
+  which is the whole difference between this and a dialog. The surface lends it its accessibility:
+  the textarea carries `role="combobox"` and `aria-activedescendant`, and the rows are listbox
+  options that are pointed at rather than focused. It is a coss `Frame`, beside the caret —
+  `shared/lib/caret-point.ts` lays the same text out in a hidden copy to find out where that is,
+  because a textarea will not say.
+- **The simpler mode files now.** Its rule was "nothing here files a task or a label"; it is now
+  "nothing here *guesses*". A command is the writer saying so, and that has always been enough for
+  echo to act — so `/task` in a pane writes the note first (a task cannot belong to a note that is
+  not there yet) and then files it, and the header says which. `TaskService` gained `setDue` for the
+  note that already had a task.
+- In the composer nothing is stored before Enter, so a command sets an intent instead: a solid chip
+  beside the read ones, one press from gone, merged with the reading at commit. A command beats a
+  reading — `/task` files one whether or not the words look like something to do.
+- A command is an edit like any other in the simpler mode: it goes through the same `edit` the
+  keyboard does, so Ctrl Z reaches back past it.
+- Tests: 17 new in `slash.test.ts` over opening, closing, matching and applying. 231 pass overall.
+
+Verified in the running app, full mode: `/` opened the twelve commands with `aria-expanded` and
+`aria-activedescendant` set; `/h` narrowed to the three headings and ⌄ + Enter wrote `## ` without
+sending the note; Escape closed the menu and left the text; `/due friday` read *Due Tomorrow* under
+the list and filed a `Task` + `Tomorrow` chip; `/category deploy notes` read *New category — deploy
+notes*, and sending the note created the category, tagged it, and put the task in Tasks as *ship the
+parser · Tomorrow*.
+
+**Not verified: the simpler mode's half.** The menu, `/task`, `/due` and `/category` in an editor
+pane are written and typecheck, but the dev server died mid-session (`write EPIPE` in its own log,
+unrelated to this work) and they have not been driven. That is the next thing to look at.
+
 ## In progress
-- **E2 — slash commands.** Not started, and not specced: a `/` menu that writes markdown rather than
-  styling it, plus echo's own commands (`/task`, `/category`, `/due`) that change what a note *is*
-  without changing what it says. It has to work in the composer as well as in the simpler mode,
-  which is where the hard question lives — the composer commits on Enter, and a menu that is open
-  wants the same key. Still open from Phase 5: whether projects should be their
+- **E2's simpler-mode half is unverified.** Written, typechecked, and never driven — see above.
+  Still open from Phase 5: whether projects should be their
   own entity — the brief is the first thing in the product that treats a folder as a project, so
   that decision has evidence behind it now rather than only a shape.
 
