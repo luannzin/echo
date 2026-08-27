@@ -11,7 +11,8 @@ import { useEffect, useRef, useState } from "react";
  * rather than a `<video autoplay>` a server could have rendered.
  *
  * The poster is the first frame, so the section is finished the moment it paints: nothing here is
- * gated on the video having downloaded, let alone on it having played.
+ * gated on the video having downloaded, let alone on it having played. It is cropped to the same
+ * 16:9 box the video is, by the same rule, so the swap from poster to first frame moves nothing.
  */
 export const ReelPlayer = ({
   poster,
@@ -52,27 +53,35 @@ export const ReelPlayer = ({
   };
 
   return (
-    <div className="panel relative">
-      <video
-        ref={video}
-        poster={poster}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label={label}
-        className="block h-auto w-full"
-      >
-        {sources.map((source) => (
-          <source key={source.type} src={source.src} type={source.type} />
-        ))}
-      </video>
+    <div className="relative">
+      <div className="panel reel-frame">
+        <video
+          ref={video}
+          poster={poster}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-label={label}
+          className="reel-video"
+        >
+          {sources.map((source) => (
+            <source key={source.type} src={source.src} type={source.type} />
+          ))}
+        </video>
+      </div>
 
+      {/*
+       * The control is a sibling of the frame rather than a child of it, because the frame is masked
+       * out at the bottom and a mask hides an element without taking it out of the reader's way: at
+       * the foot of the picture this button would have been invisible and still clickable, still
+       * focusable and still read out. It sits at the head instead, where the picture is opaque.
+       */}
       <button
         type="button"
         onClick={toggle}
         aria-pressed={playing}
-        className="press label absolute bottom-3 end-3 border rule-carbon bg-carbon/85 px-3 py-2 text-quiet backdrop-blur-sm transition-colors hover:text-ink"
+        className="press label absolute top-3 end-3 border rule-carbon bg-carbon/85 px-3 py-2 text-quiet backdrop-blur-sm transition-colors hover:text-ink"
       >
         {playing ? "Pause" : "Play"}
       </button>

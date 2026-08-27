@@ -224,6 +224,42 @@
   }
 
   /*
+   * The reel, in the shape the page reserves for it.
+   *
+   * 16:9 because that is the proportion a reader already knows the size of before the first frame
+   * arrives, and because the box has to be right at paint whatever the file behind it is. The
+   * capture is 1280x800, so `object-fit: cover` takes ten percent of its height rather than
+   * letterboxing the one moving picture on the page.
+   *
+   * The crop is anchored at the head, so the whole of it comes off the foot: the top of the
+   * recording is the application's own header, which is where a reader looks first to work out what
+   * they are being shown, and a centred crop was shaving it. The bottom of a window that already
+   * fades out over its last half is the part with nothing to lose. Replace the file with a 16:9
+   * recording and the crop becomes a no-op; nothing here changes with it.
+   */
+  .reel-video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  /*
+   * The recording ends by becoming the spectrum rather than by stopping on a line.
+   *
+   * The mask runs the last of the frame out into the colour coming up off the floor of the section,
+   * so the two read as one light source instead of a plate dropped on a background. The shadow
+   * `.panel` draws goes with it: a mask clips at the border box, and a shadow lives entirely outside
+   * it, so keeping it would have put a hard rectangle under a picture whose whole point is not
+   * having an edge. The border stays — the part of the frame still opaque is still a frame.
+   */
+  .reel-frame {
+    box-shadow: none;
+    mask-image: linear-gradient(to bottom, black 0%, black 54%, transparent 97%);
+  }
+
+  /*
    * A screenshot, framed like a panel.
    *
    * The hand-drawn demos are the app repainted in the site's tokens; a shot is the app itself, at
@@ -394,6 +430,15 @@
     .tour-shot {
       transform: perspective(1600px) rotateY(-7deg) rotateX(0.75deg);
       transform-origin: left center;
+      /*
+       * And it leaves the column the way the reel leaves its section. The fade runs down the
+       * diagonal — opaque at the top corner nearest the points, gone by the bottom trailing one —
+       * so the edge furthest from the reader dissolves into the field instead of ending on a rule
+       * a column and a half away from the sentence that named it. Only here: narrow, the screen
+       * sits square under its own point and a corner faded to nothing would be eating the capture.
+       */
+      box-shadow: none;
+      mask-image: linear-gradient(to bottom left, black 30%, transparent 92%);
     }
 
     .tour-pick[data-tour="1"]:checked ~ * .tour-panel[data-tour="1"],
@@ -570,6 +615,7 @@
 
     .tour-shot {
       transform: none;
+      mask-image: none;
     }
   }
 }

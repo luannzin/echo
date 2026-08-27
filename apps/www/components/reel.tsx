@@ -17,6 +17,10 @@ const SOURCES = [
  * floor of the section and dissolves back into the field before the top of it, so the page gains a
  * light source rather than a second background — and it is a layer of its own, out of the flow, so
  * the section's rhythm stays the page's.
+ *
+ * The recording meets it halfway: it is opaque through the half a reader is reading and runs out
+ * into the colour below that, so the two are one light rather than a plate lying on a background.
+ * See `.reel-frame` and `.reel-video` in `app/globals.css`.
  */
 export const Reel = () => (
   <section id="reel" className="relative scroll-mt-24 overflow-hidden py-20 md:py-32">
