@@ -620,8 +620,33 @@ palette command rather than a schema.
   `writeTextFile` on the desktop, the download the browser already knows how to do on the web. Two
   Tauri plugins arrived with it (`dialog`, `fs`, scoped to `$HOME/**`) and with nothing else. It is
   in the palette whenever a note is open, and in editor mode's header.
-- Tests: 13 new (`markdown.test.ts` 7 over lines, block offsets and the active block,
-  `session.test.ts` 3 over the closed stack, `save-copy.test.ts` 3 over filenames). 201 pass overall.
+- **Ctrl Z takes the words back, and it is one timeline with everything else.** The browser's own
+  undo stack belongs to the textarea element, and this mode remounts that element under a new key on
+  every tab change — so native undo was empty the moment you came back to a note, which is exactly
+  when you reach for it. Measured that way before it was replaced. `modules/editor/history.ts` keeps
+  a history per note outside React, 200 steps deep, and it outlives the mount: leave a note, come
+  back, and what you erased is still one press away. A reload starts over, the way a text editor's
+  does.
+- **A step is a burst, not a keystroke.** It breaks where a person feels one — after 450ms of quiet,
+  when the change was larger than a character (a paste, a selection replaced, a stretch erased), or
+  when writing turned into erasing. So one press takes back a word rather than a letter, and an
+  erasure is always its own step. The caret comes back with the words.
+- **Nothing outranks anything: the most recent thing wins.** A deleted note and an erased paragraph
+  are two things that happened, so both sides carry a timestamp — `Undoable` gained `at`, stamped in
+  `remember`, and `undoableAt(history)` answers for the words. The pane compares them and the later
+  one is what the keystroke means. The old `undoClaimed` capture — "a note that just went owns Ctrl
+  Z until you type" — is still what the full app uses, and is no longer a rule the simpler mode has
+  to obey. Verified both ways round: write then delete gives the note back first, delete then write
+  gives the words back first.
+- **It says what it just did**, in the header, live, and re-announced when the same thing happens
+  twice: *Took back — Deploy checklist*, *Put back what you erased*, *Took back what you wrote*,
+  *Put it back*, *Nothing left to take back*. Named for what the writer did rather than for what the
+  step does — being told "took back" while words appear on screen reads as a bug.
+- Ctrl ⇧ Z and Ctrl Y put it forward again. Only the words have a way forward: nothing the app takes
+  back can be put back by a keystroke.
+- Tests: 26 new (`markdown.test.ts` 7 over lines, block offsets and the active block,
+  `history.test.ts` 13 over step-breaking, walking, branching and depth, `session.test.ts` 3 over the
+  closed stack, `save-copy.test.ts` 3 over filenames). 214 pass overall.
 
 Verified in the running app with the desktop gate forced on: the writing surface measured at 17px
 over 26.35px with a brand-coloured caret; a note holding a heading, a paragraph with bold, code and
@@ -629,8 +654,12 @@ a link, a task list, a quote, a fence, a table and a rule rendered as eight bloc
 0/2/4/7/9/13/17/19 — exactly the lines they occupy in the note — with the marker tracking the caret
 across all of them; Ctrl T opened a tab, Ctrl 1 went back, Ctrl W closed and remembered it, Ctrl
 Shift T brought it back and emptied the stack, and closing every tab left one blank writable page.
-In the full app the palette's "Save a copy as a file" produced a blob download named
-`Pooler note for the export check.md`. `bun run build` still exports the same five static routes.
+Undo was driven against a real corpus: three separated bursts came back one press each, a stretch
+erased out of the middle came back whole, the history survived a tab change and back — the thing
+that was broken — and interleaving a delete with an edit walked the merged timeline in both orders,
+naming each step in the header. In the full app the palette's "Save a copy as a file" produced a
+blob download named `Pooler note for the export check.md`. `bun run build` still exports the same
+five static routes.
 
 **Fixed while verifying:** marked keeps a `checkbox` token in a task item's own tokens as well as
 flagging the item, so every checklist line rendered its `[ ]` twice — once as a box and once as the

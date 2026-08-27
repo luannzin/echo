@@ -35,6 +35,8 @@ const NOTICE_MS = 2600;
  * cost of rendering the full frame just to hide it.
  */
 export const EditorMode = ({
+  undoableAt,
+  onUndo,
   notes,
   tasks,
   categoriesOf,
@@ -46,6 +48,14 @@ export const EditorMode = ({
   onDelete,
   onLeave,
 }: {
+  /**
+   * When the app's own next undo step happened — a note deleted, a note just sent. Ctrl Z is one
+   * timeline, so the pane compares it against its own last edit and the later of the two wins.
+   * Absent when the app has nothing to take back.
+   */
+  undoableAt: number | undefined;
+  /** Takes the app's step back and names it, or null when there was nothing there. */
+  onUndo: () => string | null;
   notes: Note[];
   /** Every task there is; a pane shows the one its note produced, when its note produced one. */
   tasks: Task[];
@@ -70,7 +80,8 @@ export const EditorMode = ({
   const [preview, setPreview] = useState(false);
   /** What the preview is drawing, and the line it is following. Only fed while it is open. */
   const [watched, setWatched] = useState({ text: "", line: 0 });
-  const [notice, setNotice] = useState<string | null>(null);
+  /** Carries when it was said, so saying the same thing twice reads as twice. */
+  const [notice, setNotice] = useState<{ text: string; at: number } | null>(null);
   const intent = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * The words in the pane right now, ahead of autosave. Kept in a ref rather than in state because
@@ -176,8 +187,9 @@ export const EditorMode = ({
   }, []);
 
   const say = useCallback((message: string) => {
-    setNotice(message);
-    setTimeout(() => setNotice((current) => (current === message ? null : current)), NOTICE_MS);
+    const at = performance.now();
+    setNotice({ text: message, at });
+    setTimeout(() => setNotice((current) => (current?.at === at ? null : current)), NOTICE_MS);
   }, []);
 
   const exportCopy = useCallback(async () => {
@@ -294,12 +306,13 @@ export const EditorMode = ({
         {/* One slot, saying what just happened and then going quiet. Live, because a save dialog
             takes the eye away from the header it will report back to. */}
         <p
+          key={notice?.at}
           aria-live="polite"
           className={`shrink-0 whitespace-nowrap text-muted-foreground text-xs transition-opacity duration-200 ${
             notice === null ? "opacity-0" : "animate-settle opacity-100"
           }`}
         >
-          {notice}
+          {notice?.text}
         </p>
 
         <Button
@@ -377,6 +390,9 @@ export const EditorMode = ({
                 onSave={save}
                 onFocus={() => setFocused(0)}
                 onWrite={onWrite}
+                undoableAt={undoableAt}
+                onUndo={onUndo}
+                onNotice={say}
               />
             )}
             {preview ? <PreviewPane markdown={watched.text} line={watched.line} /> : null}
@@ -392,6 +408,9 @@ export const EditorMode = ({
                 complete={complete}
                 onSave={save}
                 onFocus={() => setFocused(1)}
+                undoableAt={undoableAt}
+                onUndo={onUndo}
+                onNotice={say}
               />
             )}
           </>

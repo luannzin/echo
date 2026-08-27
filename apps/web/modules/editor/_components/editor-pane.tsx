@@ -5,12 +5,22 @@ import type { Note, Task } from "@echo/types";
 import { CalendarClock, CircleCheck, CircleDashed } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import {
+  type History,
+  historyOf,
+  keepHistory,
+  record,
+  redo,
+  undo,
+  undoableAt,
+} from "@/modules/editor/history";
 import { lineAtOffset } from "@/modules/editor/markdown";
 import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
 import { useCompletion } from "@/shared/lib/completion";
+import { isRedoChord, isUndoChord } from "@/shared/lib/shortcuts";
 import { numeric } from "@/shared/lib/styles";
 import { formatDue } from "@/shared/lib/time";
 
@@ -46,6 +56,9 @@ export const EditorPane = ({
   onSave,
   onFocus,
   onWrite,
+  undoableAt: appUndoAt,
+  onUndo,
+  onNotice,
 }: {
   noteId: string;
   /** Missing until the first keystroke makes it real. */
@@ -63,10 +76,36 @@ export const EditorPane = ({
   onFocus: () => void;
   /** Told what is written and which line the caret is on. Only given when something is watching. */
   onWrite?: (text: string, line: number) => void;
+  /** When the app's own next undo step happened. Absent when it has nothing to take back. */
+  undoableAt?: number;
+  /** Takes the app's step back and names it. */
+  onUndo?: () => string | null;
+  /** Says what a keystroke just did, where the writer can read it. */
+  onNotice?: (message: string) => void;
 }) => {
   const { draft, setDraft, state } = useAutosave(noteId, note?.content ?? "", onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const completion = useCompletion(textarea, complete);
+
+  /**
+   * This note's own undo history, taken from outside the component so that walking away to another
+   * tab and back does not empty it. The browser's stack belongs to the textarea element, and this
+   * pane is remounted under a new key on every tab change — which is precisely when someone reaches
+   * for Ctrl Z.
+   */
+  const history = useRef<History>(
+    historyOf(noteId, note?.content ?? "", (note?.content ?? "").length),
+  );
+
+  /** Every change a person made, which is the only kind worth being able to take back. */
+  const edit = useCallback(
+    (text: string, caret: number) => {
+      history.current = record(history.current, { text, caret }, Date.now());
+      keepHistory(noteId, history.current);
+      setDraft(text);
+    },
+    [noteId, setDraft],
+  );
 
   // Where the caret is, for whatever is following it — the preview, today. Reported from the
   // element rather than from React state because the caret moves without the text changing.
@@ -74,6 +113,52 @@ export const EditorPane = ({
     const element = textarea.current;
     if (element) onWrite?.(element.value, lineAtOffset(element.value, element.selectionStart));
   }, [onWrite]);
+
+  /** Puts a step from the history on screen, caret and all. False when there was no step to take. */
+  const walk = useCallback(
+    (next: History | null): boolean => {
+      if (next === null) return false;
+      history.current = next;
+      keepHistory(noteId, next);
+      setDraft(next.present.text);
+      completion.reset();
+      // After the state has landed: setting the range against the old value drops the caret in the
+      // middle of words that are no longer there.
+      requestAnimationFrame(() => {
+        const element = textarea.current;
+        if (!element) return;
+        element.setSelectionRange(next.present.caret, next.present.caret);
+        report();
+      });
+      return true;
+    },
+    [noteId, setDraft, completion.reset, report],
+  );
+
+  /**
+   * Ctrl Z, arbitrated. There is no ranking between a note that was deleted and a paragraph that
+   * was erased — they are two things that happened, and the keystroke undoes whichever happened
+   * last. Both sides are asked when they happened; the later one answers.
+   */
+  const takeBack = useCallback(() => {
+    const mine = undoableAt(history.current);
+    if (mine !== null && (appUndoAt === undefined || mine >= appUndoAt)) {
+      // Named for what the writer did, not for what the step does: taking back an erasure puts
+      // words on the screen, and being told "took back" while words appear reads as a bug.
+      const erased = history.current.past.at(-1);
+      const putting = (erased?.text.length ?? 0) > history.current.present.text.length;
+      walk(undo(history.current));
+      onNotice?.(putting ? "Put back what you erased" : "Took back what you wrote");
+      return;
+    }
+    const label = onUndo?.() ?? null;
+    onNotice?.(label === null ? "Nothing left to take back" : `Took back — ${label}`);
+  }, [appUndoAt, onUndo, onNotice, walk]);
+
+  /** Only the words have a way forward: nothing the app takes back can be put back by a keystroke. */
+  const putForward = useCallback(() => {
+    onNotice?.(walk(redo(history.current)) ? "Put it back" : "Nothing to put forward");
+  }, [walk, onNotice]);
 
   // Typing, and the first paint after the preview is opened on a note already full of words.
   useEffect(() => {
@@ -172,14 +257,26 @@ export const EditorPane = ({
           ref={textarea}
           value={draft}
           onChange={(event) => {
-            setDraft(event.target.value);
+            edit(event.target.value, event.target.selectionStart);
             completion.refresh();
           }}
           onSelect={() => {
             completion.refresh();
             report();
           }}
-          onKeyDown={(event) => completion.onKeyDown(event, setDraft)}
+          onKeyDown={(event) => {
+            if (completion.onKeyDown(event, (text) => edit(text, text.length))) return;
+            const undoing = isUndoChord(event.nativeEvent);
+            if (!undoing && !isRedoChord(event.nativeEvent)) return;
+            // Always taken from the browser, even when there is nothing left to take back: its own
+            // stack and this one would otherwise disagree about what the note said. Stopped from
+            // the window too, because the page holds the same chord and this pane has just decided
+            // between them.
+            event.preventDefault();
+            event.stopPropagation();
+            if (undoing) takeBack();
+            else putForward();
+          }}
           aria-label="Note content"
           placeholder="Write anything…"
           spellCheck={false}

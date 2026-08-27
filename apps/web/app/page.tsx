@@ -89,6 +89,12 @@ type Undoable = {
   kind: "capture" | "delete";
   /** What is coming back, for the reader to read before they press it. */
   label: string;
+  /**
+   * When it happened. Ctrl Z is one timeline: the simpler mode keeps its own history of the words
+   * in the box, and neither side outranks the other — whichever happened last is what the keystroke
+   * means.
+   */
+  at: number;
   revert: () => Promise<void>;
 };
 
@@ -789,12 +795,12 @@ const Page = () => {
    * see `Undoable` — and the stack is trimmed from the front, so a long session forgets its oldest
    * mistakes rather than growing without end.
    */
-  const remember = useCallback((entry: Undoable) => {
+  const remember = useCallback((entry: Omit<Undoable, "at">) => {
     if (entry.kind === "delete") undoClaimed.current = true;
     setUndoStack((current) => {
       const kept =
         entry.kind === "capture" ? current.filter((held) => held.kind !== "capture") : current;
-      return [...kept, entry].slice(-UNDO_DEPTH);
+      return [...kept, { ...entry, at: Date.now() }].slice(-UNDO_DEPTH);
     });
   }, []);
 
@@ -802,11 +808,12 @@ const Page = () => {
    * Takes the last step back, whatever it was. Popped before it is reverted: reverting is a write,
    * and a second press while the first is still in flight must not take the same step twice.
    */
-  const undo = useCallback(() => {
+  const undo = useCallback((): string | null => {
     const last = undoStackRef.current.at(-1);
-    if (!last) return;
+    if (!last) return null;
     setUndoStack((current) => current.slice(0, -1));
     void last.revert();
+    return last.label;
   }, []);
 
   /**
@@ -1449,6 +1456,8 @@ const Page = () => {
   if (editorMode) {
     return (
       <EditorMode
+        undoableAt={undoStack.at(-1)?.at}
+        onUndo={undo}
         notes={notes}
         tasks={tasks}
         categoriesOf={conceptsOf}

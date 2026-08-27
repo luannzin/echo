@@ -41,6 +41,13 @@ export const isUndoChord = (event: KeyboardEvent): boolean =>
   !event.altKey &&
   event.key.toLowerCase() === "z";
 
+/** The way back from a Ctrl Z. Both spellings, because desktop editors answer both. */
+export const isRedoChord = (event: KeyboardEvent): boolean => {
+  if (!(onMac() ? event.metaKey : event.ctrlKey) || event.altKey) return false;
+  const key = event.key.toLowerCase();
+  return (event.shiftKey && key === "z") || (!event.shiftKey && key === "y");
+};
+
 /**
  * Which shortcut a key press is, or null for the overwhelming majority that are simply someone
  * writing. Single-letter shortcuts never fire while text is being typed.
