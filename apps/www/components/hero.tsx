@@ -5,13 +5,11 @@ const beat = (ms: number) => ({ "--beat": `${ms}ms` }) as React.CSSProperties;
 
 export const Hero = () => (
   <section id="top" className="relative overflow-hidden">
-    {/* The plate is the hero's only image now, so it is allowed to be large and to run off the edge. */}
-    <Engraving
-      plate="burst"
-      className="pointer-events-none absolute -top-1/4 -right-1/3 hidden size-[82vw] opacity-25 md:block"
-    />
-
-    <div className="shell relative py-16 md:min-h-[70vh] md:content-center md:py-24">
+    {/*
+     * The phone keeps room under the copy for the plate to occupy. The plate is out of the flow at
+     * every width, so that room has to be real padding rather than the height of the picture.
+     */}
+    <div className="shell relative z-10 pt-16 pb-44 md:min-h-[70vh] md:content-center md:py-24">
       {/*
        * The measure is the headline's, not the container's. Without the demo beside it the copy had
        * the whole shell to spread across, and a 92px display line running 900px wide stops reading
@@ -54,5 +52,19 @@ export const Hero = () => (
         </div>
       </div>
     </div>
+
+    {/*
+     * One plate, two jobs, and always out of the flow so it can never push the copy down.
+     *
+     * On a phone it is anchored to the foot of the hero and masked so it fades in from nothing under
+     * the subtitle, which is what makes it read as light coming up from the bottom of the section
+     * rather than as a picture somebody dropped in. From `md` it moves to the top right and goes
+     * back to being the large plate behind the type. The shell carries `z-10` at both sizes, so the
+     * plate stays behind the words despite coming after them in the markup.
+     */}
+    <Engraving
+      plate="burst"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[34vh] w-full opacity-[0.13] [mask-image:linear-gradient(to_bottom,transparent,black_55%,black_88%,transparent)] md:inset-x-auto md:-top-1/4 md:-right-1/3 md:bottom-auto md:h-[82vw] md:w-[82vw] md:opacity-25 md:[mask-image:none]"
+    />
   </section>
 );
