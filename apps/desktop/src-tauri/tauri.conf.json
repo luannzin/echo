@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "echo",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "identifier": "com.luannzin.echo",
   "build": {
     "frontendDist": "../../web/out",

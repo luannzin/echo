@@ -34,7 +34,12 @@ export type PaletteGroup = { value: string; items: PaletteRow[] };
 export const describePass = (pass: SearchPass | null, model: EmbedderStatus): string => {
   if (pass === null || pass.results.length === 0) return "Searched on this device";
   if (pass.stage === "meaning") return "Words and meaning";
-  if (model.state === "loading") return `Words · meaning at ${Math.round(model.progress * 100)}%`;
+  // The native runtime cannot count its own download, so there is a wait to report and no fraction
+  // to report it with. Saying so beats rounding an absence to zero percent.
+  if (model.state === "loading")
+    return model.progress === undefined
+      ? "Words · meaning still arriving"
+      : `Words · meaning at ${Math.round(model.progress * 100)}%`;
   if (model.state === "unavailable") return "Words only — the model could not be loaded";
   return "Words · meaning in a moment";
 };

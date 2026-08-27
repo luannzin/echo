@@ -6,7 +6,14 @@ export const EMBEDDING_DIMENSIONS = 384;
  */
 export type EmbedderStatus =
   | { state: "idle" }
-  | { state: "loading"; progress: number }
+  /**
+   * `progress` is absent where the runtime cannot measure itself. The browser runtime fetches the
+   * weights and counts the bytes as they land; the desktop's native one hands the download to the
+   * model library and is told only that it finished. An interface can honestly say "loading" in
+   * both cases, and a fraction in only one of them — a hardcoded zero would render as a bar that
+   * never moves, which reads as broken rather than as busy.
+   */
+  | { state: "loading"; progress?: number }
   | { state: "ready" }
   | { state: "unavailable"; reason: string };
 

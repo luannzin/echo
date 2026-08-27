@@ -8,7 +8,9 @@ import {
 } from "@echo/learning";
 import { createVectorIndex } from "@echo/search";
 import { createWorkerEmbedder } from "@/shared/lib/embedder";
+import { createTauriEmbedder } from "@/shared/lib/embedder.tauri";
 import { createRetrieval, type Retrieval } from "@/shared/lib/retrieval";
+import { isDesktopApp } from "@/shared/lib/tauri";
 
 /** Notes still waiting to be embedded; 0 means the derived data has caught up. */
 export type AnalysisState = { pending: number; failed: boolean; error?: string };
@@ -38,7 +40,13 @@ const open = async (): Promise<EchoRuntime> => {
   ]);
   const { repositories, lexical } = await openBrowserRepositories();
   const echo = createEcho({ repositories });
-  const embedder = createWorkerEmbedder();
+  /**
+   * Where the model runs is a fact about the engine, not a preference. WebKitGTK leaks tens of
+   * megabytes per inference and never gives them back; the same model in the same loop is flat
+   * under Chromium. So the desktop runs it natively and the website goes on running it in a worker,
+   * which is the arrangement each engine can actually afford.
+   */
+  const embedder = isDesktopApp() ? createTauriEmbedder() : createWorkerEmbedder();
 
   // Every vector, resident for the life of the session: they are derived, bounded by the note count,
   // and re-reading them per query was the most expensive thing the app did. Filling it is not

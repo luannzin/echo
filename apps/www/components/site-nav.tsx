@@ -1,7 +1,7 @@
 import { REPO } from "@/components/links";
 
 const links = [
-  { label: "What it does", href: "#write" },
+  { label: "What it does", href: "#reel" },
   { label: "How it runs", href: "#facts" },
   { label: "GitHub", href: REPO },
 ];

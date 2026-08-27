@@ -32,10 +32,10 @@ export const Hero = () => (
 
         <div className="beat mt-9 flex flex-wrap items-center gap-3" style={beat(290)}>
           <a
-            href="#write"
+            href="#reel"
             className="press label border rule-ink bg-ink px-5 py-3 text-brand transition-colors hover:bg-brand-deep hover:text-ink"
           >
-            See it working ↓
+            Watch it working ↓
           </a>
           <a
             href="#install"

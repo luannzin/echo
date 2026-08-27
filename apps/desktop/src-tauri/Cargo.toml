@@ -13,11 +13,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+fastembed = { version = "6", default-features = false, features = ["ort-download-binaries-rustls-tls", "hf-hub-rustls-tls"] }
 tauri = { version = "2", features = [] }
 # Saving a copy of a note to disk: the dialog asks where, the filesystem writes it. Each Tauri
 # plugin arrives with the feature that asked for it — these two arrived with "Save a copy".
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [profile.release]
 opt-level = "s"

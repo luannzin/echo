@@ -1,5 +1,5 @@
+import { Engraving } from "@/components/engraving";
 import { InstallBox } from "@/components/install-box";
-import { TerminalDemo } from "@/components/terminal-demo";
 
 const requirements = [
   ["Bun 1.3 or newer", "That is the entire list for the web app."],
@@ -35,8 +35,19 @@ export const RunIt = () => (
         </div>
       </div>
 
-      <div className="min-w-0">
-        <TerminalDemo />
+      {/*
+       * The plate, not a picture of a terminal. The commands are already on the left, in a box that
+       * copies them; drawing them a second time as a window that types itself was the same three
+       * lines twice. This is ground: an engraved orb on the field, screened through the same dither
+       * every other plate on the page is printed with, and drifting on its own travel through the
+       * viewport.
+       */}
+      <div className="relative min-w-0">
+        <Engraving
+          plate="orb"
+          className="parallax ms-auto aspect-square w-full max-w-[34rem] opacity-30 [mask-image:radial-gradient(closest-side,black_58%,transparent)]"
+          style={{ "--parallax": "5%", "--parallax-scale": "1.06" } as React.CSSProperties}
+        />
       </div>
     </div>
   </section>

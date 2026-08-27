@@ -20,6 +20,16 @@
   /* brand-bright measures 3.8:1 on carbon: enough for a caret or a rule, not for a word. */
   --color-brand-lit: oklch(72% 0.19 264);
 
+  /*
+   * The spectrum. One band on the page where the field stops being blue, so the reel reads as
+   * something lit rather than as another panel dropped on the same ground. Declared here with
+   * everything else, because no component on this page carries a colour of its own.
+   */
+  --color-spectrum-violet: oklch(52% 0.29 300);
+  --color-spectrum-magenta: oklch(60% 0.26 350);
+  --color-spectrum-ember: oklch(72% 0.19 48);
+  --color-spectrum-cyan: oklch(74% 0.16 205);
+
   --ease-out-quart: cubic-bezier(0.23, 1, 0.32, 1);
 
   --font-sans: var(--font-geist-sans);
@@ -171,42 +181,6 @@
     overflow: hidden;
   }
 
-  /*
-   * A textarea that grows with what is written in it, with no measure-and-set effect and no
-   * ResizeObserver: the wrapper is a one-cell grid, its ::after holds the same string, and the two
-   * share the cell. The copy is what sets the height; the box just fills it. `field-sizing: content`
-   * will delete this whole rule the day Firefox ships it.
-   */
-  .grow {
-    display: grid;
-  }
-
-  .grow::after {
-    content: attr(data-value) " ";
-    visibility: hidden;
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
-  }
-
-  .grow > textarea,
-  .grow::after {
-    grid-area: 1 / 1 / 2 / 2;
-    font: inherit;
-    font-family: var(--font-sans);
-    font-size: 1.0625rem;
-    line-height: 1.7;
-    overflow: hidden;
-    border: 0;
-    padding: 0;
-  }
-
-  @media (width >= 48rem) {
-    .grow > textarea,
-    .grow::after {
-      font-size: 1.15rem;
-    }
-  }
-
   /* The press feedback every hand-rolled control on this page owes the reader. */
   .press {
     transition: transform 140ms var(--ease-out-quart);
@@ -214,6 +188,136 @@
 
   .press:active {
     transform: scale(0.975);
+  }
+
+  /*
+   * The one band where the field stops being blue.
+   *
+   * Five radial gradients rather than a blur: a radial gradient is already smooth, and blurring a
+   * band this size costs a full-screen filter on every paint to arrive at the same picture. The
+   * mask is what keeps it a band — it has to come out of the blue and go back into it, or the page
+   * gains a second background colour and an edge to explain.
+   */
+  .spectrum {
+    background-image:
+      radial-gradient(72% 96% at 4% 34%, var(--color-brand-bright), transparent 62%),
+      radial-gradient(66% 92% at 26% 92%, var(--color-spectrum-violet), transparent 60%),
+      radial-gradient(62% 96% at 48% 12%, var(--color-spectrum-magenta), transparent 58%),
+      radial-gradient(64% 94% at 72% 90%, var(--color-spectrum-ember), transparent 58%),
+      radial-gradient(70% 96% at 100% 26%, var(--color-spectrum-cyan), transparent 62%);
+    /*
+     * It sits on the floor of the section and dissolves upwards into the field. Weighted to the
+     * bottom rather than centred, so it reads as light coming up from under the product instead of
+     * a band floating in the middle of the page. The few percent of fade at the very bottom is not
+     * a second band: the section clips its own overflow, and without it the colour ends on a ruled
+     * horizontal line across the page.
+     */
+    mask-image: linear-gradient(to top, transparent 0%, black 7%, black 22%, transparent 90%);
+  }
+
+  /*
+   * A screenshot, framed like a panel.
+   *
+   * The hand-drawn demos are the app repainted in the site's tokens; a shot is the app itself, at
+   * the density it was taken at. Both sit in the same frame so the page has one idea of what a
+   * piece of the application looks like when it is dropped on the field.
+   */
+  .shot > img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /*
+   * Four points, one stage, and no JavaScript: the radios are the state.
+   *
+   * A radio group is already a single-select control with arrow keys, a focus ring and a name a
+   * screen reader can read out, so building tabs out of buttons here would mean re-implementing
+   * every one of those. Hidden panels go to `visibility: hidden`, not opacity alone, so the three
+   * that are not on stage are out of the accessibility tree rather than invisible and still read.
+   */
+  .tour-pick {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .tour-point {
+    border-inline-start: 2px solid transparent;
+    opacity: 0.62;
+    transition:
+      opacity 220ms var(--ease-out-quart),
+      border-color 220ms var(--ease-out-quart);
+  }
+
+  .tour-point:hover {
+    opacity: 0.85;
+  }
+
+  .tour-panel {
+    grid-area: 1 / 1 / 2 / 2;
+    visibility: hidden;
+    opacity: 0;
+    transition:
+      opacity 320ms var(--ease-out-quart),
+      visibility 320ms;
+  }
+
+  /*
+   * The screen on stage is let go at two of its edges.
+   *
+   * It is a screen being pointed at, not a document being read: the point of it is the shape and the
+   * density of the thing, and the sentence beside it has already said what is in it. So it loses its
+   * frame — a border and a shadow describe a rectangle, and after the turn in `tour.tsx` there is no
+   * rectangle left to describe — and fades out at the bottom and the left rather than stopping at an
+   * edge. The fade takes the last third and no more; past that the screen stops being legible at
+   * all, which is a decoration rather than a demonstration.
+   */
+  .tour-panel .shot {
+    mask-image:
+      linear-gradient(to left, black 60%, transparent 97%),
+      linear-gradient(to bottom, black 66%, transparent 98%);
+    mask-composite: intersect;
+  }
+
+  /*
+   * The input and the two things it drives carry the same `data-tour`, so a point and its screen
+   * are matched by name rather than by counting elements — adding a fifth point is one more input
+   * and one more pair, not a renumbering.
+   */
+  .tour-pick[data-tour="1"]:checked ~ * .tour-point[data-tour="1"],
+  .tour-pick[data-tour="2"]:checked ~ * .tour-point[data-tour="2"],
+  .tour-pick[data-tour="3"]:checked ~ * .tour-point[data-tour="3"],
+  .tour-pick[data-tour="4"]:checked ~ * .tour-point[data-tour="4"] {
+    border-inline-start-color: var(--color-ink);
+    opacity: 1;
+  }
+
+  .tour-pick[data-tour="1"]:checked ~ * .tour-panel[data-tour="1"],
+  .tour-pick[data-tour="2"]:checked ~ * .tour-panel[data-tour="2"],
+  .tour-pick[data-tour="3"]:checked ~ * .tour-panel[data-tour="3"],
+  .tour-pick[data-tour="4"]:checked ~ * .tour-panel[data-tour="4"] {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* Motion on this page is opt-in, and a cross-fade is motion like any other. */
+  @media (prefers-reduced-motion: reduce) {
+    .tour-point,
+    .tour-panel {
+      transition: none;
+    }
+  }
+
+  /* The input is off screen, so the ring it would have drawn has to land on the label instead. */
+  .tour-pick[data-tour="1"]:focus-visible ~ * .tour-point[data-tour="1"],
+  .tour-pick[data-tour="2"]:focus-visible ~ * .tour-point[data-tour="2"],
+  .tour-pick[data-tour="3"]:focus-visible ~ * .tour-point[data-tour="3"],
+  .tour-pick[data-tour="4"]:focus-visible ~ * .tour-point[data-tour="4"] {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -254,49 +358,6 @@
         to {
           opacity: 1;
           transform: none;
-        }
-      }
-
-      /*
-       * A session assembles as it is scrolled into view. Each line takes its own slice of the
-       * element's travel through the viewport, so the terminal types itself, answers itself and
-       * then holds, and scrolling back up rewinds it rather than replaying it.
-       */
-      .cue {
-        animation: cue linear both;
-        animation-timeline: view();
-        animation-range: entry var(--cue-from, 12%) entry var(--cue-to, 60%);
-      }
-
-      @keyframes cue {
-        from {
-          opacity: 0;
-          transform: translate3d(0, 6px, 0);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
-      }
-
-      /*
-       * Typing, as a clip rather than as a string: the element already holds the whole line, so a
-       * browser that cannot scrub it shows the finished sentence instead of an empty box. steps()
-       * is what makes it land character by character rather than wipe.
-       */
-      .cue-keys {
-        animation: keys linear both;
-        animation-timeline: view();
-        animation-range: entry var(--cue-from, 12%) entry var(--cue-to, 40%);
-        animation-timing-function: steps(var(--keys, 40));
-      }
-
-      @keyframes keys {
-        from {
-          clip-path: inset(0 100% 0 0);
-        }
-        to {
-          clip-path: inset(0 0 0 0);
         }
       }
 
@@ -342,32 +403,6 @@
         transform: translate3d(0, 14px, 0);
       }
     }
-
-    /*
-     * Typing, as a clip: the element holds the whole line and the line is revealed left to right.
-     * steps() is what makes it land character by character rather than wipe across.
-     */
-    .keys {
-      clip-path: inset(0 0 0 0);
-      transition: clip-path var(--keys-dur, 1200ms) steps(var(--keys, 40)) var(--keys-delay, 0ms);
-    }
-
-    @starting-style {
-      .keys {
-        clip-path: inset(0 100% 0 0);
-      }
-    }
-
-    .caret {
-      animation: caret 1s steps(1) infinite;
-      animation-delay: var(--keys-delay, 0ms);
-    }
-
-    @keyframes caret {
-      50% {
-        opacity: 0;
-      }
-    }
   }
 
   /*
@@ -377,18 +412,25 @@
    */
   @media print {
     .beat,
-    .keys,
-    .cue,
-    .cue-keys,
     .reveal,
     .parallax,
-    .drift,
-    .caret {
+    .drift {
       opacity: 1;
       transform: none;
       clip-path: none;
       animation: none;
       transition: none;
+    }
+
+    /* Three of the four screens are off stage on a display. On paper they all belong in the flow. */
+    .tour-panel {
+      grid-area: auto;
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .tour-panel .shot {
+      mask-image: none;
     }
   }
 }
