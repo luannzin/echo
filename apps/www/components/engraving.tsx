@@ -1,8 +1,8 @@
 /**
  * The imagery.
  *
- * Nothing here is a photograph. Each plate is drawn from a loop — rays, latitudes, a spiral, a
- * ruled field — in greyscale, and the dither filter turns it into print. That keeps the site at a
+ * Nothing here is a photograph. Each plate is drawn from a loop (rays, latitudes, a spiral, a
+ * ruled field) in greyscale, and the dither filter turns it into print. That keeps the site at a
  * few kilobytes of vector instead of a folder of images, and it means the art is generated at the
  * resolution it is displayed at rather than resampled to it.
  */

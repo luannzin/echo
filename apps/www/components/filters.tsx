@@ -7,7 +7,7 @@
  * printer used, which is why the output reads as newsprint rather than as a gradient.
  *
  * The two colours come out of `feFlood`, and `flood-color` reads the same custom properties the
- * rest of the site is painted with — so a token change repaints the engravings too, and no filter
+ * rest of the site is painted with, so a token change repaints the engravings too, and no filter
  * carries a hex value of its own.
  */
 

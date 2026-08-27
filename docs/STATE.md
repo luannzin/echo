@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-08-26 · Phase: **6 complete, two fixes passes, editor mode, plus S1–S4**
+Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing rebuild**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -449,19 +449,19 @@ the Inbox" — the plan was rebuilt from an override map that had never been see
 just moved had an entry. `planFiling` now takes where a note is bound rather than a whole
 `Destination`, and the map is seeded when the plan is made.
 
-### Landing page — `apps/www`
+### Landing page (`apps/www`)
 - A second Next app, static export, port 3001. No `@echo/*` dependency: the site has no database, no
   parser and nothing to compile from the domain. Its brand tokens are re-declared in its own
   `app/globals.css` rather than imported, so the app's chrome and the site's field move apart.
 - The imagery is generated, not photographed: `components/engraving.tsx` draws six greyscale plates
   from loops (rays, latitudes, a spiral, a ruled field, a mesh, a wave) and `components/filters.tsx`
-  prints them through an ordered 8x8 Bayer threshold — `feImage` + `feTile` + a discrete transfer —
+  prints them through an ordered 8x8 Bayer threshold (`feImage` + `feTile` + a discrete transfer)
   or a dot screen for halftone. Both colours come out of `feFlood` reading the same custom properties
   the page is painted with, so no filter or component holds a hex value.
 - Motion is scroll-driven CSS (`animation-timeline: view()`): plate parallax inside the feature and
   platform cards, a reveal on each card, and a horizontal drift on the wordmark band. No scroll
   listener, no observer, no motion library, and all of it inside
-  `@media (prefers-reduced-motion: no-preference)` — a browser without view timelines gets the
+  `@media (prefers-reduced-motion: no-preference)`. A browser without view timelines gets the
   finished state, which is the design either way.
 - Film grain over the whole page: one turbulence tile, `mix-blend-mode: overlay`.
 - One client component (`install-box.tsx`) for the tab state and the clipboard; everything else is a
@@ -469,10 +469,70 @@ just moved had an entry. `planFiling` now takes where a note is bound rather tha
   link is the repository.
 
 Verified: `bun run lint` clean, `bun run --cwd apps/www typecheck` clean, `bun run --cwd apps/www
-build` exports three static routes. Read at 1440px and 390px — no horizontal scroll on the phone
+build` exports three static routes. Read at 1440px and 390px, with no horizontal scroll on the phone
 (the hero column needs `min-w-0` or the longest install command sets the page width), and the
 platform card labels measure 5.6:1 against the brightest part of the plate behind them, display type
 4.3:1.
+
+### Landing page rebuild: demonstrations instead of feature cards
+Critiqued at 23/40 (`.impeccable/critique/2026-08-27T00-17-54Z__apps-www-app-page-tsx.md`) and
+rebuilt against it. The blue field, the dither engine, the mono micro-labels and the no-hex token
+discipline stayed; the structure did not.
+
+- **The page had no product in it.** Zero images, zero video, zero canvas. Thirteen SVGs, every one
+  an abstract plate. A reader had to build the composer, the palette, the Inbox and the Related panel
+  in their own head from prose. Six feature cards and a platform triptych are gone; four
+  demonstrations replaced them, each one a piece of the running application: the composer parsing a
+  note as it is typed, the palette pulling `notes about cache in HEREZE` apart into a project chip
+  and `16 set aside`, `HEREZE` returning three `Deadlands` notes with the belief named and refusable
+  underneath, and the Inbox plan naming the two notes that argued for `Prod`. Every string in them is
+  one the running app produced, taken from the S1–S4 verification paragraphs above.
+- **They are markup, not screenshots** (`components/panel.tsx` plus `components/*-demo.tsx`). The
+  app's own surface tokens moved into the site's theme (`carbon`, `carbon-lift`, `quiet`, `faint`,
+  `brand-lit`), so a demo is sharp at any density, repaints with the tokens and costs kilobytes.
+- **Six paragraphs of body copy were set at 11px, uppercase, tracked 0.18em.** Measured, not
+  estimated. All-caps removes word-shape, which is the strongest cue in fluent reading, and this was
+  the most-read text on the page. Body copy is `prose-lede` / `prose-body` now: sentence-case sans,
+  capped at 46ch and 62ch. `label` carries one to three words and nothing longer.
+- **The terminal is the session, typing itself.** Three commands and what they answer, each line
+  taking its own slice of one `view()` timeline, so it types as it is scrolled to and holds when it
+  is read. It sits beside the copyable commands and the prerequisites it used to leave unstated:
+  Bun 1.3, no `.env`, and the ~120 MB model that arrives once and only gates search by meaning.
+- **The hero cannot be blank.** `.beat` and `.keys` are transitions out of `@starting-style`, not
+  keyframes with a backwards fill: the declared state is the finished one, so a background tab whose
+  document timeline is frozen, a print, or a headless renderer shows the hero rather than nothing.
+  Verified in the running page: with every animation fast-forwarded, no element is left at opacity 0.
+  `@media print` settles the rest, declared last in the layer rather than with `!important`.
+- **The clipboard failure is no longer silent.** A refused `navigator.clipboard` write said nothing
+  and left the button reading "Copy"; it now says so, in a live region, and points at the text.
+- **Contrast is measured, not eyeballed.** Every text node on the page audited by compositing its
+  colour over its real background stack in a canvas: 39 distinct pairings, zero below their WCAG
+  threshold, lowest 4.69:1 at 11px. Four tokens moved to get there (`ink/70` and `ink/75` → `ink/85`,
+  `brand/55` → `brand/70`).
+- **Two-column layouts start at `lg`, not `md`.** At 768 the showcase grid was handing the text column
+  249px, which is a 49px heading over a 30-character measure.
+- **The hero's composer is a real box.** It types itself once and is then a textarea a visitor can
+  write in: the word count, the task chip and the day chip all answer what is typed, through
+  `components/note-signals.ts`, a short deterministic stand-in for `@echo/parser`, because the site
+  has no workspace dependencies and cannot use the real one. A screenshot of a composer asks to be
+  believed; a composer answers. Nothing typed is stored, sent, or lifted into page state. It grows
+  with the writing through the replicated-content grid trick (`.grow`), so there is no
+  measure-and-set effect and no observer, and its 17px type is above the threshold that makes iOS
+  zoom on focus. Verified by driving it: 21 words with a task phrase and `tomorrow` gave `Task` +
+  `Due tomorrow` and grew the box to two lines, a `- [ ]` prefix gave `Task` alone, a note with
+  neither gave no chips, and empty read `0 words`.
+- The examples are a working programmer's corpus now (caching in Payments, `k8s ≈ kubernetes`, a
+  pooler note bound for Prod) rather than the author's own project names. The counts, chips and
+  reason sentences keep the exact shape the app produced in the S1–S4 verifications; only the note
+  titles changed.
+- Deliberately not done: a hosted demo. Everything still converts to `git clone`, which is the
+  largest remaining conversion loss on the page and a deploy rather than a design. `apps/web` is a
+  static export with no server and no account, so it is a folder of files away from having a URL.
+
+Verified: `bun run lint` clean, `bun run --cwd apps/www typecheck` clean, `bun run --cwd apps/www
+build` exports the same three static routes. Read at 1440, 1280, 768 and 375 with no horizontal
+overflow at any of them, and no console output.
+
 
 ## In progress
 - Nothing. All four sub-projects are done. Still open from Phase 5: whether projects should be their

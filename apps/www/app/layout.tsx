@@ -7,7 +7,7 @@ import "./globals.css";
 const sans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
-/** Display face, hero type only — the same one the application uses for its rare large type. */
+/** Display face, hero type only: the same one the application uses for its rare large type. */
 const display = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
@@ -15,9 +15,9 @@ const display = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "echo — the note taker that learns with you",
+  title: "echo · the note taker that learns with you",
   description:
-    "Open source, local-first note taking. Search, organisation and learning run on your machine. No account, no API key, no server.",
+    "Write one line and press Enter. echo reads the deadline, the task and the words you keep using, and gets better at handing them back. Open source, and all of it runs on your machine: no account, no API key, no server.",
 };
 
 export const viewport: Viewport = {
@@ -25,7 +25,10 @@ export const viewport: Viewport = {
 };
 
 const SiteLayout = ({ children }: { children: ReactNode }) => (
-  <html lang="en" className={`${sans.variable} ${mono.variable} ${display.variable}`}>
+  <html
+    lang="en"
+    className={`${sans.variable} ${mono.variable} ${display.variable} overflow-x-hidden`}
+  >
     <body className="bg-brand text-ink font-sans">
       <Filters />
       {children}
