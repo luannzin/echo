@@ -87,6 +87,17 @@ export const createNoteService = ({
       return this.update(id, { archivedAt: null });
     },
 
+    /**
+     * Puts a deleted note back exactly as it was — same id, same folder, same day it was written.
+     * The undo of a delete, and the only thing that may set a note's own timestamps: `create` stamps
+     * the clock because a new note is new, and a note coming back is not.
+     */
+    async reinstate(note: Note): Promise<Note> {
+      const restored = await repository.insert(note);
+      events.emit({ type: "note.created", note: restored });
+      return restored;
+    },
+
     async delete(id: string): Promise<void> {
       await repository.delete(id);
       events.emit({ type: "note.deleted", noteId: id });

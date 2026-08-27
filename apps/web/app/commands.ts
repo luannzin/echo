@@ -30,7 +30,8 @@ export const paletteCommands = ({
   unfiledCount: number;
   navigationOpen: boolean;
   intelligenceOpen: boolean;
-  undoable: boolean;
+  /** What the next Ctrl Z takes back, named. Absent when there is nothing to take back. */
+  undoable: string | undefined;
   onView: (view: View) => void;
   onNewFolder: () => void;
   onNewCategory: () => void;
@@ -89,18 +90,18 @@ export const paletteCommands = ({
     keywords: "create category label tag topic",
     run: onNewCategory,
   },
-  ...(undoable
-    ? [
+  ...(undoable === undefined
+    ? []
+    : [
         {
-          id: "undo-capture",
-          label: "Take back the last note",
+          id: "undo",
+          label: `Take back — ${undoable}`,
           icon: Undo2,
-          shortcut: shortcutLabel("undo-capture"),
-          keywords: "undo delete remove revert",
+          shortcut: shortcutLabel("undo"),
+          keywords: "undo delete remove revert restore",
           run: onUndo,
         },
-      ]
-    : []),
+      ]),
   {
     id: "notes-panel",
     label: navigationOpen ? "Hide the note list" : "Show the note list",

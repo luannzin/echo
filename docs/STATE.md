@@ -60,6 +60,20 @@ survive from IndexedDB, list ordered newest-first, no console errors.
 - Home is a composer, not a document: a big always-focused text area, no "New note" button
   anywhere. Enter commits, Shift+Enter is a new line, and nothing is written to the database before
   the writer commits — no empty notes accumulate.
+- Deleting really deletes — a note, its labels, its task and its vector, by cascade. The way back is
+  the undo stack, never an archive nobody asked for. Reachable from the note list's context menu, the
+  open note's header, and the simpler mode's aside. Not from a stream row: two thousand rows each
+  wrapped in a menu is a cost the stream cannot pay for a gesture the list beside it already offers.
+- **Ctrl Z walks back through the session**, not just off the last note sent (`Undoable` in
+  `app/page.tsx`, 25 deep). Every reversible thing pushes a step and undo pops one, so three deletes
+  take three presses. A capture is the one kind that does not stack: taking one back hands its words
+  to the composer, and taking back an older one would need the composer holding two drafts at once,
+  so a second capture replaces the first. Reading a note or changing view expires the pending
+  capture and leaves the deletes alone — a delete is not a moment, it is something that happened.
+- **A note that just went claims Ctrl Z from the box under the cursor**, and hands it back the
+  moment the reader types (`undoClaimed`, cleared by a window `input` listener). Without it the
+  simpler mode has no undo at all: deleting from the aside hands focus straight back to a pane with
+  words in it, and `shortcutFor` can only see the box the keystroke came from.
 - Committing opens the saved note in the editor with autosave; Esc or "Back to writing" returns to
   the composer.
 - `apps/web` is a **static export** (`output: "export"`) — no server, no hydration mismatch, and
@@ -193,7 +207,9 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   split opens onto the neighbouring tab, or onto the same note when there is no other.
 - **The aside** slides over rather than taking width, so opening it never reflows the words someone
   is mid-sentence in. Flat list, every note, and no field to narrow it: finding a note by what it
-  says is the palette's job and it is one keystroke away. Rows carry `content-visibility`.
+  says is the palette's job and it is one keystroke away. Rows carry `content-visibility`, and a
+  right-click deletes — the tab goes with the note, and Ctrl Z brings both the note and its labels
+  back.
 - **A strip above the words** says what the note is beyond them: whether it is a task, when it is
   due, what it is labelled with. It is always there, empty or not — one appearing on the first
   "todo" would push the line being written down the screen mid-sentence. Stored beats read: a filed
@@ -214,7 +230,9 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   a browser.
 - **The note fills the pane.** No measure: a 68ch column is right for reading a stream, and a text
   editor is a page you write on, so the window's own width is the measure.
-- The desktop window opens at 960×700 rather than 1280×820.
+- The desktop window opens at 960×700 rather than 1280×820, and `zoomHotkeysEnabled` gives it
+  ctrl +/- zoom. On Linux and macOS that is a polyfill Tauri injects, so it needs
+  `core:webview:allow-set-webview-zoom` in `capabilities/default.json` to have anything to call.
 - **It opens in the mode it was closed in**, without passing through the other one. This is a static
   export, so the prerendered shell is on screen before React loads and nothing inside React can stop
   it — a blocking script in `layout.tsx`'s head sets `data-echo-mode` on `<html>`, one rule in
@@ -275,6 +293,11 @@ personal vocabulary, S3 query understanding, S4 project memory — each gets its
 - **The analyzer has two independent queues.** Reading time needs no model, so a fresh install has a
   working timeline long before the first vector exists, and a model that never loads never holds it
   up. Same contract as the embedding pass: the queue is the database, so a failure costs a retry.
+- **The model does not stay resident.** The embedding worker ends 60s after the last request and is
+  rebuilt from the browser's cache on the next one (`shared/lib/embedder.ts`). A WebAssembly heap
+  only ever grows and nothing inside the worker can hand any of it back; ending the worker hands
+  back all of it, and the analyzer works in bursts with hours of nothing between them. The published
+  status is left alone on purpose — it says the model is *available*, not that it is loaded.
 - **Both queues wait for the notes to stop moving** (`settleMs`, 4s). Autosave writes every half
   second of quiet, and every write used to start a full pass: writing one long note re-embedded it
   dozens of times and only the last vector was ever the note. The passes are derived from the notes

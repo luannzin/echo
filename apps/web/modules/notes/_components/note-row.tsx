@@ -1,7 +1,7 @@
 "use client";
 
 import type { Note } from "@echo/types";
-import { FolderInput, Inbox } from "lucide-react";
+import { FolderInput, Inbox, Trash2 } from "lucide-react";
 import { memo } from "react";
 import {
   ContextMenu,
@@ -32,6 +32,7 @@ export const NoteRow = memo(
     onPreview,
     onDrag,
     onMove,
+    onDelete,
   }: {
     note: Note;
     /** Every folder, named and ordered once by the list rather than once per row. */
@@ -42,6 +43,7 @@ export const NoteRow = memo(
     onPreview: (noteId: string | null) => void;
     onDrag: (noteId: string | null) => void;
     onMove: (noteId: string, folderId: string | null) => void;
+    onDelete: (note: Note) => void;
   }) => {
     const elsewhere = places.filter((choice) => choice.id !== note.folderId);
 
@@ -102,6 +104,13 @@ export const NoteRow = memo(
                 {choice.label}
               </ContextMenuItem>
             ))}
+            <ContextMenuItem closeOnClick onClick={() => onDelete(note)} variant="destructive">
+              <Trash2 aria-hidden="true" />
+              Delete note
+            </ContextMenuItem>
+            <MenuNote>
+              Gone from the database, labels and task with it. Ctrl Z puts it back.
+            </MenuNote>
           </ContextMenuPopup>
         </ContextMenu>
       </li>

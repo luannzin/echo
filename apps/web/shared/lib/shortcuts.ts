@@ -9,7 +9,7 @@ export type Shortcut =
   | "organize"
   | "toggle-notes"
   | "toggle-intelligence"
-  | "undo-capture";
+  | "undo";
 
 export const shortcutLabel = (shortcut: Shortcut, mac = onMac()): string => {
   const mod = mac ? "⌘" : "Ctrl";
@@ -26,10 +26,20 @@ export const shortcutLabel = (shortcut: Shortcut, mac = onMac()): string => {
       return `${mod} B`;
     case "toggle-intelligence":
       return `${mod} I`;
-    case "undo-capture":
+    case "undo":
       return `${mod} Z`;
   }
 };
+
+/**
+ * Ctrl Z — or ⌘ Z — wherever it came from. Whether it means the app's last step or the words in the
+ * box under the cursor is a question about what just happened, which only the caller knows.
+ */
+export const isUndoChord = (event: KeyboardEvent): boolean =>
+  (onMac() ? event.metaKey : event.ctrlKey) &&
+  !event.shiftKey &&
+  !event.altKey &&
+  event.key.toLowerCase() === "z";
 
 /**
  * Which shortcut a key press is, or null for the overwhelming majority that are simply someone
@@ -47,7 +57,7 @@ export const shortcutFor = (event: KeyboardEvent): Shortcut | null => {
     if (key === "b" && !event.shiftKey) return "toggle-notes";
     if (key === "i" && !event.shiftKey) return "toggle-intelligence";
     // Inside a box with words in it, undo means the words.
-    if (key === "z" && !event.shiftKey && !holdingText(event.target)) return "undo-capture";
+    if (key === "z" && !event.shiftKey && !holdingText(event.target)) return "undo";
     return null;
   }
 

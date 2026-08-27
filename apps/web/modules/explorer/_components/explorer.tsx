@@ -39,6 +39,7 @@ export const Explorer = ({
   onDeleteFolder,
   onMoveFolder,
   onMoveNote,
+  onDeleteNote,
   categories,
   categoryCountOf,
   selectedCategoryId,
@@ -72,6 +73,7 @@ export const Explorer = ({
   onDeleteFolder: (folderId: string) => void;
   onMoveFolder: (folderId: string, parentId: string | null) => void;
   onMoveNote: (noteId: string, folderId: string | null) => void;
+  onDeleteNote: (note: Note) => void;
   categories: Category[];
   categoryCountOf: (categoryId: string) => number;
   /** `undefined` means the list is not being narrowed to one label. */
@@ -249,6 +251,7 @@ export const Explorer = ({
           onPreview={onPreviewNote}
           onDrag={dragNote}
           onMove={onMoveNote}
+          onDelete={onDeleteNote}
         />
       </div>
     </div>

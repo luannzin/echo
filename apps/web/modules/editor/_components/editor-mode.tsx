@@ -34,6 +34,7 @@ export const EditorMode = ({
   complete,
   onSave,
   onCreate,
+  onDelete,
   onLeave,
 }: {
   notes: Note[];
@@ -49,6 +50,8 @@ export const EditorMode = ({
   onSave: (noteId: string, content: string) => Promise<void>;
   /** Called with the id the tab already carries, the first time someone types into a new note. */
   onCreate: (noteId: string, content: string) => Promise<void>;
+  /** Really deletes. The page owns the undo, so Ctrl Z works from this mode too. */
+  onDelete: (note: Note) => void;
   onLeave: () => void;
 }) => {
   const [session, setSession] = useState<Session>([]);
@@ -268,6 +271,12 @@ export const EditorMode = ({
         open={asideOpen}
         activeId={panes[0]}
         onOpenNote={open}
+        // The tab goes with the note. Undoing the delete puts the note back but not the tab, which
+        // is right: a tab is where you were looking, and you were not looking at it when it went.
+        onDeleteNote={(note) => {
+          close(note.id);
+          onDelete(note);
+        }}
         onDismiss={() => setAsideOpen(false)}
       />
     </div>

@@ -19,6 +19,7 @@ export const NoteList = ({
   onPreview,
   onDrag,
   onMove,
+  onDelete,
 }: {
   /** Where the list is looking: every note, or the folder being shown. */
   title: string;
@@ -34,6 +35,8 @@ export const NoteList = ({
   /** A note being picked up, or `null` when it is put down. The tree needs to know either way. */
   onDrag: (noteId: string | null) => void;
   onMove: (noteId: string, folderId: string | null) => void;
+  /** Really deletes. The reader's way back is Ctrl Z, not an archive nobody asked for. */
+  onDelete: (note: Note) => void;
 }) => {
   const headingId = useId();
   // Named and sorted once for the whole list. Every row offers the same set of destinations, and
@@ -74,6 +77,7 @@ export const NoteList = ({
                 onPreview={onPreview}
                 onDrag={onDrag}
                 onMove={onMove}
+                onDelete={onDelete}
               />
             ))}
           </ul>

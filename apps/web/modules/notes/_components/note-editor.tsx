@@ -1,7 +1,7 @@
 "use client";
 
 import type { Category, Note } from "@echo/types";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Kbd } from "@/components/ui/kbd";
 import { Concepts } from "@/modules/intelligence/_components/concepts";
@@ -30,6 +30,7 @@ export const NoteEditor = ({
   complete,
   onSave,
   onClose,
+  onDelete,
   onAddCategory,
   onCreateCategory,
   onRemoveCategory,
@@ -48,6 +49,8 @@ export const NoteEditor = ({
   complete?: (text: string) => string;
   onSave: (noteId: string, content: string) => Promise<void>;
   onClose: () => void;
+  /** Really deletes, and closes behind itself. Ctrl Z is the way back. */
+  onDelete: (note: Note) => void;
   onAddCategory: (noteId: string, categoryId: string) => void;
   onCreateCategory: (noteId: string, name: string) => void;
   onRemoveCategory: (noteId: string, categoryId: string) => void;
@@ -97,6 +100,17 @@ export const NoteEditor = ({
               <Label>{SAVE_STATE_LABEL[state]}</Label>
             </span>
           )}
+          {/* Quiet until pointed at, because it is the one control here that cannot be shrugged off
+              — and it is one keystroke from being undone, which is what earns it a place at all. */}
+          <button
+            type="button"
+            onClick={() => onDelete(note)}
+            aria-label="Delete note"
+            title="Delete this note. Ctrl Z puts it back."
+            className="rounded-md p-1 text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring hover:text-destructive"
+          >
+            <Trash2 aria-hidden="true" className="size-3.5" />
+          </button>
         </div>
       </div>
       {/* What the note is about, under where it lives. Both are metadata; only one is a decision

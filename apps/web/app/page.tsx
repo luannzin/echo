@@ -51,7 +51,7 @@ import { folderPaths } from "@/shared/lib/folder-paths";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import type { Suggestion } from "@/shared/lib/retrieval";
 import { registerServiceWorker } from "@/shared/lib/service-worker";
-import { shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
+import { isUndoChord, shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
 import { isDesktopApp } from "@/shared/lib/tauri";
 import { navigate, noteRow } from "@/shared/lib/transition";
 
@@ -75,6 +75,24 @@ const upsert = (notes: Note[], note: Note): Note[] => {
   if (at === -1) return [...without, note];
   return [...without.slice(0, at), note, ...without.slice(at)];
 };
+
+/**
+ * One step Ctrl Z takes back. Every reversible thing the reader does pushes one, so undo walks
+ * backwards through a session rather than only ever forgiving the last note sent.
+ *
+ * A capture is the exception that does not stack: taking one back hands its words to the composer,
+ * and taking back an older one would need the composer to be holding two drafts at once. So a
+ * second capture replaces the first — a note is only ever "just sent" once.
+ */
+type Undoable = {
+  kind: "capture" | "delete";
+  /** What is coming back, for the reader to read before they press it. */
+  label: string;
+  revert: () => Promise<void>;
+};
+
+/** Deep enough to cover a session's mistakes, shallow enough that nothing is held for ever. */
+const UNDO_DEPTH = 25;
 
 /** Which note a concept was taken off. The lesson is about this note, not about the word. */
 const conceptKey = (noteId: string, concept: string): string =>
@@ -125,10 +143,11 @@ const Page = () => {
   const [together, setTogether] = useState<CoOpens>(() => new Map());
 
   /**
-   * The note just sent, and the words it was made of. Capture commits with a single keystroke and
-   * nothing asks whether you meant it — which is only fair if the same gesture undoes.
+   * What Ctrl Z takes back, newest last. Capture commits with a single keystroke and nothing asks
+   * whether you meant it; deleting asks nothing either. Both are only fair if the same gesture undoes
+   * — and undoes further back than the last thing that happened.
    */
-  const [undoable, setUndoable] = useState<{ id: string; content: string } | null>(null);
+  const [undoStack, setUndoStack] = useState<Undoable[]>([]);
   /** Text on its way back to the composer. `at` changes so the same note can be undone twice. */
   const [restore, setRestore] = useState<{ text: string; at: number } | undefined>(undefined);
 
@@ -155,7 +174,15 @@ const Page = () => {
   const placesRef = useRef<Place[]>([]);
   const anchorsRef = useRef<ReturnType<typeof buildAnchors>>(new Map());
   const togetherRef = useRef<CoOpens>(new Map());
-  const undoableRef = useRef<{ id: string; content: string } | null>(null);
+  const undoStackRef = useRef<Undoable[]>([]);
+  /**
+   * Whether Ctrl Z means the app rather than the words in the box under the cursor. Something the
+   * reader deleted is what the keystroke means — until they type, and it goes back to meaning what
+   * they are typing. `shortcutFor` cannot answer this: it sees the box the keystroke came from, and
+   * this is about what happened before it. In the simpler mode it is the difference between working
+   * and not: the pane takes focus back the moment a note goes, and it usually has words in it.
+   */
+  const undoClaimed = useRef(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const arrivedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -319,7 +346,7 @@ const Page = () => {
   notesRef.current = notes;
   rulesRef.current = rules;
   editingRef.current = editingId;
-  undoableRef.current = undoable;
+  undoStackRef.current = undoStack;
 
   const editing = notes.find((note) => note.id === editingId) ?? null;
   const unfiled = useMemo(() => notes.filter((note) => note.folderId === null), [notes]);
@@ -757,6 +784,31 @@ const Page = () => {
   }, []);
 
   /**
+   * One more step Ctrl Z can take back. A capture replaces the pending one rather than joining it —
+   * see `Undoable` — and the stack is trimmed from the front, so a long session forgets its oldest
+   * mistakes rather than growing without end.
+   */
+  const remember = useCallback((entry: Undoable) => {
+    if (entry.kind === "delete") undoClaimed.current = true;
+    setUndoStack((current) => {
+      const kept =
+        entry.kind === "capture" ? current.filter((held) => held.kind !== "capture") : current;
+      return [...kept, entry].slice(-UNDO_DEPTH);
+    });
+  }, []);
+
+  /**
+   * Takes the last step back, whatever it was. Popped before it is reverted: reverting is a write,
+   * and a second press while the first is still in flight must not take the same step twice.
+   */
+  const undo = useCallback(() => {
+    const last = undoStackRef.current.at(-1);
+    if (!last) return;
+    setUndoStack((current) => current.slice(0, -1));
+    void last.revert();
+  }, []);
+
+  /**
    * Capture is optimistic all the way: the note exists on screen before the database hears about it.
    * Writing is local, so the write practically always succeeds — and when it does not, the note
    * disappears again and the text comes back to the composer.
@@ -785,7 +837,18 @@ const Page = () => {
         // row again every time the stream was re-entered.
         if (arrivedTimer.current) clearTimeout(arrivedTimer.current);
         arrivedTimer.current = setTimeout(() => setArrivedId(null), ARRIVAL_GLOW_MS);
-        setUndoable({ id: note.id, content });
+        remember({
+          kind: "capture",
+          label: note.title || "note",
+          // Nothing is kept: an undo that quietly archives instead of deleting is a promise the
+          // reader did not agree to. The words go back where they were written.
+          revert: async () => {
+            setNotes((current) => current.filter((existing) => existing.id !== note.id));
+            setRestore({ text: content, at: Date.now() });
+            const echo = await getEcho();
+            await echo.notes.delete(note.id);
+          },
+        });
         if (entering) setView("stream");
       };
       if (entering) navigate(arrive);
@@ -807,22 +870,40 @@ const Page = () => {
 
       return note;
     },
-    [view],
+    [view, remember],
   );
 
   /**
-   * Takes the last note back: it leaves the screen, it leaves the database, and its words return to
-   * the composer. Nothing is kept — an undo that quietly archives instead of deleting is a promise
-   * the reader did not agree to.
+   * Deleting a note really deletes it, so the undo has to put back the whole note rather than a new
+   * one with the same words: the same id, the same folder, the same day it was written, and the
+   * labels and task that went with it. Everything it needs is read before the row is gone.
    */
-  const undoCapture = useCallback(() => {
-    const last = undoableRef.current;
-    if (!last) return;
-    setUndoable(null);
-    setNotes((current) => current.filter((note) => note.id !== last.id));
-    setRestore({ text: last.content, at: Date.now() });
-    void getEcho().then((echo) => echo.notes.delete(last.id));
-  }, []);
+  const deleteNote = useCallback(
+    async (note: Note) => {
+      const labels = [...(labelsRef.current.get(note.id) ?? [])];
+      const task = tasksRef.current.find((held) => held.noteId === note.id);
+
+      setNotes((current) => current.filter((existing) => existing.id !== note.id));
+      if (editingRef.current === note.id) setEditingId(null);
+
+      const echo = await getEcho();
+      await echo.notes.delete(note.id);
+
+      remember({
+        kind: "delete",
+        label: note.title || "note",
+        revert: async () => {
+          await echo.notes.reinstate(note);
+          for (const label of labels) {
+            await echo.categories.assign(note.id, label.categoryId, label.source);
+          }
+          if (task)
+            await echo.tasks.create({ noteId: note.id, title: task.title, dueAt: task.dueAt });
+        },
+      });
+    },
+    [remember],
+  );
 
   const clearRestore = useCallback(() => setRestore(undefined), []);
 
@@ -853,8 +934,9 @@ const Page = () => {
    * out of, and closing puts it back where it came from.
    */
   const openNote = useCallback((noteId: string, from?: HTMLElement) => {
-    // Reading is the end of the moment the undo belonged to.
-    setUndoable(null);
+    // Reading is the end of the moment the *capture* belonged to. A delete is not a moment; it is
+    // something that happened, and walking around the app does not make it forgivable.
+    setUndoStack((current) => current.filter((held) => held.kind !== "capture"));
     navigate(() => setEditingId(noteId), { from });
     // Which notes get read together is the one thing about a pair that neither note can say. It is
     // a fact about how the reader works and never an opinion, which is why it is filed apart from
@@ -889,7 +971,7 @@ const Page = () => {
   const changeView = useCallback(
     (next: View, { instant = false }: { instant?: boolean } = {}) => {
       if (next === view && editingRef.current === null) return;
-      setUndoable(null);
+      setUndoStack((current) => current.filter((held) => held.kind !== "capture"));
       navigate(
         () => {
           setEditingId(null);
@@ -1179,6 +1261,11 @@ const Page = () => {
   // writing surface, where only modified keys are ever claimed.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (undoClaimed.current && undoStackRef.current.length > 0 && isUndoChord(event)) {
+        event.preventDefault();
+        undo();
+        return;
+      }
       const shortcut = shortcutFor(event);
       if (!shortcut) return;
       event.preventDefault();
@@ -1188,22 +1275,32 @@ const Page = () => {
       if (shortcut === "organize") changeView("inbox", { instant: true });
       if (shortcut === "toggle-notes") toggleNavigation();
       if (shortcut === "toggle-intelligence") toggleIntelligence();
-      if (shortcut === "undo-capture") undoCapture();
+      if (shortcut === "undo") undo();
+    };
+
+    // Typing hands Ctrl Z back to the box being typed in. Bubbles from every writing surface there
+    // is, so no surface has to remember to say so.
+    const onInput = () => {
+      undoClaimed.current = false;
     };
 
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [changeView, toggleNavigation, toggleIntelligence, undoCapture]);
+    window.addEventListener("input", onInput);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("input", onInput);
+    };
+  }, [changeView, toggleNavigation, toggleIntelligence, undo]);
 
   const commands = paletteCommands({
     unfiledCount: unfiled.length,
     navigationOpen,
     intelligenceOpen,
-    undoable: undoable !== null,
+    undoable: undoStack.at(-1)?.label,
     onView: changeView,
     onNewFolder: startNewFolder,
     onNewCategory: startNewCategory,
-    onUndo: undoCapture,
+    onUndo: undo,
     onToggleNavigation: toggleNavigation,
     onToggleIntelligence: toggleIntelligence,
   });
@@ -1244,7 +1341,7 @@ const Page = () => {
       onCorrect={correct}
       predicted={predicted}
       complete={complete}
-      undoLabel={undoable ? shortcutLabel("undo-capture") : undefined}
+      undoLabel={undoStack.at(-1)?.kind === "capture" ? shortcutLabel("undo") : undefined}
       restore={restore}
       onRestored={clearRestore}
       docked={docked}
@@ -1260,6 +1357,7 @@ const Page = () => {
           location={folderPath(folders, editing.folderId)}
           categories={categories}
           labels={labelsOf(labels, categories, editing.id)}
+          onDelete={(note) => void deleteNote(note)}
           concepts={concepts}
           complete={complete}
           onSave={save}
@@ -1357,6 +1455,7 @@ const Page = () => {
         complete={complete}
         onSave={save}
         onCreate={write}
+        onDelete={(note) => void deleteNote(note)}
         onLeave={toggleEditorMode}
       />
     );
@@ -1395,6 +1494,7 @@ const Page = () => {
             onDeleteFolder={(folderId) => void deleteFolder(folderId)}
             onMoveFolder={(folderId, parentId) => void moveFolder(folderId, parentId)}
             onMoveNote={(noteId, folderId) => void moveNote(noteId, folderId)}
+            onDeleteNote={(note) => void deleteNote(note)}
             categories={categories}
             categoryCountOf={(categoryId) => labelCounts.get(categoryId) ?? 0}
             selectedCategoryId={categoryFilter}
