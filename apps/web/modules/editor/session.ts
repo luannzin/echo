@@ -1,4 +1,8 @@
 const KEY = "echo:editor-tabs";
+const CLOSED_KEY = "echo:editor-closed";
+
+/** How far Ctrl Shift T reaches back. Ten is what a browser gives you and nobody asks for eleven. */
+const CLOSED_LIMIT = 10;
 
 /**
  * Which notes are open in editor mode, in the order they were opened — and, once someone has
@@ -11,10 +15,10 @@ const KEY = "echo:editor-tabs";
  */
 export type Session = readonly string[];
 
-export const readSession = (): Session => {
+const readIds = (key: string): Session => {
   if (typeof window === "undefined") return [];
   try {
-    const stored: unknown = JSON.parse(window.localStorage.getItem(KEY) ?? "[]");
+    const stored: unknown = JSON.parse(window.localStorage.getItem(key) ?? "[]");
     return Array.isArray(stored) ? stored.filter((id) => typeof id === "string") : [];
   } catch {
     // Nothing here is worth failing to open the app over.
@@ -22,8 +26,37 @@ export const readSession = (): Session => {
   }
 };
 
-export const writeSession = (session: Session): void => {
-  window.localStorage.setItem(KEY, JSON.stringify(session));
+const writeIds = (key: string, ids: Session): void => {
+  window.localStorage.setItem(key, JSON.stringify(ids));
+};
+
+export const readSession = (): Session => readIds(KEY);
+
+export const writeSession = (session: Session): void => writeIds(KEY, session);
+
+/**
+ * What Ctrl Shift T reaches for: the tabs that were closed, most recent last. Its own key, because
+ * it is not what you have open — it is what you had open, and the two are written at different
+ * moments.
+ *
+ * Only a tab with a note behind it is ever remembered. A blank tab nobody typed into has nothing to
+ * reopen, and a tab whose note was deleted comes back through Ctrl Z with its note, not through
+ * this — reopening one here would be a tab pointing at nothing.
+ */
+export const readClosed = (): Session => readIds(CLOSED_KEY);
+
+export const rememberClosed = (noteId: string): void => {
+  const kept = readClosed().filter((id) => id !== noteId);
+  writeIds(CLOSED_KEY, [...kept, noteId].slice(-CLOSED_LIMIT));
+};
+
+/** The most recently closed tab, taken off the stack. Null when there is nothing to reopen. */
+export const takeClosed = (): string | null => {
+  const closed = readClosed();
+  const last = closed[closed.length - 1];
+  if (last === undefined) return null;
+  writeIds(CLOSED_KEY, closed.slice(0, -1));
+  return last;
 };
 
 /** Opening a note already open is landing on its tab, not making a second one. */

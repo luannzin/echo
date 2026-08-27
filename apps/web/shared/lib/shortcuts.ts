@@ -88,3 +88,34 @@ const holdingText = (target: EventTarget | null): boolean => {
 const onMac = (): boolean =>
   typeof navigator !== "undefined" &&
   /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+
+/**
+ * Editor mode's own keys, which are a browser's tab keys because that is what the tab strip looks
+ * like and looking like something is a promise. They live here rather than in the map above because
+ * editor mode replaces the shell: the full app can never run one of these, so listing them beside
+ * its commands would be listing things that do not exist.
+ *
+ * In `bun dev:web` the browser eats Ctrl T and Ctrl W first. Inside Tauri there is no browser chrome
+ * to eat them, and editor mode only exists there.
+ */
+export type EditorShortcut =
+  | "new-tab"
+  | "reopen-tab"
+  | "close-tab"
+  | "next-tab"
+  | "previous-tab"
+  | { nth: number };
+
+export const editorShortcutFor = (event: KeyboardEvent): EditorShortcut | null => {
+  if (event.altKey || event.isComposing) return null;
+  if (!(onMac() ? event.metaKey : event.ctrlKey)) return null;
+  const key = event.key.toLowerCase();
+
+  if (key === "t") return event.shiftKey ? "reopen-tab" : "new-tab";
+  if (key === "tab") return event.shiftKey ? "previous-tab" : "next-tab";
+  if (event.shiftKey) return null;
+  if (key === "w") return "close-tab";
+  // 1 through 8 are that tab and 9 is the last one, the way every browser has done it for a decade.
+  if (key >= "1" && key <= "9") return { nth: key === "9" ? -1 : Number(key) - 1 };
+  return null;
+};

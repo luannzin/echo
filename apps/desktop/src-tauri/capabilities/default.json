@@ -1,7 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the window is allowed to ask the Rust side for. Tauri's own core, plus the zoom the ctrl +/- polyfill calls into.",
+  "description": "What the window is allowed to ask the Rust side for. Tauri's own core, the zoom the ctrl +/- polyfill calls into, and writing one file to a path the writer picked in a save dialog.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:webview:allow-set-webview-zoom"]
+  "permissions": [
+    "core:default",
+    "core:webview:allow-set-webview-zoom",
+    "dialog:allow-save",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        {
+          "path": "$HOME/**"
+        }
+      ]
+    }
+  ]
 }

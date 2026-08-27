@@ -1,11 +1,13 @@
 "use client";
 
+import { deriveTitle } from "@echo/core";
 import type { Note, Task } from "@echo/types";
-import { Columns2, Minimize2, PanelLeft, Plus, X } from "lucide-react";
+import { Columns2, Download, Eye, Minimize2, PanelLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EditorPane } from "@/modules/editor/_components/editor-pane";
 import { NoteAside } from "@/modules/editor/_components/note-aside";
+import { PreviewPane } from "@/modules/editor/_components/preview-pane";
 import { TabStrip } from "@/modules/editor/_components/tab-strip";
 import {
   closeTab,
@@ -13,12 +15,19 @@ import {
   neighbourOf,
   openTab,
   readSession,
+  rememberClosed,
   type Session,
+  takeClosed,
   writeSession,
 } from "@/modules/editor/session";
+import { saveCopy } from "@/shared/lib/save-copy";
+import { editorShortcutFor } from "@/shared/lib/shortcuts";
 
 /** Long enough that crossing the button on the way somewhere else does not open the aside. */
 const HOVER_INTENT_MS = 150;
+
+/** How long the header says what just happened before going quiet again. */
+const NOTICE_MS = 2600;
 
 /**
  * The simpler mode: a page to write on, the notes you have open along the top, and nothing else.
@@ -58,7 +67,17 @@ export const EditorMode = ({
   const [panes, setPanes] = useState<[string | null, string | null]>([null, null]);
   const [focused, setFocused] = useState<0 | 1>(0);
   const [asideOpen, setAsideOpen] = useState(false);
+  const [preview, setPreview] = useState(false);
+  /** What the preview is drawing, and the line it is following. Only fed while it is open. */
+  const [watched, setWatched] = useState({ text: "", line: 0 });
+  const [notice, setNotice] = useState<string | null>(null);
   const intent = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * The words in the pane right now, ahead of autosave. Kept in a ref rather than in state because
+   * only two things read it — the preview, which asks through state, and exporting, which asks at
+   * the moment it is pressed — and neither is worth re-rendering the tab strip on every keystroke.
+   */
+  const live = useRef({ text: "", line: 0 });
 
   const noteOf = useCallback((noteId: string) => notes.find((note) => note.id === noteId), [notes]);
   const taskOf = useCallback(
@@ -112,18 +131,32 @@ export const EditorMode = ({
 
   const close = useCallback(
     (noteId: string) => {
-      const next = closeTab(session, noteId);
+      // Only a tab with a note behind it is worth reopening. A blank one has nothing in it, and a
+      // deleted note comes back through Ctrl Z carrying its own tab.
+      if (noteOf(noteId)) rememberClosed(noteId);
+
+      const remaining = closeTab(session, noteId);
       const replacement = neighbourOf(session, noteId);
-      remember(next);
+      // Closing the last tab leaves a blank page, never an empty window: a keystroke should not be
+      // able to shut the application.
+      const blank = remaining.length === 0 ? crypto.randomUUID() : null;
+      remember(blank === null ? remaining : [blank]);
       setPanes((current) => [
-        current[0] === noteId ? replacement : current[0],
+        current[0] === noteId ? (replacement ?? blank) : current[0],
         current[1] === noteId ? null : current[1],
       ]);
     },
-    [session, remember],
+    [session, remember, noteOf],
   );
 
+  const reopen = useCallback(() => {
+    const noteId = takeClosed();
+    if (noteId === null) return;
+    open(noteId);
+  }, [open]);
+
   const toggleSplit = useCallback(() => {
+    setPreview(false);
     setPanes((current) => {
       if (current[1] !== null) return [current[0], null];
       // Opens onto the tab beside the one being written in, and onto the same note when there is
@@ -133,6 +166,32 @@ export const EditorMode = ({
     });
     setFocused(0);
   }, [session]);
+
+  // Preview and split take the same column, which is honest in a 960px window: two notes and their
+  // rendering do not fit beside each other, so asking for one puts the other away.
+  const togglePreview = useCallback(() => {
+    setPanes((current) => [current[0], null]);
+    setFocused(0);
+    setPreview((current) => !current);
+  }, []);
+
+  const say = useCallback((message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice((current) => (current === message ? null : current)), NOTICE_MS);
+  }, []);
+
+  const exportCopy = useCallback(async () => {
+    const noteId = panes[0];
+    if (noteId === null) return;
+    const content = live.current.text || (noteOf(noteId)?.content ?? "");
+    if (content.trim().length === 0) return;
+    try {
+      const written = await saveCopy(noteOf(noteId)?.title || deriveTitle(content), content);
+      if (written) say("Saved a copy");
+    } catch {
+      say("The copy could not be written");
+    }
+  }, [panes, noteOf, say]);
 
   const hoverOpen = () => {
     if (intent.current) clearTimeout(intent.current);
@@ -144,11 +203,52 @@ export const EditorMode = ({
 
   useEffect(() => () => cancelHover(), []);
 
+  // The tab keys, which are a browser's tab keys. They are claimed from the window rather than from
+  // the writing surface, because Ctrl W has to work while the caret is in the middle of a sentence.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const shortcut = editorShortcutFor(event);
+      if (shortcut === null) return;
+      event.preventDefault();
+
+      if (shortcut === "new-tab") return create();
+      if (shortcut === "reopen-tab") return reopen();
+      if (shortcut === "close-tab") {
+        if (panes[0] !== null) close(panes[0]);
+        return;
+      }
+
+      const at = panes[0] === null ? -1 : session.indexOf(panes[0]);
+      if (typeof shortcut === "object") {
+        const target = shortcut.nth === -1 ? session[session.length - 1] : session[shortcut.nth];
+        if (target !== undefined) show(target, 0);
+        return;
+      }
+      if (session.length === 0 || at === -1) return;
+      const step = shortcut === "next-tab" ? 1 : -1;
+      const target = session[(at + step + session.length) % session.length];
+      if (target !== undefined) show(target, 0);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [session, panes, create, reopen, close, show]);
+
   const save = useCallback(
     (noteId: string, content: string) =>
       noteOf(noteId) ? onSave(noteId, content) : onCreate(noteId, content),
     [noteOf, onSave, onCreate],
   );
+
+  const onWrite = useCallback(
+    (text: string, line: number) => {
+      live.current = { text, line };
+      if (preview) setWatched({ text, line });
+    },
+    [preview],
+  );
+
+  const beside = panes[1] !== null || preview;
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground">
@@ -191,6 +291,36 @@ export const EditorMode = ({
           onMove={(noteId, targetId) => remember(moveTab(session, noteId, targetId))}
         />
 
+        {/* One slot, saying what just happened and then going quiet. Live, because a save dialog
+            takes the eye away from the header it will report back to. */}
+        <p
+          aria-live="polite"
+          className={`shrink-0 whitespace-nowrap text-muted-foreground text-xs transition-opacity duration-200 ${
+            notice === null ? "opacity-0" : "animate-settle opacity-100"
+          }`}
+        >
+          {notice}
+        </p>
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={preview ? "Hide the preview" : "Show the preview"}
+          aria-pressed={preview}
+          onClick={togglePreview}
+          className={`shrink-0 ${preview ? "text-brand-bright" : "text-muted-foreground"}`}
+        >
+          <Eye aria-hidden="true" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Save a copy as a file"
+          onClick={exportCopy}
+          className="shrink-0 text-muted-foreground"
+        >
+          <Download aria-hidden="true" />
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -214,7 +344,7 @@ export const EditorMode = ({
 
       <div
         className={`grid min-h-0 flex-1 border-t ${
-          panes[1] === null ? "grid-cols-1" : "grid-cols-2 divide-x divide-border"
+          beside ? "grid-cols-2 divide-x divide-border" : "grid-cols-1"
         }`}
       >
         {/*
@@ -242,12 +372,14 @@ export const EditorMode = ({
                 task={taskOf(panes[0])}
                 categories={categoriesOf(panes[0])}
                 focused={focused === 0}
-                split={panes[1] !== null}
+                split={beside}
                 complete={complete}
                 onSave={save}
                 onFocus={() => setFocused(0)}
+                onWrite={onWrite}
               />
             )}
+            {preview ? <PreviewPane markdown={watched.text} line={watched.line} /> : null}
             {panes[1] === null ? null : (
               <EditorPane
                 key={`split:${panes[1]}`}

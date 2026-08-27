@@ -1,5 +1,6 @@
 import {
   Brain,
+  Download,
   FolderPlus,
   History,
   Inbox,
@@ -20,6 +21,7 @@ export const paletteCommands = ({
   navigationOpen,
   intelligenceOpen,
   undoable,
+  onSaveCopy,
   onView,
   onNewFolder,
   onNewCategory,
@@ -32,6 +34,8 @@ export const paletteCommands = ({
   intelligenceOpen: boolean;
   /** What the next Ctrl Z takes back, named. Absent when there is nothing to take back. */
   undoable: string | undefined;
+  /** Writes the open note out as a file. Absent while no note is open — there is nothing to copy. */
+  onSaveCopy: (() => void) | undefined;
   onView: (view: View) => void;
   onNewFolder: () => void;
   onNewCategory: () => void;
@@ -90,6 +94,17 @@ export const paletteCommands = ({
     keywords: "create category label tag topic",
     run: onNewCategory,
   },
+  ...(onSaveCopy === undefined
+    ? []
+    : [
+        {
+          id: "save-copy",
+          label: "Save a copy as a file",
+          icon: Download,
+          keywords: "export download markdown file save as copy",
+          run: onSaveCopy,
+        },
+      ]),
   ...(undoable === undefined
     ? []
     : [

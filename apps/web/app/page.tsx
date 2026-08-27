@@ -50,6 +50,7 @@ import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { folderPaths } from "@/shared/lib/folder-paths";
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import type { Suggestion } from "@/shared/lib/retrieval";
+import { saveCopy } from "@/shared/lib/save-copy";
 import { registerServiceWorker } from "@/shared/lib/service-worker";
 import { isUndoChord, shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
 import { isDesktopApp } from "@/shared/lib/tauri";
@@ -1297,6 +1298,7 @@ const Page = () => {
     navigationOpen,
     intelligenceOpen,
     undoable: undoStack.at(-1)?.label,
+    onSaveCopy: editing === null ? undefined : () => void saveCopy(editing.title, editing.content),
     onView: changeView,
     onNewFolder: startNewFolder,
     onNewCategory: startNewCategory,

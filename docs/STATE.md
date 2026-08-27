@@ -1,6 +1,7 @@
 # STATE
 
-Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing rebuild**
+Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
+rebuild, E1**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -576,16 +577,84 @@ build` exports the same three static routes. Read at 1440, 1280, 768 and 375 wit
 overflow at any of them, and no console output.
 
 
+### E1 — The writing surface
+First of three passes over how a note is actually written. E2 is slash commands, E3 was folded in
+here: "save notes as a file" is a copy on the way out, not a file the note lives in, which is a
+palette command rather than a schema.
+
+- **The caret was 1.79 times the height of its own text.** Measured, not guessed: 15.6px of type
+  under a 28px line, because `leading-7` was chosen for `text-base` and the `sm:text-[0.975rem]`
+  under it shrank the font without taking the line with it — Tailwind's arbitrary sizes carry no
+  line-height. A textarea's caret is exactly its line-height, so the only lever is the ratio: the
+  simpler mode writes at 17px on 1.55 now (1.53), which is what a page you write on wants anyway and
+  clears the 16px floor that makes iOS zoom. The caret also takes the brand colour — a full
+  line-height of pure white reads as a block, the same bar in blue reads as a cursor. The composer
+  keeps its own type: it is a card with a prompt beside it, not a page.
+- **The tab keys are a browser's tab keys**, because the strip looks like a browser's and looking
+  like something is a promise. Ctrl T, Ctrl Shift T, Ctrl W, Ctrl Tab and Ctrl 1–9 (9 being the last
+  one), in `editorShortcutFor` beside the app's own map so ⌘-versus-Ctrl is still answered once.
+  They are claimed from the window, not from the writing surface, so Ctrl W works mid-sentence.
+- **Ctrl W never closes the window.** Closing the last tab leaves a blank page — a keystroke should
+  not be able to shut the application.
+- **Only a tab with a note behind it is remembered as closed.** A blank tab has nothing to reopen,
+  and a deleted note comes back through Ctrl Z carrying its own tab; reopening one here would be a
+  tab pointing at nothing. Ten deep, its own `localStorage` key, and reopening takes it off the
+  stack. Known and left: a reopened tab appends rather than landing where it was, because array
+  order is the whole model and the session keeps no memory of position.
+- **The preview takes the split's column** rather than opening a third. In a 960px window two notes
+  and a rendering do not fit beside each other, so asking for one puts the other away — one boolean,
+  and the grid that was already there.
+- **It follows the caret, not the scrollbar.** `marked.lexer` gives the blocks, and `blocksOf`
+  hands each one the line it started on by accumulating every token's `raw` — including the blank
+  stretches, which are counted and then dropped. The block under the caret takes the same
+  leading-edge marker the stream puts beside the row under the pointer, and scrolls itself into view
+  only when the block changes, so typing inside one paragraph never drags the preview a pixel at a
+  time. A pane scrolled away to read something else stays where it was put.
+- **Nothing is ever handed to `dangerouslySetInnerHTML`.** The tokens are turned into React
+  elements, so there is no sanitiser in front of the preview and nothing for one to miss: raw HTML
+  in a note is shown as the characters that were typed. The preview is read-only in both
+  directions — a task checkbox is `readOnly` and out of the tab order, because ticking a box there
+  would be echo writing into the note behind the writer's back.
+- **Save a copy** is one way and stays one way: nothing remembers where the file went, so editing
+  one never touches the other. `saveCopy` branches on the host — a real save dialog and
+  `writeTextFile` on the desktop, the download the browser already knows how to do on the web. Two
+  Tauri plugins arrived with it (`dialog`, `fs`, scoped to `$HOME/**`) and with nothing else. It is
+  in the palette whenever a note is open, and in editor mode's header.
+- Tests: 13 new (`markdown.test.ts` 7 over lines, block offsets and the active block,
+  `session.test.ts` 3 over the closed stack, `save-copy.test.ts` 3 over filenames). 201 pass overall.
+
+Verified in the running app with the desktop gate forced on: the writing surface measured at 17px
+over 26.35px with a brand-coloured caret; a note holding a heading, a paragraph with bold, code and
+a link, a task list, a quote, a fence, a table and a rule rendered as eight blocks at lines
+0/2/4/7/9/13/17/19 — exactly the lines they occupy in the note — with the marker tracking the caret
+across all of them; Ctrl T opened a tab, Ctrl 1 went back, Ctrl W closed and remembered it, Ctrl
+Shift T brought it back and emptied the stack, and closing every tab left one blank writable page.
+In the full app the palette's "Save a copy as a file" produced a blob download named
+`Pooler note for the export check.md`. `bun run build` still exports the same five static routes.
+
+**Fixed while verifying:** marked keeps a `checkbox` token in a task item's own tokens as well as
+flagging the item, so every checklist line rendered its `[ ]` twice — once as a box and once as the
+characters.
+
+**Not verified here:** the desktop half of "Save a copy". The dialog and filesystem plugins are
+registered and permitted but have never been through a real `cargo build` — that needs
+`bun run dev:desktop`.
+
 ## In progress
-- Nothing. All four sub-projects are done. Still open from Phase 5: whether projects should be their
+- **E2 — slash commands.** Not started, and not specced: a `/` menu that writes markdown rather than
+  styling it, plus echo's own commands (`/task`, `/category`, `/due`) that change what a note *is*
+  without changing what it says. It has to work in the composer as well as in the simpler mode,
+  which is where the hard question lives — the composer commits on Enter, and a menu that is open
+  wants the same key. Still open from Phase 5: whether projects should be their
   own entity — the brief is the first thing in the product that treats a folder as a project, so
   that decision has evidence behind it now rather than only a shape.
 
 ## Next
 1. **You:** run `bun run dev:desktop` and look at it. The binary builds and stays up, but nobody has
    seen the pixels — in particular whether PGlite's WebAssembly and the model runtime behave the same
-   under WebKitGTK as they do in Chrome. Still open from Phase 5: whether projects should be their
-   own entity.
+   under WebKitGTK as they do in Chrome, and whether "Save a copy" reaches a real save dialog now
+   that the `dialog` and `fs` plugins are registered. Still open from Phase 5: whether projects
+   should be their own entity.
 2. **Then Phase 7 — Sync:** the change-log protocol, a Postgres server running the same migrations,
    explicit conflict handling, and auth. It is the biggest chunk in the spec and delivers nothing
    until it is finished, so it goes last before polish.

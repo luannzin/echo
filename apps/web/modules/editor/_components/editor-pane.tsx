@@ -3,8 +3,9 @@
 import { parse } from "@echo/parser";
 import type { Note, Task } from "@echo/types";
 import { CalendarClock, CircleCheck, CircleDashed } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useRef } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { lineAtOffset } from "@/modules/editor/markdown";
 import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
@@ -13,9 +14,18 @@ import { useCompletion } from "@/shared/lib/completion";
 import { numeric } from "@/shared/lib/styles";
 import { formatDue } from "@/shared/lib/time";
 
-/** Given to the textarea and to the suggestion behind it; they only line up while they agree. */
+/**
+ * Given to the textarea and to the suggestion behind it; they only line up while they agree.
+ *
+ * A textarea's caret is exactly as tall as its line-height, so the only way to stop the caret
+ * looking like a block is to bring the two closer together. This surface was 15.6px of type under
+ * 28px of line — 1.79, because `leading-7` was picked for `text-base` and the arbitrary size under
+ * it shrank the type without taking the line with it. 17px at 1.55 is 1.53, and larger type is what
+ * a page you write on wants anyway. The caret takes the brand colour for the same reason: a full
+ * line-height of pure white reads as a bar, and a blue one reads as a cursor.
+ */
 const WRITING =
-  "min-h-full w-full flex-1 resize-none bg-transparent px-6 py-4 text-base leading-7 sm:text-[0.975rem]";
+  "min-h-full w-full flex-1 resize-none bg-transparent px-6 py-4 text-[17px] leading-[1.55] caret-brand-bright";
 
 /**
  * One note, filling whatever it is given — the whole screen, or half of it in a split. What the note
@@ -35,6 +45,7 @@ export const EditorPane = ({
   complete,
   onSave,
   onFocus,
+  onWrite,
 }: {
   noteId: string;
   /** Missing until the first keystroke makes it real. */
@@ -50,10 +61,24 @@ export const EditorPane = ({
   complete?: (text: string) => string;
   onSave: (noteId: string, content: string) => Promise<void>;
   onFocus: () => void;
+  /** Told what is written and which line the caret is on. Only given when something is watching. */
+  onWrite?: (text: string, line: number) => void;
 }) => {
   const { draft, setDraft, state } = useAutosave(noteId, note?.content ?? "", onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const completion = useCompletion(textarea, complete);
+
+  // Where the caret is, for whatever is following it — the preview, today. Reported from the
+  // element rather than from React state because the caret moves without the text changing.
+  const report = useCallback(() => {
+    const element = textarea.current;
+    if (element) onWrite?.(element.value, lineAtOffset(element.value, element.selectionStart));
+  }, [onWrite]);
+
+  // Typing, and the first paint after the preview is opened on a note already full of words.
+  useEffect(() => {
+    onWrite?.(draft, lineAtOffset(draft, textarea.current?.selectionStart ?? draft.length));
+  }, [draft, onWrite]);
 
   // Opening a note means continuing it: the caret belongs after the last character.
   useEffect(() => {
@@ -150,7 +175,10 @@ export const EditorPane = ({
             setDraft(event.target.value);
             completion.refresh();
           }}
-          onSelect={completion.refresh}
+          onSelect={() => {
+            completion.refresh();
+            report();
+          }}
           onKeyDown={(event) => completion.onKeyDown(event, setDraft)}
           aria-label="Note content"
           placeholder="Write anything…"
