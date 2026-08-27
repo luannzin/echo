@@ -14,6 +14,16 @@ const BATCH = 8;
 /** Reading time needs no model, so it may take bigger bites than embedding does. */
 const TEMPORAL_BATCH = 64;
 
+/**
+ * How long a note has to stop moving before it is worth reading.
+ *
+ * Autosave writes every half second of quiet, and every write used to start a full pass: writing one
+ * long note re-embedded it dozens of times, on the same thread the words were being typed on, and
+ * only the last of those vectors was ever the note. The passes are derived from the notes rather
+ * than from the events, so waiting costs nothing — the work is still there when the typing stops.
+ */
+const SETTLE_MS = 4_000;
+
 export const createAnalyzer = ({
   notes,
   embeddings,
@@ -21,6 +31,7 @@ export const createAnalyzer = ({
   embedder,
   events,
   now,
+  settleMs = SETTLE_MS,
   onEmbedded,
   onProgress,
 }: {
@@ -31,6 +42,8 @@ export const createAnalyzer = ({
   embedder: Embedder;
   events: EventBus;
   now?: Clock;
+  /** How long the notes have to stay still before a pass runs. Zero makes every write start one. */
+  settleMs?: number;
   /** Each vector as it is written, so anything holding an index can stay in step without re-reading. */
   onEmbedded?: (embedding: { noteId: string; values: Float32Array }) => void;
   onProgress?: (state: { pending: number; failed: boolean; error?: string }) => void;
@@ -138,11 +151,18 @@ export const createAnalyzer = ({
     return temporalPass;
   };
 
+  let settling: ReturnType<typeof setTimeout> | undefined;
+
   const unsubscribe = events.subscribe((event) => {
-    if (event.type === "note.created" || event.type === "note.updated") {
+    if (event.type !== "note.created" && event.type !== "note.updated") return;
+    // Each write pushes the pass further out, so a burst of them — which is what typing is — costs
+    // one pass rather than one per keystroke's worth of quiet.
+    if (settling) clearTimeout(settling);
+    settling = setTimeout(() => {
+      settling = undefined;
       void drain();
       void drainTemporal();
-    }
+    }, settleMs);
   });
 
   return {
@@ -150,6 +170,10 @@ export const createAnalyzer = ({
     run: async (): Promise<void> => {
       await Promise.all([drain(), drainTemporal()]);
     },
-    stop: unsubscribe,
+    stop: (): void => {
+      if (settling) clearTimeout(settling);
+      settling = undefined;
+      unsubscribe();
+    },
   };
 };

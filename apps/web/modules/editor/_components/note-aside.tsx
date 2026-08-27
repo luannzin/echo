@@ -1,18 +1,16 @@
 "use client";
 
 import type { Note } from "@echo/types";
-import { useMemo, useState } from "react";
 import { Label } from "@/shared/_components/label";
 import { numeric, row } from "@/shared/lib/styles";
 import { formatStamp } from "@/shared/lib/time";
 
 /**
- * How you reach a note that has no tab yet. A flat list and a field to narrow it — no folders, no
- * drag, no menus, because this is the mode you chose to get away from those.
+ * How you reach a note that has no tab yet. A flat list and nothing else — no folders, no drag, no
+ * menus, because this is the mode you chose to get away from those.
  *
- * The field filters what is on screen rather than searching the corpus: it answers instantly and
- * never waits on a model. Finding a note by what it means is what the palette is for, and it is one
- * keystroke away from here.
+ * There is no field to narrow it either: finding a note by what it says is what the palette is for,
+ * and it is one keystroke away from here.
  */
 export const NoteAside = ({
   notes,
@@ -26,76 +24,53 @@ export const NoteAside = ({
   activeId: string | null;
   onOpenNote: (noteId: string) => void;
   onDismiss: () => void;
-}) => {
-  const [filter, setFilter] = useState("");
+}) => (
+  <aside
+    aria-label="Notes"
+    inert={!open}
+    onMouseLeave={onDismiss}
+    // Slides rather than takes width: the panes beside it keep their measurements, so opening
+    // this never reflows the words someone is in the middle of writing.
+    className={`absolute inset-y-0 start-0 z-30 flex w-72 flex-col border-e bg-sidebar shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] ${
+      open ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
+    }`}
+  >
+    <div className="shrink-0 px-3 pt-3 pb-2">
+      <Label>Notes</Label>
+    </div>
 
-  const shown = useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    if (needle.length === 0) return notes;
-    return notes.filter(
-      (note) =>
-        note.title.toLowerCase().includes(needle) || note.content.toLowerCase().includes(needle),
-    );
-  }, [notes, filter]);
-
-  return (
-    <aside
-      aria-label="Notes"
-      inert={!open}
-      onMouseLeave={onDismiss}
-      // Slides rather than takes width: the panes beside it keep their measurements, so opening
-      // this never reflows the words someone is in the middle of writing.
-      className={`absolute inset-y-0 start-0 z-30 flex w-72 flex-col border-e bg-sidebar shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] ${
-        open ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
-      }`}
-    >
-      <div className="flex shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
-        <Label>Notes</Label>
-        <input
-          type="search"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          onKeyDown={(event) => event.key === "Escape" && onDismiss()}
-          placeholder="Filter"
-          aria-label="Filter notes"
-          spellCheck={false}
-          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none transition-colors duration-150 placeholder:text-muted-foreground focus-visible:border-ring"
-        />
-      </div>
-
-      <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {shown.length === 0 ? (
-          <li className="px-2 py-1 text-muted-foreground text-sm leading-relaxed">
-            {notes.length === 0 ? "Nothing written yet." : "No note says that."}
-          </li>
-        ) : (
-          shown.map((note) => (
-            // Off screen the browser is told how tall a row is rather than laying it out. The list
-            // is every note there is, and it is opened by someone mid-sentence.
-            <li
-              key={note.id}
-              style={{ contentVisibility: "auto", containIntrinsicSize: "auto 34px" }}
+    <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+      {notes.length === 0 ? (
+        <li className="px-2 py-1 text-muted-foreground text-sm leading-relaxed">
+          Nothing written yet.
+        </li>
+      ) : (
+        notes.map((note) => (
+          // Off screen the browser is told how tall a row is rather than laying it out. The list
+          // is every note there is, and it is opened by someone mid-sentence.
+          <li
+            key={note.id}
+            style={{ contentVisibility: "auto", containIntrinsicSize: "auto 34px" }}
+          >
+            <button
+              type="button"
+              onClick={() => onOpenNote(note.id)}
+              aria-current={note.id === activeId ? "page" : undefined}
+              title={note.title || "Untitled"}
+              className={`${row} w-full gap-2 px-2 ${
+                note.id === activeId
+                  ? "bg-sidebar-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <button
-                type="button"
-                onClick={() => onOpenNote(note.id)}
-                aria-current={note.id === activeId ? "page" : undefined}
-                title={note.title || "Untitled"}
-                className={`${row} w-full gap-2 px-2 ${
-                  note.id === activeId
-                    ? "bg-sidebar-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className="min-w-0 flex-1 truncate">{note.title || "Untitled"}</span>
-                <span className={`shrink-0 text-[0.625rem] text-muted-foreground/80 ${numeric}`}>
-                  {formatStamp(note.updatedAt)}
-                </span>
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
-    </aside>
-  );
-};
+              <span className="min-w-0 flex-1 truncate">{note.title || "Untitled"}</span>
+              <span className={`shrink-0 text-[0.625rem] text-muted-foreground/80 ${numeric}`}>
+                {formatStamp(note.updatedAt)}
+              </span>
+            </button>
+          </li>
+        ))
+      )}
+    </ul>
+  </aside>
+);

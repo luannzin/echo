@@ -182,15 +182,25 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   another takes that one's place — rightwards lands past it, which is what makes the last position
   reachable without an empty drop zone at the end. Closing drops it from the memory and touches
   nothing else. Survives restarts; fresh install is one blank tab.
+- **The active tab scrolls itself into view** (`nearest` on both axes, so only the strip moves), which
+  is what puts a new note on screen when the strip is already wider than the window. The strip's own
+  scrollbar is hidden: platforms that overlay it drew a bar across the tabs exactly when the pointer
+  was aiming at one. Tabs are 40px tall for the same reason.
 - **A new tab is an id and nothing else.** It becomes a row under that same id the first time
   someone types into it, so the tab never has to be swapped — and toggling in and straight back out
   leaves nothing behind, which is the promise the composer already makes.
 - **Split view** is two panes on a CSS grid, each an `EditorPane`, the unfocused one dimmed. The
   split opens onto the neighbouring tab, or onto the same note when there is no other.
 - **The aside** slides over rather than taking width, so opening it never reflows the words someone
-  is mid-sentence in. Flat list, every note, a filter field that narrows what is on screen rather
-  than searching the corpus — instant, never waiting on a model, and the palette is one keystroke
-  away for the other kind of question. Rows carry `content-visibility`.
+  is mid-sentence in. Flat list, every note, and no field to narrow it: finding a note by what it
+  says is the palette's job and it is one keystroke away. Rows carry `content-visibility`.
+- **A strip above the words** says what the note is beyond them: whether it is a task, when it is
+  due, what it is labelled with. It is always there, empty or not — one appearing on the first
+  "todo" would push the line being written down the screen mid-sentence. Stored beats read: a filed
+  task and its date are stated (solid chips), and where there is none the note's own words are read
+  with `@echo/parser` and named as a reading (dashed chips, deferred like the composer's).
+  Nothing in this mode *files* a task or a label, so a note written here carries neither until it is
+  opened in the full app — the reading is what is left, and it is honest about being one.
 - `useAutosave` (`modules/notes/autosave.ts`) is now shared by `NoteEditor` and `EditorPane`: one
   debounce, one flush-on-unmount, one definition of "saved".
 - `apps/web` has a `test` script and bun types now, so `session.ts` is covered (3 tests).
@@ -223,7 +233,8 @@ open along the top, and nothing else. Lives in `apps/web/modules/editor/`.
   opened" is now traceable.
 
 Deliberately not built: tab overflow menu, drag-to-resize the split, more than two panes, per-tab
-unsaved dots (autosave means nothing is ever unsaved), editor mode on phones.
+unsaved dots (autosave means nothing is ever unsaved), editor mode on phones, filing a task or a
+label from this mode.
 
 ### S1 — Temporal context
 First of four sub-projects turning echo from a note app that reads notes into one that holds a
@@ -264,6 +275,11 @@ personal vocabulary, S3 query understanding, S4 project memory — each gets its
 - **The analyzer has two independent queues.** Reading time needs no model, so a fresh install has a
   working timeline long before the first vector exists, and a model that never loads never holds it
   up. Same contract as the embedding pass: the queue is the database, so a failure costs a retry.
+- **Both queues wait for the notes to stop moving** (`settleMs`, 4s). Autosave writes every half
+  second of quiet, and every write used to start a full pass: writing one long note re-embedded it
+  dozens of times and only the last vector was ever the note. The passes are derived from the notes
+  rather than from the events, so waiting costs nothing — `analyzer.run()` still catches up at once,
+  which is what startup and the tests use.
 - **The timeline is its own destination** — the rail's `Recent — soon` placeholder became real. One
   row per day rather than per note: the date, what the day was about, the notes on it and how many.
   Concepts are the reader's own categories where the notes carry them, and the words the notes used

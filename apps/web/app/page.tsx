@@ -1350,6 +1350,8 @@ const Page = () => {
     return (
       <EditorMode
         notes={notes}
+        tasks={tasks}
+        categoriesOf={conceptsOf}
         loading={loading}
         failed={failed}
         complete={complete}

@@ -1,5 +1,5 @@
 [package]
-name = "echo"
+name = "echo-notes"
 version = "0.0.0"
 edition = "2021"
 description = "echo — the note taker that learns with you"

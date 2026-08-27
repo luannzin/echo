@@ -116,7 +116,8 @@ shared/
 components/ui, hooks, lib/utils.ts, lib/segmented-control.ts   coss registry, CLI-owned
 ```
 
-Modules today: `capture`, `explorer`, `inbox`, `intelligence`, `notes`, `search`, `shell`, `tasks`.
+Modules today: `capture`, `editor`, `explorer`, `inbox`, `intelligence`, `notes`, `search`, `shell`,
+`tasks`, `timeline`.
 A module never reaches into another module's `_components`; anything two of them need moves to
 `shared/`.
 

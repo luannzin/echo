@@ -5,6 +5,14 @@ const MODEL_ID = "Xenova/multilingual-e5-small";
 /** e5 models expect their inputs prefixed by role; without it, retrieval quality drops sharply. */
 type Role = "query" | "passage";
 
+/**
+ * How much of a note reaches the tokenizer. The model reads 512 tokens and the pipeline truncates to
+ * them — but it tokenizes everything first, so a 40KB note paid for 40KB of tokenizing to keep the
+ * first tenth of it. This is a generous ceiling on that same 512 tokens: even where a token is one
+ * character, nothing is dropped here that the model would have read.
+ */
+const MAX_CHARS = 4_000;
+
 type Pipeline = (
   input: string[],
   options: { pooling: "mean"; normalize: boolean },
@@ -90,7 +98,7 @@ export const createLocalEmbedder = ({
     if (texts.length === 0) return [];
     const extractor = await getPipeline();
     const output = await extractor(
-      texts.map((text) => `${role}: ${text}`),
+      texts.map((text) => `${role}: ${text.slice(0, MAX_CHARS)}`),
       { pooling: "mean", normalize: true },
     );
     return output.tolist().map((values) => normalize(Float32Array.from(values)));

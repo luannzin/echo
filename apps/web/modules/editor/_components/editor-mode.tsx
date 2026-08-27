@@ -1,6 +1,6 @@
 "use client";
 
-import type { Note } from "@echo/types";
+import type { Note, Task } from "@echo/types";
 import { Columns2, Minimize2, PanelLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,8 @@ const HOVER_INTENT_MS = 150;
  */
 export const EditorMode = ({
   notes,
+  tasks,
+  categoriesOf,
   loading,
   failed,
   complete,
@@ -35,6 +37,10 @@ export const EditorMode = ({
   onLeave,
 }: {
   notes: Note[];
+  /** Every task there is; a pane shows the one its note produced, when its note produced one. */
+  tasks: Task[];
+  /** What a note is labelled with, by name. */
+  categoriesOf: (noteId: string) => readonly string[];
   /** True until the notes are in memory. A pane may not open before then — see below. */
   loading: boolean;
   failed: boolean;
@@ -52,6 +58,10 @@ export const EditorMode = ({
   const intent = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const noteOf = useCallback((noteId: string) => notes.find((note) => note.id === noteId), [notes]);
+  const taskOf = useCallback(
+    (noteId: string) => tasks.find((task) => task.noteId === noteId),
+    [tasks],
+  );
 
   const remember = useCallback((next: Session) => {
     setSession(next);
@@ -226,6 +236,8 @@ export const EditorMode = ({
                 key={panes[0]}
                 noteId={panes[0]}
                 note={noteOf(panes[0])}
+                task={taskOf(panes[0])}
+                categories={categoriesOf(panes[0])}
                 focused={focused === 0}
                 split={panes[1] !== null}
                 complete={complete}
@@ -238,6 +250,8 @@ export const EditorMode = ({
                 key={`split:${panes[1]}`}
                 noteId={panes[1]}
                 note={noteOf(panes[1])}
+                task={taskOf(panes[1])}
+                categories={categoriesOf(panes[1])}
                 focused={focused === 1}
                 split
                 complete={complete}
