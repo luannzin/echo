@@ -7,22 +7,25 @@
  * true. Every one was taken from `apps/web` against a real corpus — `AGENTS.md` has the rules the
  * capture has to hold to.
  *
- * `width` and `height` are the file's own pixels, so the browser holds the space before the image
- * lands and the page does not jump under the reader. All eight are cropped to one geometry, so a
- * grid of them has one shape and a stage that swaps between them never changes height.
+ * The geometry is written down once, here, rather than passed in per shot. Every file in
+ * `public/shots` is cropped to the same 2290x1760, so a caller repeating those numbers is a caller
+ * that can get them wrong — and it did: six shots claimed 2880x1760 and two claimed a 1264 crop that
+ * no file has, which meant the browser reserved a box a quarter too short and the page jumped under
+ * the reader on every image. One constant cannot drift out of step with the files the way eight
+ * copies of it can. `.shot > img` carries the same ratio in CSS, so the space is held whichever of
+ * the two the browser reads first.
  */
+const SHOT_WIDTH = 2290;
+const SHOT_HEIGHT = 1760;
+
 export const Shot = ({
   src,
   alt,
-  width,
-  height,
   framed = true,
   className,
 }: {
   src: string;
   alt: string;
-  width: number;
-  height: number;
   /**
    * Off where the shot is tilted off the edge of its column rather than sat squarely in it: a
    * border and a shadow describe a rectangle, and there is no rectangle left once the image has
@@ -32,6 +35,13 @@ export const Shot = ({
   className?: string;
 }) => (
   <figure className={`shot ${framed ? "panel" : ""} ${className ?? ""}`}>
-    <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+    <img
+      src={src}
+      alt={alt}
+      width={SHOT_WIDTH}
+      height={SHOT_HEIGHT}
+      loading="lazy"
+      decoding="async"
+    />
   </figure>
 );

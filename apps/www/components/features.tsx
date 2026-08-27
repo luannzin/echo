@@ -7,8 +7,6 @@ const features = [
     body: "“notes about caching in payments” is two questions wearing one coat. echo pulls the subject away from the project, filters on each, and shows every filter as a chip that is one press from gone. It says how many notes it set aside, because a search that quietly ignores half of what you typed is one you stop trusting.",
     shot: {
       src: "/shots/search.webp",
-      width: 1264,
-      height: 762,
       alt: "The command palette holding “notes about caching in payments”. A removable Payments chip has been lifted out of the query, the words “notes about” are left as the subject, sixteen notes are marked set aside, and the four payments notes are listed underneath.",
     },
   },
@@ -18,8 +16,6 @@ const features = [
     body: "echo suggests where a note belongs and then names the notes that argued for it: ones you can open and disagree with, rather than a percentage you can only accept. And because filing ten notes wrongly is a far worse afternoon than filing them one at a time, the Inbox works the whole pile out first and moves nothing until you press it.",
     shot: {
       src: "/shots/inbox.webp",
-      width: 2880,
-      height: 1760,
       alt: "The Inbox with ten notes to place. Each row offers one folder and, underneath, the sentences behind it — the notes already filed there, and the habit echo read out of them.",
     },
   },
@@ -29,8 +25,6 @@ const features = [
     body: "Open one and the panel beside it fills with the notes it connects to, each with the reason in words rather than a score: it is in the same project, you wrote them around the same time, you usually open them together. The concepts across the top came out of the note itself, and any of them can be taken off.",
     shot: {
       src: "/shots/note.webp",
-      width: 2880,
-      height: 1760,
       alt: "A note about payment retries open in echo, with concepts along the top and a panel of related notes beside it, each naming why it is related.",
     },
   },
@@ -40,8 +34,6 @@ const features = [
     body: "You type k8s. Half your notes say kubernetes and the rest say the cluster. echo works that out from the company your words keep, so searching one finds the other — including notes that contain neither the letters nor the sound of what you typed. Nothing was trained on anything: your own notes are the whole of the evidence.",
     shot: {
       src: "/shots/meaning.webp",
-      width: 1264,
-      height: 952,
       alt: "Searching for k8s. The first result contains the letters; the second is a note about a kubernetes rollout that does not, found by meaning rather than by spelling.",
     },
   },

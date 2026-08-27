@@ -181,13 +181,21 @@
     overflow: hidden;
   }
 
-  /* The press feedback every hand-rolled control on this page owes the reader. */
+  /*
+   * The press feedback every hand-rolled control on this page owes the reader.
+   *
+   * Written as `scale` rather than as `transform: scale()` because a control is allowed to also be
+   * something that animates in. A filling animation beats every normal declaration in the cascade,
+   * so `.reveal` — which holds `transform: none` for as long as it is in range — silently swallowed
+   * the press on anything carrying both. `scale` is its own property, so the entrance and the press
+   * stop arguing over one slot.
+   */
   .press {
-    transition: transform 140ms var(--ease-out-quart);
+    transition: scale 140ms var(--ease-out-quart);
   }
 
   .press:active {
-    transform: scale(0.975);
+    scale: 0.975;
   }
 
   /*
@@ -226,6 +234,12 @@
     display: block;
     width: 100%;
     height: auto;
+    /*
+     * Every file in `public/shots` is cropped to this. It is written here as well as on the element
+     * so the space is held whichever of the two the browser resolves first, and so a wrong number
+     * in one place cannot quietly shorten the box and drop the page under the reader.
+     */
+    aspect-ratio: 2290 / 1760;
   }
 
   /*
@@ -244,42 +258,54 @@
     pointer-events: none;
   }
 
-  .tour-point {
-    border-inline-start: 2px solid transparent;
-    opacity: 0.62;
-    transition:
-      opacity 220ms var(--ease-out-quart),
-      border-color 220ms var(--ease-out-quart);
-  }
-
-  .tour-point:hover {
-    opacity: 0.85;
-  }
-
-  .tour-panel {
-    grid-area: 1 / 1 / 2 / 2;
-    visibility: hidden;
-    opacity: 0;
-    transition:
-      opacity 320ms var(--ease-out-quart),
-      visibility 320ms;
+  /*
+   * Narrow, the grid is four rows of one column and a `.tour-row` is an ordinary block: point, then
+   * the screen it names, directly under it. That adjacency is the whole reason the pair lives
+   * together in the markup.
+   */
+  .tour-grid {
+    display: grid;
+    gap: 0.5rem;
   }
 
   /*
-   * The screen on stage is let go at two of its edges.
+   * Selection is a ground, not a dimmer.
    *
-   * It is a screen being pointed at, not a document being read: the point of it is the shape and the
-   * density of the thing, and the sentence beside it has already said what is in it. So it loses its
-   * frame — a border and a shadow describe a rectangle, and after the turn in `tour.tsx` there is no
-   * rectangle left to describe — and fades out at the bottom and the left rather than stopping at an
-   * edge. The fade takes the last third and no more; past that the screen stops being legible at
-   * all, which is a decoration rather than a demonstration.
+   * It used to be `opacity: 0.62` on the whole row, which put the three unselected descriptions at
+   * 2.57:1 on the blue field — a little over half of the 4.69:1 floor `AGENTS.md` sets for this
+   * page, and applied to three quarters of the section's prose. Luminance was carrying "not
+   * selected" and "not readable" down one channel. Now every description stays at its own readable
+   * tone at all times and the selected row is marked by a shape instead: a filled ground, plus a
+   * title that goes to full ink. The radio underneath carries the same state to a screen reader
+   * without either of them, which is the third channel and the one that never depended on sight.
    */
-  .tour-panel .shot {
-    mask-image:
-      linear-gradient(to bottom, black 60%, transparent 100%),
-      linear-gradient(to left, black 70%, transparent 100%);
-    mask-composite: intersect;
+  .tour-point {
+    border-radius: 0.625rem;
+    padding: 1.125rem 1.25rem;
+    background-color: transparent;
+    transition: background-color 200ms var(--ease-out-quart);
+  }
+
+  .tour-title {
+    color: color-mix(in oklab, var(--color-ink) 76%, transparent);
+    transition: color 200ms var(--ease-out-quart);
+  }
+
+  /* Touch fires hover on tap and then leaves it stuck, so the lift is for real pointers only. */
+  @media (hover: hover) and (pointer: fine) {
+    .tour-point:hover {
+      background-color: color-mix(in oklab, var(--color-ink) 7%, transparent);
+    }
+  }
+
+  /*
+   * Narrow, an unselected screen is not in the layout at all: `visibility: hidden` would leave three
+   * empty screen-sized holes down the page. It costs the cross-fade, which is the right trade on a
+   * phone — the panels are not stacked there, so there is nothing to fade between.
+   */
+  .tour-panel {
+    display: none;
+    padding-block: 0.5rem 1.5rem;
   }
 
   /*
@@ -291,21 +317,121 @@
   .tour-pick[data-tour="2"]:checked ~ * .tour-point[data-tour="2"],
   .tour-pick[data-tour="3"]:checked ~ * .tour-point[data-tour="3"],
   .tour-pick[data-tour="4"]:checked ~ * .tour-point[data-tour="4"] {
-    border-inline-start-color: var(--color-ink);
-    opacity: 1;
+    background-color: color-mix(in oklab, var(--color-ink) 11%, transparent);
+  }
+
+  .tour-pick[data-tour="1"]:checked ~ * .tour-point[data-tour="1"] .tour-title,
+  .tour-pick[data-tour="2"]:checked ~ * .tour-point[data-tour="2"] .tour-title,
+  .tour-pick[data-tour="3"]:checked ~ * .tour-point[data-tour="3"] .tour-title,
+  .tour-pick[data-tour="4"]:checked ~ * .tour-point[data-tour="4"] .tour-title {
+    color: var(--color-ink);
   }
 
   .tour-pick[data-tour="1"]:checked ~ * .tour-panel[data-tour="1"],
   .tour-pick[data-tour="2"]:checked ~ * .tour-panel[data-tour="2"],
   .tour-pick[data-tour="3"]:checked ~ * .tour-panel[data-tour="3"],
   .tour-pick[data-tour="4"]:checked ~ * .tour-panel[data-tour="4"] {
-    visibility: visible;
-    opacity: 1;
+    display: block;
   }
 
-  /* Motion on this page is opt-in, and a cross-fade is motion like any other. */
+  /*
+   * Wide, the same four pairs are read the other way: the row dissolves into the grid, its point
+   * joins a column of points and its screen joins the one cell they all share. Nothing is duplicated
+   * to get the second layout, so a point and its screen cannot come apart.
+   */
+  @media (width >= 64rem) {
+    .tour-grid {
+      grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+      column-gap: clamp(2.5rem, 4.5vw, 4.5rem);
+      row-gap: 0.5rem;
+      align-items: start;
+    }
+
+    .tour-row {
+      display: contents;
+    }
+
+    .tour-point {
+      grid-column: 1;
+    }
+
+    /*
+     * Every screen occupies the same cell, so the stage never changes height and the four are read
+     * as one thing with four faces. `visibility` rather than opacity alone: the three off stage are
+     * out of the accessibility tree rather than invisible and still read out.
+     */
+    .tour-panel {
+      display: block;
+      grid-column: 2;
+      grid-row: 1 / span 4;
+      padding-block: 0;
+      visibility: hidden;
+      opacity: 0;
+      /* Exit is quicker than entry: the reader is done with this one and waiting on the next. */
+      transition:
+        opacity 160ms var(--ease-out-quart),
+        transform 160ms var(--ease-out-quart),
+        filter 160ms var(--ease-out-quart),
+        visibility 160ms;
+    }
+
+    /*
+     * A screenshot is evidence, so it stays a rectangle you can read.
+     *
+     * It used to be scaled to 75%, turned 5deg, sheared -10deg and dissolved at two of its four
+     * edges: at 1440 that put the application's 12px chrome at roughly four device pixels, and the
+     * mask ate the sidebar and the composer, which is the part two of the four captions are pointing
+     * at. A shear is also not depth — it leans the verticals and leaves the horizontals flat, which
+     * is why it read as a broken image rather than as a screen sitting in space. This is the real
+     * thing instead: one perspective turn, small enough that the far side stays legible, and the
+     * frame and shadow `.panel` already draws left on to say where the screen ends.
+     *
+     * The turn is anchored at the leading edge, so the screen can never grow back into the column of
+     * points, and the trailing edge is the one that leaves the measure. That projection is the whole
+     * bleed — a negative margin on top of it only cropped the right-hand side of the capture, which
+     * on two of the four screens is the panel the caption is pointing at.
+     */
+    .tour-shot {
+      transform: perspective(1600px) rotateY(-7deg) rotateX(0.75deg);
+      transform-origin: left center;
+    }
+
+    .tour-pick[data-tour="1"]:checked ~ * .tour-panel[data-tour="1"],
+    .tour-pick[data-tour="2"]:checked ~ * .tour-panel[data-tour="2"],
+    .tour-pick[data-tour="3"]:checked ~ * .tour-panel[data-tour="3"],
+    .tour-pick[data-tour="4"]:checked ~ * .tour-panel[data-tour="4"] {
+      visibility: visible;
+      opacity: 1;
+      transform: none;
+      filter: none;
+      transition-duration: 260ms;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    /*
+     * The swap is two dark rectangles of identical shape sitting in identical positions, and a plain
+     * cross-fade of those reads as a flicker: for 300ms you are looking at two overlapping objects
+     * rather than one thing becoming another. So the incoming screen arrives from slightly below and
+     * resolves out of a blur, which is what closes the gap — the eye takes the blurred frames as one
+     * object in motion instead of two objects laid over each other.
+     */
+    @media (width >= 64rem) {
+      .tour-panel {
+        transform: translate3d(0, 14px, 0);
+        filter: blur(7px);
+      }
+    }
+  }
+
+  /*
+   * Motion on this page is opt-in, and a cross-fade is motion like any other. Under reduced motion
+   * the panel keeps only its opacity: no travel, no blur, and the ground under the selected point
+   * still marks it, so nothing about which screen is showing was ever carried by the animation.
+   */
   @media (prefers-reduced-motion: reduce) {
     .tour-point,
+    .tour-title,
     .tour-panel {
       transition: none;
     }
@@ -344,10 +470,16 @@
         }
       }
 
+      /*
+       * `--reveal-step` walks the range down the scroll for each item in a list, so four points
+       * arrive one after another rather than as one block that fades. Unset — which is every other
+       * `.reveal` on the page — it resolves to 0 and the range is the one it always was.
+       */
       .reveal {
         animation: reveal linear both;
         animation-timeline: view();
-        animation-range: entry 5% cover 26%;
+        animation-range: entry calc(5% + var(--reveal-step, 0) * 6%) cover
+          calc(26% + var(--reveal-step, 0) * 6%);
       }
 
       @keyframes reveal {
@@ -423,14 +555,21 @@
     }
 
     /* Three of the four screens are off stage on a display. On paper they all belong in the flow. */
+    .tour-row {
+      display: block;
+      break-inside: avoid;
+    }
+
     .tour-panel {
+      display: block;
       grid-area: auto;
       visibility: visible;
       opacity: 1;
+      filter: none;
     }
 
-    .tour-panel .shot {
-      mask-image: none;
+    .tour-shot {
+      transform: none;
     }
   }
 }
