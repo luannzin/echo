@@ -293,11 +293,14 @@ personal vocabulary, S3 query understanding, S4 project memory — each gets its
 - **The analyzer has two independent queues.** Reading time needs no model, so a fresh install has a
   working timeline long before the first vector exists, and a model that never loads never holds it
   up. Same contract as the embedding pass: the queue is the database, so a failure costs a retry.
-- **The model does not stay resident.** The embedding worker ends 60s after the last request and is
-  rebuilt from the browser's cache on the next one (`shared/lib/embedder.ts`). A WebAssembly heap
-  only ever grows and nothing inside the worker can hand any of it back; ending the worker hands
-  back all of it, and the analyzer works in bursts with hours of nothing between them. The published
-  status is left alone on purpose — it says the model is *available*, not that it is loaded.
+- **The model does not stay resident.** The embedding worker is thrown away and rebuilt from the
+  browser's cache — 60s after the last request, and every 64 embeddings whatever happens
+  (`shared/lib/embedder.ts`). Measured on the Linux desktop build: the WebKit web process grows by
+  megabytes per note embedded and gives none of it back, so a fresh install working through its
+  backlog climbed past 10GB and was still climbing, in ~77k small anonymous mappings. Idling out is
+  no help there, because a backlog never goes idle — the count is the ceiling that holds regardless
+  of which allocation inside the model runtime is the one that never comes back. The published
+  status is left alone on purpose: it says the model is *available*, not that it is loaded.
 - **Both queues wait for the notes to stop moving** (`settleMs`, 4s). Autosave writes every half
   second of quiet, and every write used to start a full pass: writing one long note re-embedded it
   dozens of times and only the last vector was ever the note. The passes are derived from the notes

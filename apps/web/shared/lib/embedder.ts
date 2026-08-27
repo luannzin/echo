@@ -15,6 +15,21 @@ type Pending = { resolve: (values: Float32Array) => void; reject: (error: Error)
  */
 const IDLE_MS = 60_000;
 
+/**
+ * How many embeddings one worker may run before it is replaced.
+ *
+ * Measured on the Linux desktop build: the web process grows by megabytes per note embedded and
+ * never gives any of it back — a WebKit process working through a fresh install's backlog climbed
+ * past 10GB and was still climbing. Idling the worker out is no help there, because a backlog never
+ * goes idle. This is the ceiling that does not depend on knowing which allocation inside the model
+ * runtime is the one that never comes back: the worker is thrown away and rebuilt, and everything it
+ * was holding goes with it.
+ *
+ * The cost is one pipeline reload — from the browser's cache, never the network — every this many
+ * notes, against a pass that already runs in the background and is allowed to be slow.
+ */
+const RECYCLE_AFTER = 64;
+
 type WorkerMessage =
   | { kind: "status"; status: EmbedderStatus }
   | { kind: "result"; id: number; values?: Float32Array; error?: string };
@@ -36,6 +51,8 @@ export const createWorkerEmbedder = (): WorkerEmbedder => {
   let latest: EmbedderStatus = { state: "idle" };
   let worker: Worker | undefined;
   let idle: ReturnType<typeof setTimeout> | undefined;
+  /** Embeddings this worker has run. Reset with the worker, because it is a fact about that one. */
+  let served = 0;
   let nextId = 0;
 
   const publish = (status: EmbedderStatus): void => {
@@ -44,17 +61,30 @@ export const createWorkerEmbedder = (): WorkerEmbedder => {
   };
 
   /**
-   * Ends the worker once nothing has been asked of it for a while. The status is deliberately left
-   * alone: it says whether the model is *available*, not whether it happens to be resident, and the
-   * next request brings it straight back.
+   * Throws the worker away. Only ever called with nothing in flight — a terminated worker takes
+   * every outstanding request with it, and a promise that never settles is the one failure an
+   * interface cannot show.
+   *
+   * The status is deliberately left alone: it says whether the model is *available*, not whether it
+   * happens to be resident, and the next request brings it straight back.
    */
+  const retire = (): void => {
+    if (idle) {
+      clearTimeout(idle);
+      idle = undefined;
+    }
+    if (!worker || pending.size > 0) return;
+    worker.terminate();
+    worker = undefined;
+    served = 0;
+  };
+
+  /** Ends the worker once nothing has been asked of it for a while. */
   const restIdle = (): void => {
     if (idle) clearTimeout(idle);
     idle = setTimeout(() => {
       idle = undefined;
-      if (pending.size > 0 || !worker) return;
-      worker.terminate();
-      worker = undefined;
+      retire();
     }, IDLE_MS);
   };
 
@@ -69,7 +99,13 @@ export const createWorkerEmbedder = (): WorkerEmbedder => {
     pending.delete(message.id);
     if (message.values) waiting.resolve(message.values);
     else waiting.reject(new Error(message.error ?? "Embedding failed"));
-    if (pending.size === 0) restIdle();
+
+    served += 1;
+    // Between batches, never inside one: recycling is only safe with nothing in flight, and a
+    // backlog that stays busy for an hour is exactly the case this exists for.
+    if (pending.size > 0) return;
+    if (served >= RECYCLE_AFTER) retire();
+    else restIdle();
   };
 
   /** A worker that dies takes every outstanding request with it, and a promise that never settles
@@ -89,6 +125,7 @@ export const createWorkerEmbedder = (): WorkerEmbedder => {
       idle = undefined;
     }
     if (!worker) {
+      served = 0;
       worker = new Worker(new URL("./embedder.worker.ts", import.meta.url), { type: "module" });
       worker.addEventListener("message", onMessage);
       worker.addEventListener("error", onError);
