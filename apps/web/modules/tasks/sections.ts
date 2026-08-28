@@ -1,16 +1,13 @@
 import type { Task } from "@echo/types";
+import { copy } from "@/shared/lib/i18n";
 import { dueBucket } from "@/shared/lib/time";
 
 export const SECTIONS = ["overdue", "due", "someday", "done"] as const;
 
 export type Section = (typeof SECTIONS)[number];
 
-export const SECTION_HEADING: Record<Section, string> = {
-  overdue: "Late",
-  due: "Due",
-  someday: "No date",
-  done: "Done",
-};
+/** A function, not a table: a constant would freeze whichever language loaded this module first. */
+export const sectionHeading = (section: Section): string => copy().tasks.sections[section];
 
 const dueTime = (task: Task): number => task.dueAt?.getTime() ?? Number.POSITIVE_INFINITY;
 

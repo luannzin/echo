@@ -5,6 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { memo } from "react";
 import { StreamStamp } from "@/modules/notes/_components/stream-stamp";
 import { selecting, wasEdited } from "@/modules/notes/stream-selection";
+import { copy } from "@/shared/lib/i18n";
 import { formatExact, formatStamp } from "@/shared/lib/time";
 
 /**
@@ -64,14 +65,17 @@ export const StreamRow = memo(
         className="pointer-events-none absolute inset-0 focus-visible:outline-none"
       >
         <span className="sr-only">
-          Open {note.title || "note"}, written {formatExact(note.createdAt)}
+          {copy().notes.openNoteWritten(
+            note.title || copy().notes.aNote,
+            formatExact(note.createdAt),
+          )}
         </span>
       </button>
       <div className="flex items-baseline gap-2">
         <StreamStamp date={note.createdAt}>{formatStamp(note.createdAt)}</StreamStamp>
         {wasEdited(note) ? (
           <StreamStamp date={note.updatedAt} muted>
-            · edited {formatStamp(note.updatedAt)}
+            {copy().notes.editedAt(formatStamp(note.updatedAt))}
           </StreamStamp>
         ) : null}
         {labels.length > 0 ? (

@@ -1,4 +1,5 @@
 import { ReelPlayer } from "@/components/reel-player";
+import type { Content } from "@/content/en";
 
 const SOURCES = [
   { src: "/reel/echo.webm", type: "video/webm" },
@@ -22,7 +23,7 @@ const SOURCES = [
  * into the colour below that, so the two are one light rather than a plate lying on a background.
  * See `.reel-frame` and `.reel-video` in `app/globals.css`.
  */
-export const Reel = () => (
+export const Reel = ({ content }: { content: Content }) => (
   <section id="reel" className="relative scroll-mt-24 overflow-hidden py-20 md:py-32">
     <div
       aria-hidden="true"
@@ -33,7 +34,9 @@ export const Reel = () => (
       <ReelPlayer
         poster="/reel/echo-poster.jpg"
         sources={SOURCES}
-        label="echo being written in, searched, and used to file a note from the Inbox"
+        label={content.reel.label}
+        play={content.reel.play}
+        pause={content.reel.pause}
       />
     </div>
   </section>

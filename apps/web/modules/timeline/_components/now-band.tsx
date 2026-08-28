@@ -3,6 +3,7 @@
 import { CalendarClock } from "lucide-react";
 import type { Upcoming } from "@/modules/timeline/model";
 import { Label } from "@/shared/_components/label";
+import { copy } from "@/shared/lib/i18n";
 import { formatDue } from "@/shared/lib/time";
 
 /**
@@ -27,7 +28,7 @@ export const NowBand = ({
     <section className="mb-6 rounded-lg border border-border bg-card/40 px-4 py-3">
       <div className="flex items-center gap-2 pb-2">
         <CalendarClock aria-hidden="true" className="size-3 text-muted-foreground" />
-        <Label>This week</Label>
+        <Label>{copy().timeline.thisWeek}</Label>
       </div>
       <ul className="flex flex-col gap-0.5">
         {upcoming.map(({ note, text, at }) => (
@@ -37,7 +38,9 @@ export const NowBand = ({
               onClick={(event) => onOpen(note.id, event.currentTarget)}
               className="-mx-2 flex w-[calc(100%+1rem)] items-baseline gap-3 rounded-md px-2 py-1 text-start outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
             >
-              <span className="min-w-0 flex-1 truncate text-sm">{note.title || "Untitled"}</span>
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {note.title || copy().common.untitled}
+              </span>
               {/* The reader's own words for the date, not echo's rendering of it. */}
               <span
                 className="shrink-0 text-muted-foreground text-xs"

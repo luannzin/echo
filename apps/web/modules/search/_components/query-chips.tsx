@@ -2,6 +2,7 @@
 
 import type { ParsedQuery } from "@echo/core";
 import { X } from "lucide-react";
+import { copy } from "@/shared/lib/i18n";
 import { formatDay } from "@/shared/lib/time";
 
 /**
@@ -23,6 +24,7 @@ export const QueryChips = ({
   filtered: number;
   onToggle: (filter: "period" | "place") => void;
 }) => {
+  const words = copy().search;
   const period = query.period;
   const place = query.place;
   if (!period && !place && !query.framing) return null;
@@ -38,7 +40,7 @@ export const QueryChips = ({
       <button
         type="button"
         onClick={() => onToggle(key)}
-        title={off ? `Put "${text}" back` : detail}
+        title={off ? words.putBack(text) : detail}
         aria-pressed={!off}
         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs outline-none transition-[background-color,opacity,transform] duration-150 ease-[var(--ease-out-quart)] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] ${
           off
@@ -55,30 +57,30 @@ export const QueryChips = ({
 
   const span = (from: Date | null, to: Date | null): string =>
     from && to
-      ? `${formatDay(from)} – ${formatDay(to)}`
+      ? words.between(formatDay(from), formatDay(to))
       : from
-        ? `since ${formatDay(from)}`
+        ? words.since(formatDay(from))
         : to
-          ? `up to ${formatDay(to)}`
+          ? words.upTo(formatDay(to))
           : "";
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2">
       {period ? chip("period", period.text, span(period.from, period.to)) : null}
-      {place ? chip("place", place.name, `Only notes in ${place.name}`) : null}
+      {place ? chip("place", place.name, words.onlyIn(place.name)) : null}
       {/* Words that were a way of asking rather than part of the question. Not a filter — it took
           nothing away — so it is said rather than offered as a control. */}
       {query.framing ? (
         <span
           className="max-w-56 truncate text-muted-foreground/70 text-xs italic"
-          title="These words were how you asked, not what you asked about"
+          title={words.howYouAsked}
         >
           {query.framing}
         </span>
       ) : null}
       {filtered > 0 ? (
         <span className="ms-auto font-mono text-[0.625rem] text-muted-foreground uppercase tracking-[0.14em]">
-          {filtered} set aside
+          {words.setAside(filtered)}
         </span>
       ) : null}
     </div>

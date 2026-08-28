@@ -7,6 +7,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 export const RailButton = ({
   label,
   icon: Icon,
+  tour,
   active = false,
   pressed,
   unavailable = false,
@@ -15,6 +16,8 @@ export const RailButton = ({
 }: {
   label: string;
   icon: LucideIcon;
+  /** Names this control for the guided tour, which finds it by attribute. See `onboarding/anchors`. */
+  tour?: string;
   /** `active` marks the current destination; `pressed` marks a panel toggle's on state. */
   active?: boolean;
   pressed?: boolean;
@@ -30,6 +33,7 @@ export const RailButton = ({
         <Button
           variant="ghost"
           size="icon"
+          data-tour={tour}
           aria-label={label}
           aria-current={active ? "page" : undefined}
           aria-pressed={pressed}

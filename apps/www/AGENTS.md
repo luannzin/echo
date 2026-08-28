@@ -14,7 +14,8 @@ under it does not get a section.
 
 ## Ownership
 
-- Owns `app/**` (route, layout, tokens) and `components/**` (every section of the page).
+- Owns `app/**` (the two roots and the tokens), `components/**` (every section of the page) and
+  `content/**` (everything the page says, in both languages).
 - Owns its own token set in `app/globals.css`. It re-declares the brand values rather than importing
   the application's stylesheet, so a change to the app's chrome cannot repaint the site by accident.
 - Does not own product truth: every claim on the page has to be something the app already does.
@@ -29,8 +30,27 @@ under it does not get a section.
   band that wants to bleed (the paper one in `facts.tsx`) puts the colour on the section and a
   `.shell` inside it, so the tone changes and the alignment does not. Measured: one leading edge at
   every viewport (53px at 1440, 40px at 768, 24px at 375).
+- **Two documents, not one that switches.** There is no `app/layout.tsx`: `app/(en)/` and
+  `app/(pt)/` are route groups with nothing above them, which is Next's multiple-root-layouts
+  arrangement and the only way each document declares its own `<html lang>` in a static export. A
+  dynamic `[lang]` segment would need a redirect at `/`, and a static export cannot serve one.
+  English keeps `/` so every existing link resolves; Portuguese is `/pt-br`.
+- **Content is data, handed down as props.** `content/en.ts` is the specification and `content/pt.ts`
+  is annotated against it, so `bun run --cwd apps/www typecheck` is the translation completeness
+  check. Unlike the application's dictionary these values may not be functions: the content reaches
+  `install-box.tsx`, which is a client component, and a function cannot cross that boundary.
+  `components/page.tsx` renders the page once for whichever content it was given.
+- **The mechanics are translated; the corpus is not.** Chips, counts, reason sentences and the alt
+  text describing a screen all move with the language. The note titles and project names inside the
+  screenshots do not: a working programmer's notebook in Brazil has the same English library names
+  in it, and translating them would make the demonstrations read as staged.
+- **No automatic redirect.** A visitor is offered the other language by a link in the nav and again
+  in the footer, written in the language it leads to. Sending someone whose browser says `pt` to
+  `/pt-br` would break the back button, split the crawl, and take the choice away from the many
+  Brazilians who read documentation in English on purpose. Both documents emit `hreflang` for each
+  other and `x-default` for the root.
 - Separate deploy from `apps/web`: `bun run dev:www` (port 3001), `bun run --cwd apps/www build`
-  writes a static export to `out/`.
+  writes a static export to `out/` (`index.html` and `pt-br.html`).
 - No workspace dependencies. The site imports nothing from `@echo/*`, so it has no database, no
   parser, and no reason to compile the domain.
 - Imagery is generated, never a file: plates are drawn as greyscale SVG in `components/engraving.tsx`
@@ -63,8 +83,14 @@ under it does not get a section.
   an animation having run. `@media print` at the foot of the components layer settles every one of
   them, and it wins by being declared last rather than by `!important`.
 - Two client components, and no more without a reason of the same weight: `install-box.tsx`, because
-  the clipboard and the tab state need one, and `composer-demo.tsx`, because the hero's composer is a
-  box a visitor can actually write in. Everything else stays a server component.
+  the clipboard and the tab state need one, and `reel-player.tsx`, because whether the reel may play
+  at all is a question about the visitor's machine. Everything else stays a server component, the
+  language switcher included: it is a link.
+- **Portuguese is written, not translated.** `.label` is mono, uppercase and tracked at `0.18em`,
+  which is the least forgiving specification on either surface, and Portuguese runs twenty to thirty
+  percent longer. A shorter true sentence beats a faithful one that wraps into three lines of
+  tracked capitals. Measured: nothing on either document scrolls sideways at 375px, and the hero's
+  eyebrow takes the same two lines there in both languages.
 - **The hero composer is real.** It answers what is typed into it (word count, the task phrase that
   gave it away, the day it found) through `components/note-signals.ts`, a small deterministic
   stand-in for `@echo/parser` (the site has no workspace dependencies, so it cannot use the real
@@ -93,7 +119,11 @@ bun run lint
 bun run --cwd apps/www build
 ```
 
-Then look at it: `bun run dev:www` and read the page at 1440px and at 390px.
+`typecheck` is also the translation check: a key added to `content/en.ts` and not answered in
+`content/pt.ts` does not compile.
+
+Then look at it: `bun run dev:www` and read **both** documents (`/` and `/pt-br`) at 1440px and at
+390px.
 
 ## Child DOX Index
 

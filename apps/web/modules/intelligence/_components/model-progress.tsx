@@ -1,5 +1,7 @@
 "use client";
 
+import { copy } from "@/shared/lib/i18n";
+
 /**
  * The model, arriving. A wait this long has to be legible or it reads as a broken panel — a hairline
  * rather than a bar, because this is a background errand, not a task the reader is performing.
@@ -19,14 +21,14 @@ export const ModelProgress = ({ progress }: { progress?: number }) => {
         aria-live="polite"
         className="flex items-baseline justify-between gap-3 text-muted-foreground text-sm"
       >
-        Learning to read your notes
+        {copy().intelligence.learningToRead}
         {percent !== undefined && (
           <span className="font-mono text-[0.6875rem] tabular-nums">{percent}%</span>
         )}
       </p>
       <div
         role="progressbar"
-        aria-label="Downloading the local model"
+        aria-label={copy().intelligence.downloadingModel}
         // An indeterminate progressbar is one with no `aria-valuenow`, which is exactly the case
         // here — omitted rather than zeroed, so it is announced as busy and not as stalled.
         aria-valuenow={percent}
@@ -50,10 +52,7 @@ export const ModelProgress = ({ progress }: { progress?: number }) => {
           }
         />
       </div>
-      <p className="text-xs leading-5">
-        The language model downloads once and then stays on this device. Writing, saving and search
-        by words all work while it arrives.
-      </p>
+      <p className="text-xs leading-5">{copy().intelligence.modelDownloadsOnce}</p>
     </div>
   );
 };

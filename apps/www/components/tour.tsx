@@ -1,42 +1,12 @@
 import { Shot } from "@/components/shot";
+import type { Content } from "@/content/en";
 
-const points = [
-  {
-    title: "The stream",
-    subtitle:
-      "Everything lands here first, in the order you wrote it, and the box you write in never leaves the screen.",
-    shot: {
-      src: "/shots/stream.webp",
-      alt: "The stream: notes stamped with when they were written and last edited, running down the screen, with the composer docked at the foot of it.",
-    },
-  },
-  {
-    title: "Tasks",
-    subtitle:
-      "echo lifts the things to do out of ordinary sentences, and brings the dates those sentences mentioned with them.",
-    shot: {
-      src: "/shots/tasks.webp",
-      alt: "The task list: five open tasks, the ones with a date grouped under Due and the rest under No date, each showing the note it came out of.",
-    },
-  },
-  {
-    title: "Timeline",
-    subtitle:
-      "The same notes read back by day and by week, with whatever is coming up pulled to the top.",
-    shot: {
-      src: "/shots/timeline.webp",
-      alt: "The timeline: a This week band holding the deadlines echo found, and under it the days, each with the words that ran through them and the notes written that day.",
-    },
-  },
-  {
-    title: "Writing",
-    subtitle:
-      "Write a line and watch it get read: the words echo took out of the sentence, and the notes it is already reminded of.",
-    shot: {
-      src: "/shots/write.webp",
-      alt: "A sentence being written in echo. The composer shows a word count and a Due friday chip, and the panel beside it already lists four notes it connects to.",
-    },
-  },
+/** The screens, in the order the points are made. Files, not copy. */
+const SHOTS = [
+  "/shots/stream.webp",
+  "/shots/tasks.webp",
+  "/shots/timeline.webp",
+  "/shots/write.webp",
 ];
 
 /**
@@ -56,23 +26,18 @@ const points = [
  * column that only existed above `lg`; under it, the screen sat below all four points, a full
  * viewport from the one that selected it, and pressing a point moved something off screen.
  */
-export const Tour = () => (
+export const Tour = ({ content }: { content: Content }) => (
   <section id="tour" className="scroll-mt-24 py-16 md:py-24">
     <div className="shell">
       <div className="reveal max-w-3xl">
-        <h2 className="display text-[clamp(2rem,3.6vw,3.4rem)]">
-          Everything you write, kept four ways
-        </h2>
-        <p className="prose-body mt-5 text-ink/85">
-          One pile of notes, read back as a stream, a task list, a timeline and a page you are
-          writing on. Nothing here is a separate place to keep things up to date.
-        </p>
+        <h2 className="display text-[clamp(2rem,3.6vw,3.4rem)]">{content.tour.title}</h2>
+        <p className="prose-body mt-5 text-ink/85">{content.tour.lede}</p>
       </div>
 
       <fieldset className="mt-12 min-w-0 md:mt-16">
-        <legend className="sr-only">Choose a screen</legend>
+        <legend className="sr-only">{content.tour.legend}</legend>
 
-        {points.map((point, index) => (
+        {content.tour.points.map((point, index) => (
           <input
             key={point.title}
             type="radio"
@@ -85,7 +50,7 @@ export const Tour = () => (
         ))}
 
         <div className="tour-grid">
-          {points.map((point, index) => (
+          {content.tour.points.map((point, index) => (
             <div
               key={point.title}
               className="tour-row min-w-0"
@@ -103,7 +68,7 @@ export const Tour = () => (
               </label>
 
               <div data-tour={String(index + 1)} className="tour-panel min-w-0">
-                <Shot {...point.shot} className="tour-shot" />
+                <Shot src={SHOTS[index] ?? ""} alt={point.alt} className="tour-shot" />
               </div>
             </div>
           ))}

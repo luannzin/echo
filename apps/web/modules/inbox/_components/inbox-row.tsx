@@ -7,14 +7,16 @@ import { ArrowRight, FolderPlus, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
+import { type InboxReason, reasonKey } from "@/modules/inbox/plan";
 import { Timestamp } from "@/shared/_components/timestamp";
 import type { FolderPath } from "@/shared/lib/folder-paths";
+import { copy, list } from "@/shared/lib/i18n";
 
-/** The evidence, in the reader's own notes rather than a percentage. */
-const evidence = (destination: Destination): string =>
-  destination.because.length === 1
-    ? "1 note like it is there"
-    : `${destination.because.length} notes like it are there`;
+/** One reason, said. The structure comes from `plan.ts`; the words come from the dictionary. */
+const say = (reason: InboxReason): string =>
+  reason.kind === "habit"
+    ? copy().inbox.habit(list(reason.concepts))
+    : copy().inbox.neighbour(reason.title);
 
 export const InboxRow = ({
   note,
@@ -32,13 +34,15 @@ export const InboxRow = ({
   /** Every folder, named and ordered once by the list rather than once per row. */
   places: FolderPath[];
   suggestion: Destination | undefined;
-  /** Why this folder, in sentences. Empty when echo has nothing to say beyond the neighbours. */
-  reasonsFor: (noteId: string, suggestion: Destination) => string[];
+  /** Why this folder. Empty when echo has nothing to say beyond the neighbours. */
+  reasonsFor: (noteId: string, suggestion: Destination) => InboxReason[];
   onAccept: (noteId: string, destination: Destination) => void;
   onMove: (noteId: string, folderId: string, suggested: Destination | undefined) => void;
   onOpen: (noteId: string, from: HTMLElement) => void;
   onNewFolder: () => void;
 }) => {
+  const words = copy().inbox;
+
   return (
     <div className="flex flex-col gap-2.5">
       <button
@@ -49,7 +53,7 @@ export const InboxRow = ({
       >
         <span className="flex items-baseline gap-3">
           <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
-            {note.title || "Untitled"}
+            {note.title || copy().common.untitled}
           </span>
           <Timestamp at={note.updatedAt} />
         </span>
@@ -71,7 +75,7 @@ export const InboxRow = ({
             {/* A folder nested four deep has a long name. The button gives up the name before it
                 gives up the row. */}
             <span className="min-w-0 truncate">
-              Move to {folderPath(folders, suggestion.folderId)}
+              {words.moveTo(folderPath(folders, suggestion.folderId))}
             </span>
           </Button>
         ) : null}
@@ -89,7 +93,7 @@ export const InboxRow = ({
               />
             }
           >
-            {suggestion ? "Somewhere else" : "Choose a folder"}
+            {suggestion ? words.somewhereElse : words.chooseAFolder}
             <ArrowRight aria-hidden="true" />
           </MenuTrigger>
           <MenuPopup align="start" className="max-h-80 max-w-72 overflow-y-auto">
@@ -105,7 +109,7 @@ export const InboxRow = ({
             {places.length > 0 ? <MenuSeparator /> : null}
             <MenuItem closeOnClick onClick={onNewFolder}>
               <FolderPlus aria-hidden="true" />
-              New folder
+              {copy().common.newFolder}
             </MenuItem>
           </MenuPopup>
         </Menu>
@@ -116,12 +120,12 @@ export const InboxRow = ({
           <details className="group/why">
             <summary className="cursor-pointer list-none outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Badge variant="outline" className="font-normal text-muted-foreground">
-                {evidence(suggestion)} · why?
+                {words.evidenceWhy(suggestion.because.length)}
               </Badge>
             </summary>
             <ul className="basis-full pt-2 ps-1 text-muted-foreground text-xs leading-5">
               {reasonsFor(note.id, suggestion).map((reason) => (
-                <li key={reason}>· {reason}</li>
+                <li key={reasonKey(reason)}>· {say(reason)}</li>
               ))}
             </ul>
           </details>

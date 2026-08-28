@@ -22,6 +22,7 @@ import {
   writeActive,
   writeSession,
 } from "@/modules/editor/session";
+import { copy } from "@/shared/lib/i18n";
 import { openPostit } from "@/shared/lib/postit";
 import { saveCopy } from "@/shared/lib/save-copy";
 import { editorShortcutFor } from "@/shared/lib/shortcuts";
@@ -86,6 +87,7 @@ export const EditorMode = ({
   /** Whether a tab can be lifted onto the desktop at all, which only the desktop app can do. */
   desktop: boolean;
 }) => {
+  const words = copy().editor;
   const [session, setSession] = useState<Session>([]);
   const [panes, setPanes] = useState<[string | null, string | null]>([null, null]);
   const [focused, setFocused] = useState<0 | 1>(0);
@@ -224,9 +226,9 @@ export const EditorMode = ({
   const pin = useCallback(
     (noteId: string) => {
       void openPostit(noteId).then((opened) => {
-        if (!opened) return say("This note could not be pinned");
+        if (!opened) return say(copy().editor.pinFailed);
         close(noteId);
-        say("Pinned to the desktop");
+        say(copy().editor.pinned);
       });
     },
     [close, say],
@@ -247,9 +249,9 @@ export const EditorMode = ({
     if (content.trim().length === 0) return;
     try {
       const written = await saveCopy(noteOf(noteId)?.title || deriveTitle(content), content);
-      if (written) say("Saved a copy");
+      if (written) say(copy().editor.copySaved);
     } catch {
-      say("The copy could not be written");
+      say(copy().editor.copyFailed);
     }
   }, [panes, noteOf, say]);
 
@@ -298,12 +300,13 @@ export const EditorMode = ({
     async (noteId: string, text: string, ask: Filing) => {
       await save(noteId, text);
       await onFile(noteId, ask);
+      const said = copy().editor;
       say(
         ask.category !== undefined
-          ? `Filed under ${ask.category}`
+          ? said.filedUnder(ask.category)
           : ask.dueAt !== undefined
-            ? "Filed as a task, with its date"
-            : "Filed as a task",
+            ? said.filedAsTaskWithDate
+            : said.filedAsTask,
       );
     },
     [save, onFile, say],
@@ -330,7 +333,7 @@ export const EditorMode = ({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={asideOpen ? "Hide notes" : "Show notes"}
+          aria-label={asideOpen ? words.hideNotes : words.showNotes}
           aria-expanded={asideOpen}
           onClick={() => setAsideOpen((current) => !current)}
           className="shrink-0 text-muted-foreground"
@@ -340,7 +343,7 @@ export const EditorMode = ({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="New note"
+          aria-label={copy().common.newNote}
           onClick={create}
           className="shrink-0 text-muted-foreground"
         >
@@ -373,7 +376,7 @@ export const EditorMode = ({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={preview ? "Hide the preview" : "Show the preview"}
+          aria-label={preview ? words.hidePreview : words.showPreview}
           aria-pressed={preview}
           onClick={togglePreview}
           className={`shrink-0 ${preview ? "text-brand-bright" : "text-muted-foreground"}`}
@@ -383,7 +386,7 @@ export const EditorMode = ({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Save a copy as a file"
+          aria-label={words.saveCopy}
           onClick={exportCopy}
           className="shrink-0 text-muted-foreground"
         >
@@ -392,7 +395,7 @@ export const EditorMode = ({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={panes[1] === null ? "Split the view" : "Close the split"}
+          aria-label={panes[1] === null ? words.splitTheView : words.closeTheSplit}
           aria-pressed={panes[1] !== null}
           onClick={toggleSplit}
           className="shrink-0 text-muted-foreground"
@@ -402,7 +405,7 @@ export const EditorMode = ({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Back to the full app"
+          aria-label={words.backToTheApp}
           onClick={onLeave}
           className="shrink-0 text-muted-foreground"
         >
@@ -426,9 +429,7 @@ export const EditorMode = ({
             role={failed ? "alert" : undefined}
             className="px-6 py-5 text-muted-foreground text-sm leading-relaxed"
           >
-            {failed
-              ? "Local storage could not be opened, so nothing typed here can be kept. Reload, or check that this browser allows site data for echo."
-              : null}
+            {failed ? words.storageFailed : null}
           </p>
         ) : (
           <>

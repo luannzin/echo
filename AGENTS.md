@@ -102,12 +102,28 @@ When the user requests a durable behavior change, record it here or in the relev
   a hover-revealed control stays reachable on focus
 - Responsive behaviour is CSS, not a second component tree: one list in the document, and no guess
   about the viewport before the browser has said what it is
+- Every word the interface says comes from `apps/web/shared/lib/i18n`, read at render through
+  `copy()`. **Never lift it into a module-level constant** — `const words = copy().rail` at the top
+  of a file captures whichever dictionary was active when the module was first evaluated and never
+  changes again. Inside a component body is fine; the component re-renders.
+- `en.ts` is the specification and `pt.ts` is annotated against it, so `bun run typecheck` is the
+  translation completeness check. A value that varies is a function returning the **finished
+  sentence**: Portuguese reorders what English concatenates, so a sentence assembled at the call
+  site is a sentence no language can move
+- Key legends (`Enter`, `Esc`, `Tab`, `Ctrl`, `⌘`) are printed on the hardware, not copy. They stay
+  literals
+- Domain packages never hold a sentence. `@echo/search` returns reason codes; the interface owns the
+  words
+- Preferences live in `apps/web/shared/lib/preferences.ts` under `echo:` keys, named as Phase 7's
+  `user_preferences` table will name them. The language is the exception and belongs to `i18n`,
+  because the dictionary has to be pointed somewhere before anything can read a word of copy
 
 ## apps/web layout
 
 ```text
 app/                     route entries and their owner components, plus the command list
 app/postit/              the desktop sticky note: its own window, its own owner, no database
+shared/lib/i18n/         en.ts is the specification, pt.ts is checked against it, copy() reads it
 modules/<module>/
   _components/*.tsx      one component per file, exported by name
   *.ts                   that module's own types and pure helpers
@@ -117,8 +133,8 @@ shared/
 components/ui, hooks, lib/utils.ts, lib/segmented-control.ts   coss registry, CLI-owned
 ```
 
-Modules today: `capture`, `editor`, `explorer`, `inbox`, `intelligence`, `notes`, `search`, `shell`,
-`tasks`, `timeline`.
+Modules today: `capture`, `editor`, `explorer`, `inbox`, `intelligence`, `notes`, `onboarding`,
+`search`, `settings`, `shell`, `tasks`, `timeline`.
 A module never reaches into another module's `_components`; anything two of them need moves to
 `shared/`.
 

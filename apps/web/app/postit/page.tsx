@@ -3,6 +3,7 @@
 import { deriveTitle } from "@echo/core";
 import { CornerDownLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { adoptLocale, copy, currentLocale, readLocale } from "@/shared/lib/i18n";
 import {
   POSTIT_NOTE,
   POSTIT_OPEN,
@@ -25,7 +26,17 @@ const SAVE_MS = 500;
 const PostitPage = () => {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
+  /** Only to re-render once the language is known: the dictionary itself is a module. */
+  const [, setLanguage] = useState(currentLocale);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Its own document, so it runs the same two lines the main window runs: the head script in
+  // `layout.tsx` decided the language before anything painted, and this reads it back.
+  useEffect(() => {
+    const opened = readLocale();
+    adoptLocale(opened);
+    setLanguage(opened);
+  }, []);
 
   // What the window is for, and the words to put in it. The ask goes out after the listener is up,
   // so an answer that comes back immediately is not missed.
@@ -89,7 +100,7 @@ const PostitPage = () => {
     await getCurrentWindow().startResizeDragging("SouthEast");
   }, []);
 
-  const title = deriveTitle(text ?? "") || "New note";
+  const title = deriveTitle(text ?? "") || copy().common.newNote;
 
   return (
     // Paper, not a page: the colour is fixed rather than themed, because this sits on the desktop
@@ -109,8 +120,8 @@ const PostitPage = () => {
         <button
           type="button"
           onClick={() => void back()}
-          aria-label="Send back to echo"
-          title="Send back to echo"
+          aria-label={copy().postit.sendBack}
+          title={copy().postit.sendBack}
           className="flex size-6 shrink-0 items-center justify-center rounded text-[#3a2c05]/60 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#3a2c05]/40 hover:bg-[#3a2c05]/10 hover:text-[#3a2c05]"
         >
           <CornerDownLeft aria-hidden="true" className="size-3.5" />
@@ -118,7 +129,7 @@ const PostitPage = () => {
       </header>
 
       {text === null ? (
-        <p className="px-3 py-2 text-[#3a2c05]/60 text-sm">Waiting for echo…</p>
+        <p className="px-3 py-2 text-[#3a2c05]/60 text-sm">{copy().postit.waiting}</p>
       ) : (
         <textarea
           // biome-ignore lint/a11y/noAutofocus: the window opened for this one box, and there is nothing else in it to take focus from
@@ -126,7 +137,7 @@ const PostitPage = () => {
           value={text}
           onChange={(event) => write(event.target.value)}
           spellCheck={false}
-          placeholder="Write something."
+          placeholder={copy().postit.write}
           aria-label={title}
           className="min-h-0 flex-1 resize-none bg-transparent px-3 py-2 text-[0.8125rem] leading-relaxed outline-none placeholder:text-[#3a2c05]/40"
         />

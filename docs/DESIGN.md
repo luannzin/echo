@@ -21,8 +21,15 @@ values in `apps/www/app/globals.css` — the two surfaces share a palette, not a
 | `--color-brand-bright` | `oklch(58% 0.26 264)` | Focus rings, selected state, the one accent inside the app |
 | `--color-brand-ink` | `oklch(97% 0.012 264)` | Text and marks sitting on a brand field |
 
-Everything else comes from the coss neutral scale. The app is dark-only for now (`<html class="dark">`);
-light mode is a token swap, not a redesign, because no component hard-codes a colour.
+Everything else comes from the coss neutral scale. Both palettes are real: light at `:root` and dark
+under `.dark`, and the theme is that class and nothing else — no component hard-codes a colour, so
+the swap was tokens rather than a redesign. Dark is the default and the failure mode: the markup
+ships with `class="dark"` and the bootstrap script in `apps/web/app/layout.tsx` only ever takes it
+off, so a window where that script cannot run stays dark rather than flashing white.
+
+Settings offers dark, light, and following the machine. Motion has the same shape: `data-echo-motion`
+on `<html>` points the same way `prefers-reduced-motion` does, and there is deliberately no value
+that asks for **more** motion than the machine asked for.
 
 Blue is rationed inside the application: focus, selection, and one active state. If a screen shows
 blue in three places, two of them are wrong.
@@ -70,7 +77,32 @@ only. Nothing bounces. Two motions carry the product:
   long stream never feels like it is dealing cards.
 
 `prefers-reduced-motion` collapses every duration to ~0 in `globals.css` and FLIP checks it before
-animating, so a component cannot opt out of that promise.
+animating, so a component cannot opt out of that promise. `:root[data-echo-motion="reduced"]` does the
+same, for the reader who asked in settings rather than in the operating system.
+
+### The one exception
+
+The **arrival surfaces** — the first-run screen, the tour's coach marks, the checklist finishing — are
+the one place inside the application where the loud half of the brand is used. They are seen once.
+Everything a reader sees on the second day stays quiet.
+
+What crosses over, and nothing else:
+
+- **The dither and the burst plate**, in `apps/web/shared/_components/engraving.tsx`. A deliberate
+  second copy of the site's, kept for the same reason the two `globals.css` files re-declare the
+  brand values: `apps/www` takes no workspace dependency, and the two surfaces share a palette
+  rather than a stylesheet. The app's copy prints ink on nothing, so the plate lies over the app's
+  own canvas instead of carrying a field of its own.
+- **`.plate-drift`**, clock-driven CSS inside `prefers-reduced-motion: no-preference`. Six percent
+  over thirty-four seconds, which is under a pixel a second: light, not something moving.
+- **The travelling spotlight.** One fixed element with a `100vmax` ring of shadow and the anchor's
+  rectangle punched out, transitioning `top/left/width/height` on `--ease-out-quart`. It carries no
+  pointer events, so the control it is lighting stays clickable underneath — a tour that has to be
+  dismissed before the thing it describes can be tried is a slideshow.
+- **A tick that draws itself**, on `stroke-dashoffset`. The mark is the reward, and a checkmark that
+  simply exists on the next render is not one.
+
+Still nothing bounces.
 
 ## The marketing surface
 

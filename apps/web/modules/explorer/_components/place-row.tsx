@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Count } from "@/shared/_components/count";
+import { copy } from "@/shared/lib/i18n";
 import { row } from "@/shared/lib/styles";
 
 /** A place notes can be, drawn the same whether or not it is a folder. */
@@ -51,6 +52,6 @@ export const PlaceRow = ({
   >
     <Icon aria-hidden="true" className="size-3.5 shrink-0" />
     <span className="min-w-0 flex-1 truncate">{label}</span>
-    <Count of={count} label={`in ${label}`} />
+    <Count of={count} describe={(here) => copy().explorer.inPlaceCount(here, label)} />
   </button>
 );

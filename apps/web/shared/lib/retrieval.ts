@@ -10,6 +10,7 @@ import {
 import type { EmbedderStatus } from "@echo/embeddings";
 import { foldTerm, type PhraseModel, type VocabularyModel } from "@echo/learning";
 import {
+  type ContextReason,
   type ContextSignals,
   contextScore,
   DEFAULT_WEIGHTS,
@@ -40,8 +41,8 @@ const EXPANSIONS = 2;
 /** How many neighbours meaning nominates per place shown, so belonging has something to re-order. */
 const NOMINEES = 4;
 
-/** A related note, and why it is one. */
-export type RelatedResult = SearchResult & { because: string[] };
+/** A related note, and why it is one. The codes become sentences in the interface, not here. */
+export type RelatedResult = SearchResult & { because: ContextReason[] };
 
 /** One of the reader's own words or phrases, offered beside what they typed. */
 export type Suggestion = {
@@ -155,6 +156,9 @@ export const createRetrieval = ({
 
   return {
     index,
+
+    /** Which model wrote the vectors. Printed in settings, and nothing else reads it. */
+    modelId: embedder.id,
 
     status: (): EmbedderStatus => embedder.status(),
 

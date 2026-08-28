@@ -5,12 +5,13 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Kbd } from "@/components/ui/kbd";
 import { Concepts } from "@/modules/intelligence/_components/concepts";
-import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
+import { saveStateLabel, useAutosave } from "@/modules/notes/autosave";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { CategoryPicker } from "@/shared/_components/category-picker";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
 import { useCompletion } from "@/shared/lib/completion";
+import { copy } from "@/shared/lib/i18n";
 import { NOTE_SURFACE } from "@/shared/lib/transition";
 
 /** Given to the textarea and to the suggestion behind it; they only line up while they agree. */
@@ -56,6 +57,7 @@ export const NoteEditor = ({
   onRemoveCategory: (noteId: string, categoryId: string) => void;
   onDismissConcept: (noteId: string, name: string) => void;
 }) => {
+  const words = copy().notes;
   const { draft, setDraft, state } = useAutosave(note.id, note.content, onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const completion = useCompletion(textarea, complete);
@@ -82,22 +84,19 @@ export const NoteEditor = ({
           className="-ms-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground text-xs transition-[color,transform] duration-150 ease-[var(--ease-out-quart)] active:scale-[0.97] hover:text-foreground"
         >
           <ArrowLeft aria-hidden="true" className="size-3.5" />
-          Back to writing
+          {words.backToWriting}
           <Kbd className="ml-1">Esc</Kbd>
         </button>
         {/* Metadata stays secondary: where the note is, said quietly, next to what it is doing.
             "In" rather than the bare path, because a folder is the likeliest place a note lives and
             not the only way to reach it — the labels and concepts below this find it too. */}
         <div className="flex min-w-0 items-center gap-3">
-          <span
-            className="min-w-0 truncate"
-            title={`Kept in ${location}. The labels and concepts below find it too.`}
-          >
-            <Label>In {location}</Label>
+          <span className="min-w-0 truncate" title={words.keptIn(location)}>
+            <Label>{words.inLocation(location)}</Label>
           </span>
           {state === "idle" ? null : (
             <span key={state} className="animate-settle">
-              <Label>{SAVE_STATE_LABEL[state]}</Label>
+              <Label>{saveStateLabel(state)}</Label>
             </span>
           )}
           {/* Quiet until pointed at, because it is the one control here that cannot be shrugged off
@@ -105,8 +104,8 @@ export const NoteEditor = ({
           <button
             type="button"
             onClick={() => onDelete(note)}
-            aria-label="Delete note"
-            title="Delete this note. Ctrl Z puts it back."
+            aria-label={copy().common.deleteNote}
+            title={words.deleteThisNote}
             className="rounded-md p-1 text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring hover:text-destructive"
           >
             <Trash2 aria-hidden="true" className="size-3.5" />
@@ -157,8 +156,8 @@ export const NoteEditor = ({
             if (completion.onKeyDown(event, setDraft)) return;
             if (event.key === "Escape") onClose();
           }}
-          aria-label="Note content"
-          placeholder="Write anything…"
+          aria-label={copy().composer.noteContent}
+          placeholder={copy().composer.writeAnything}
           spellCheck={false}
           className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
         />

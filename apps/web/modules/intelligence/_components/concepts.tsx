@@ -1,5 +1,7 @@
 "use client";
 
+import { copy } from "@/shared/lib/i18n";
+
 /**
  * What a note is about, read out of the words in it against the words in every other note. Nothing
  * was created and nothing was tagged: a concept exists because the reader keeps writing it.
@@ -24,7 +26,7 @@ export const Concepts = ({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="pe-0.5 font-mono text-[0.625rem] text-muted-foreground uppercase tracking-[0.14em]">
-        Concepts
+        {copy().intelligence.concepts}
       </span>
       {concepts.map((concept) => (
         <span
@@ -34,7 +36,7 @@ export const Concepts = ({
           <button
             type="button"
             onClick={() => onPromote(concept)}
-            title={`Keep "${concept}" as a category`}
+            title={copy().intelligence.keepAsCategory(concept)}
             className="inline-flex min-w-0 items-center gap-1 rounded-sm outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             {/* No icon. A plus beside a word small enough to sit in a 12px chip still carries a
@@ -45,7 +47,7 @@ export const Concepts = ({
           <button
             type="button"
             onClick={() => onDismiss(concept)}
-            aria-label={`This note is not about ${concept}`}
+            aria-label={copy().intelligence.notAbout(concept)}
             className="-me-0.5 rounded-sm text-muted-foreground/60 outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             ×

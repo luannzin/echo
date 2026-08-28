@@ -12,6 +12,7 @@ import {
   Tag,
   TextQuote,
 } from "lucide-react";
+import { copy, type Dictionary } from "@/shared/lib/i18n";
 
 /**
  * What a command does when it is chosen.
@@ -28,11 +29,24 @@ export type SlashAction =
   /** Changes what the note *is* rather than what it says. The words are left alone. */
   | { kind: "note"; note: "task" | "due" | "category" };
 
+/** Where a command's words live. The words themselves are read at render, never captured here. */
+type SlashKey = keyof Dictionary["slash"];
+
 export type SlashCommand = {
   id: string;
-  label: string;
-  /** What it writes, shown beside the label — the markdown itself, because that is the point. */
-  hint: string;
+  /**
+   * The dictionary key its name lives under, rather than the name.
+   *
+   * This is a module-level constant, so a label stored here would be whichever language happened to
+   * be active when the module was first evaluated — and it would stay that language for the life of
+   * the window.
+   */
+  label: SlashKey;
+  /**
+   * What it writes, shown beside the label — the markdown itself, because that is the point. The
+   * three commands that file something have words there instead, so those name a key.
+   */
+  hint: string | { key: SlashKey };
   /** Both languages: this is a filter over what someone reaches for, not UI copy. */
   keywords: string;
   icon: LucideIcon;
@@ -44,7 +58,7 @@ export type SlashCommand = {
 export const SLASH_COMMANDS: readonly SlashCommand[] = [
   {
     id: "h1",
-    label: "Heading",
+    label: "h1",
     hint: "#",
     keywords: "heading title h1 big titulo cabecalho",
     icon: Heading1,
@@ -52,7 +66,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "h2",
-    label: "Subheading",
+    label: "h2",
     hint: "##",
     keywords: "heading subheading h2 subtitulo",
     icon: Heading2,
@@ -60,7 +74,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "h3",
-    label: "Small heading",
+    label: "h3",
     hint: "###",
     keywords: "heading h3 small subtitulo menor",
     icon: Heading3,
@@ -68,7 +82,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "todo",
-    label: "To-do",
+    label: "todo",
     hint: "- [ ]",
     keywords: "todo checkbox task check tarefa caixa marcar",
     icon: SquareCheck,
@@ -76,7 +90,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "list",
-    label: "Bulleted list",
+    label: "bullet",
     hint: "-",
     keywords: "list bullet item lista marcador",
     icon: List,
@@ -84,7 +98,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "numbered",
-    label: "Numbered list",
+    label: "numbered",
     hint: "1.",
     keywords: "list numbered ordered lista numerada ordenada",
     icon: ListOrdered,
@@ -92,7 +106,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "quote",
-    label: "Quote",
+    label: "quote",
     hint: ">",
     keywords: "quote blockquote citation citacao",
     icon: TextQuote,
@@ -100,7 +114,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "code",
-    label: "Code block",
+    label: "code",
     hint: "```",
     keywords: "code block fence snippet codigo bloco",
     icon: Code,
@@ -109,7 +123,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "divider",
-    label: "Divider",
+    label: "divider",
     hint: "---",
     keywords: "divider rule separator line divisor linha separador",
     icon: Minus,
@@ -117,16 +131,16 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "task",
-    label: "Make this a task",
-    hint: "files it",
+    label: "task",
+    hint: { key: "taskHint" },
     keywords: "task todo do file tarefa fazer",
     icon: SquareCheck,
     action: { kind: "note", note: "task" },
   },
   {
     id: "due",
-    label: "Due",
-    hint: "when",
+    label: "due",
+    hint: { key: "dueHint" },
     keywords: "due date deadline when prazo data vencimento quando",
     icon: CalendarClock,
     action: { kind: "note", note: "due" },
@@ -134,8 +148,8 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   },
   {
     id: "category",
-    label: "Add a category",
-    hint: "name",
+    label: "category",
+    hint: { key: "categoryHint" },
     keywords: "category label tag topic categoria etiqueta rotulo",
     icon: Tag,
     action: { kind: "note", note: "category" },
@@ -144,6 +158,13 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
 ];
 
 const byId = new Map(SLASH_COMMANDS.map((command) => [command.id, command]));
+
+/** What a row is called, in the language on screen. */
+export const slashLabel = (command: SlashCommand): string => copy().slash[command.label];
+
+/** What it writes, beside the name: markdown as itself, and words through the dictionary. */
+export const slashHint = (command: SlashCommand): string =>
+  typeof command.hint === "string" ? command.hint : copy().slash[command.hint.key];
 
 /**
  * What a `note` command asks to be filed against a note. Deliberately not a whole note patch: these
@@ -204,7 +225,7 @@ export const matching = (name: string): SlashCommand[] => {
   const needle = name.trim().toLowerCase();
   if (needle.length === 0) return [...SLASH_COMMANDS];
   return SLASH_COMMANDS.filter((command) =>
-    `${command.id} ${command.label.toLowerCase()} ${command.keywords}`
+    `${command.id} ${slashLabel(command).toLowerCase()} ${command.keywords}`
       .split(/[\s-]+/)
       .some((word) => word.startsWith(needle)),
   ).sort((a, b) => Number(b.id === needle) - Number(a.id === needle));

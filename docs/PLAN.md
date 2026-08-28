@@ -136,7 +136,19 @@ decisions recorded in `docs/STATE.md`.
 
 ## Phase 8 — Product polish
 
-Landing page (§48, built — `apps/www`), onboarding storage choice (§49), animations with reduced-motion, a11y pass, perf pass against a 10k-note seeded corpus, docs (local / self-host / Postgres / desktop / deploy).
+Landing page (§48) is built — `apps/www`. The rest runs in five parts; the spec is
+`docs/superpowers/specs/2026-08-27-language-and-arrival-design.md`.
+
+| # | Part | Covers | State |
+|---|---|---|---|
+| P8a | Language in the application | typed dictionaries, runtime locale, reason codes out of the domain, locale-aware dates | ✅ |
+| P8b | Language on the site | two prerendered documents, `/` and `/pt-br`, hreflang, the Portuguese type pass | ✅ |
+| P8c | Settings | the preference store, then language, storage, theme, motion, learned rules, export, reset | ✅ |
+| P8d | Arrival | first run (§49's storage choice), a tour anchored to the real interface, a checklist derived from the notes | ✅ |
+| P8e | Identity | the engraving and its motion, inside the app | ✅ |
+
+Still open in this phase: a perf pass against a 10k-note seeded corpus, and the docs (local /
+self-host / Postgres / desktop / deploy).
 
 ---
 
@@ -149,7 +161,10 @@ Landing page (§48, built — `apps/www`), onboarding storage choice (§49), ani
 ## Open decisions
 
 1. **Editor engine.** Default: markdown textarea in Phase 1 → Tiptap in Phase 2 (ProseMirror, has the selection/decoration API the inline suggestions need). Alternative: stay plain markdown the whole MVP, cheaper and faster, less "premium".
-2. **Embedding model.** Default `bge-small-en-v1.5` (~33M params, ~35MB quantized, 384-dim). Multilingual (pt-BR notes) needs `multilingual-e5-small` instead — ~120MB. Which matters to you?
+2. ~~**Embedding model.**~~ Decided: `multilingual-e5-small`, and it is what both hosts already run
+   (`packages/embeddings/src/local.ts` and `apps/desktop/src-tauri/src/lib.rs`). Semantic search in
+   pt-BR needed nothing beyond that. Lexical search uses `to_tsvector('simple')`, which stems no
+   language, so the two are treated identically there as well.
 3. ~~**Landing page location.**~~ Decided: separate app, `apps/www`, deployed on its own.
 
 ## Risks I'm flagging now

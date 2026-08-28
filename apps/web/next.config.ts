@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { NextConfig } from "next";
@@ -19,7 +20,17 @@ const transformersWeb = join(
   "transformers.web.js",
 );
 
+/**
+ * What this build is called, read from the one file that declares it rather than written down a
+ * second time. The desktop bundle's version is echo's version: they are the same application, and a
+ * number kept in two places is a number that disagrees with itself.
+ */
+const version: string = JSON.parse(
+  readFileSync(new URL("../desktop/src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+).version;
+
 const config: NextConfig = {
+  env: { NEXT_PUBLIC_ECHO_VERSION: version },
   /**
    * echo is a client-side app: the database, search and learning all run in the browser, so there is
    * no server to render against. A static export removes the server and hydration mismatches with

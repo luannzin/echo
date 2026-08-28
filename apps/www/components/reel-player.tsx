@@ -18,10 +18,14 @@ export const ReelPlayer = ({
   poster,
   sources,
   label,
+  play,
+  pause,
 }: {
   poster: string;
   sources: { src: string; type: string }[];
   label: string;
+  play: string;
+  pause: string;
 }) => {
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -83,7 +87,7 @@ export const ReelPlayer = ({
         aria-pressed={playing}
         className="press label absolute top-3 end-3 border rule-carbon bg-carbon/85 px-3 py-2 text-quiet backdrop-blur-sm transition-colors hover:text-ink"
       >
-        {playing ? "Pause" : "Play"}
+        {playing ? pause : play}
       </button>
     </div>
   );

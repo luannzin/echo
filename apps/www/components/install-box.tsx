@@ -1,25 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import type { Content } from "@/content/en";
 
-const targets = [
-  {
-    id: "web",
-    label: "Web",
-    lines: [
-      "git clone https://github.com/luannzin/echo.git",
-      "cd echo && bun install",
-      "bun run dev",
-    ],
-    after: "Open http://localhost:3000. There is no .env to fill in and no account to create.",
-  },
-  {
-    id: "desktop",
-    label: "Desktop",
-    lines: ["cd echo && bun install", "bun run dev:desktop"],
-    after: "Needs a Rust toolchain. On Linux, also webkit2gtk-4.1, gtk+-3.0 and libsoup-3.0.",
-  },
-] as const;
+/**
+ * The commands, which are not copy: they are typed into a shell, and a translated `bun install` is
+ * a translated command that does not run. Only what is said *about* them moves with the language.
+ */
+const COMMANDS = {
+  web: ["git clone https://github.com/luannzin/echo.git", "cd echo && bun install", "bun run dev"],
+  desktop: ["cd echo && bun install", "bun run dev:desktop"],
+} as const;
+
+type Target = keyof typeof COMMANDS;
 
 type Status = "idle" | "copied" | "failed";
 
@@ -28,19 +21,19 @@ type Status = "idle" | "copied" | "failed";
  * stay selectable text and the button reports what actually happened, including the refusal, which
  * used to leave the reader pressing a button that did nothing and said nothing.
  */
-export const InstallBox = () => {
-  const [target, setTarget] = useState<(typeof targets)[number]["id"]>("web");
+export const InstallBox = ({ words }: { words: Content["runIt"]["install"] }) => {
+  const [target, setTarget] = useState<Target>("web");
   const [status, setStatus] = useState<Status>("idle");
-  const active = targets.find((entry) => entry.id === target) ?? targets[0];
+  const lines = COMMANDS[target];
 
-  const select = (id: (typeof targets)[number]["id"]) => {
+  const select = (id: Target) => {
     setTarget(id);
     setStatus("idle");
   };
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(active.lines.join("\n"));
+      await navigator.clipboard.writeText(lines.join("\n"));
       setStatus("copied");
       setTimeout(() => setStatus("idle"), 1600);
     } catch {
@@ -53,32 +46,32 @@ export const InstallBox = () => {
       <div className="border rule-ink bg-carbon text-quiet">
         <div className="flex items-center justify-between border-b rule-carbon bg-carbon-lift px-4 py-2.5">
           <div className="flex items-center gap-5">
-            {targets.map((entry) => (
+            {(["web", "desktop"] as const).map((id) => (
               <button
-                key={entry.id}
+                key={id}
                 type="button"
-                onClick={() => select(entry.id)}
-                aria-pressed={entry.id === target}
+                onClick={() => select(id)}
+                aria-pressed={id === target}
                 className={`press label transition-colors ${
-                  entry.id === target ? "text-ink" : "text-faint hover:text-quiet"
+                  id === target ? "text-ink" : "text-faint hover:text-quiet"
                 }`}
               >
-                {entry.label}
+                {id === "web" ? words.web : words.desktop}
               </button>
             ))}
           </div>
           <button
             type="button"
             onClick={copy}
-            aria-label={`Copy the ${active.label} commands`}
+            aria-label={target === "web" ? words.copyWebLabel : words.copyDesktopLabel}
             className="press label border rule-carbon px-2.5 py-1 text-faint transition-colors hover:bg-quiet/10 hover:text-ink"
           >
-            {status === "copied" ? "Copied" : "Copy"}
+            {status === "copied" ? words.copied : words.copy}
           </button>
         </div>
 
         <div className="space-y-1.5 px-4 py-4 font-mono text-[0.78rem] leading-relaxed">
-          {active.lines.map((line) => (
+          {lines.map((line) => (
             <p key={line} className="overflow-x-auto whitespace-pre">
               <span className="text-brand-lit">$ </span>
               {line}
@@ -89,8 +82,10 @@ export const InstallBox = () => {
 
       <p aria-live="polite" className="prose-body mt-3 text-ink/85">
         {status === "failed"
-          ? "Your browser wouldn’t let the page use the clipboard. Select the lines above and copy them."
-          : active.after}
+          ? words.failed
+          : target === "web"
+            ? words.webAfter
+            : words.desktopAfter}
       </p>
     </div>
   );

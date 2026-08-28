@@ -12,6 +12,7 @@ import { TimelineDayRow } from "@/modules/timeline/_components/timeline-day";
 import { groupByMonth, type Upcoming } from "@/modules/timeline/model";
 import { EmptyState } from "@/shared/_components/empty-state";
 import { Label } from "@/shared/_components/label";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * The reader's own history, compressed. The stream is every note in the order it was written; this
@@ -45,6 +46,7 @@ export const Timeline = ({
   onOpen: (noteId: string, from: HTMLElement) => void;
   onOpenTasks: () => void;
 }) => {
+  const words = copy().timeline;
   const byId = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes]);
   const months = useMemo(
     () => groupByMonth(buildTimeline(notes, { conceptsOf })),
@@ -61,9 +63,8 @@ export const Timeline = ({
 
   if (notes.length === 0) {
     return (
-      <EmptyState icon={History} title="Nothing to look back on yet.">
-        Every note you write lands on a day here, with what that day was about. Come back once there
-        is a week of it.
+      <EmptyState icon={History} title={words.empty}>
+        {words.emptyBody}
       </EmptyState>
     );
   }
@@ -71,11 +72,8 @@ export const Timeline = ({
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-6">
       <div className="flex items-baseline justify-between gap-4 pb-6">
-        <h1 className="font-display text-3xl tracking-tight">{scope ?? "Timeline"}</h1>
-        <Label>
-          {notes.length} {notes.length === 1 ? "note" : "notes"} over {months.length}{" "}
-          {months.length === 1 ? "month" : "months"}
-        </Label>
+        <h1 className="font-display text-3xl tracking-tight">{scope ?? words.title}</h1>
+        <Label>{words.span(notes.length, months.length)}</Label>
       </div>
 
       {/* What the project is, then what changed while you were away, then what this week holds,

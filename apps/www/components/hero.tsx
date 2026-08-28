@@ -1,9 +1,10 @@
 import { Engraving } from "@/components/engraving";
 import { REPO } from "@/components/links";
+import type { Content } from "@/content/en";
 
 const beat = (ms: number) => ({ "--beat": `${ms}ms` }) as React.CSSProperties;
 
-export const Hero = () => (
+export const Hero = ({ content }: { content: Content }) => (
   <section id="top" className="relative overflow-hidden">
     {/*
      * The phone keeps room under the copy for the plate to occupy. The plate is out of the flow at
@@ -17,17 +18,15 @@ export const Hero = () => (
        */}
       <div className="min-w-0 max-w-3xl">
         <p className="beat label text-ink/85" style={beat(0)}>
-          No AI · Open source · Runs on your machine · No account
+          {content.hero.eyebrow}
         </p>
 
         <h1 className="beat display mt-5 text-[clamp(2.9rem,6.6vw,5.5rem)]" style={beat(90)}>
-          The note taker that learns with you
+          {content.hero.title}
         </h1>
 
         <p className="beat prose-lede mt-7 text-ink/85" style={beat(190)}>
-          You write one line and press Enter. echo reads what you wrote: the deadline you mentioned
-          in passing, the task hiding in it, the words you keep using. It gets better at handing all
-          of it back, and it never leaves your machine.
+          {content.hero.lede}
         </p>
 
         <div className="beat mt-9 flex flex-wrap items-center gap-3" style={beat(290)}>
@@ -35,19 +34,19 @@ export const Hero = () => (
             href="#reel"
             className="press label border rule-ink bg-ink px-5 py-3 text-brand transition-colors hover:bg-brand-deep hover:text-ink"
           >
-            Watch it working ↓
+            {content.hero.watch}
           </a>
           <a
             href="#install"
             className="press label border rule-ink px-5 py-3 text-ink/85 transition-colors hover:bg-ink/10 hover:text-ink"
           >
-            Run it locally
+            {content.hero.run}
           </a>
           <a
             href={REPO}
             className="press label px-2 py-3 text-ink/85 underline decoration-ink/30 underline-offset-4 transition-colors hover:text-ink"
           >
-            Read the source on GitHub
+            {content.hero.source}
           </a>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { Plus, Tag } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
+import { copy } from "@/shared/lib/i18n";
 import { row } from "@/shared/lib/styles";
 
 /**
@@ -26,6 +27,7 @@ export const CategoryPicker = ({
   /** Given a name that does not exist yet. The service is idempotent on the name either way. */
   onCreate: (name: string) => void;
 }) => {
+  const words = copy().category;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -62,13 +64,13 @@ export const CategoryPicker = ({
           <Badge
             render={<button type="button" />}
             variant="outline"
-            aria-label="Add a category"
+            aria-label={words.add}
             className="gap-1 border-dashed font-normal text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground"
           />
         }
       >
         <Plus aria-hidden="true" className="size-3" />
-        Category
+        {copy().common.newCategory}
       </PopoverTrigger>
       <PopoverPopup align="start" className="w-64 p-1">
         <input
@@ -84,8 +86,8 @@ export const CategoryPicker = ({
               else if (first) choose(first.id);
             }
           }}
-          aria-label="Find or name a category"
-          placeholder="Find or name one…"
+          aria-label={words.findOrName}
+          placeholder={words.findOrNamePlaceholder}
           maxLength={60}
           className="mb-1 w-full rounded-md bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
         />
@@ -111,7 +113,7 @@ export const CategoryPicker = ({
                 className={`${row} w-full gap-2 px-2 text-muted-foreground hover:bg-accent hover:text-foreground`}
               >
                 <Plus aria-hidden="true" className="size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">Create “{typed}”</span>
+                <span className="min-w-0 flex-1 truncate">{words.create(typed)}</span>
               </button>
             </li>
           ) : null}
@@ -119,9 +121,7 @@ export const CategoryPicker = ({
 
         {offered.length === 0 && !creatable ? (
           <p className="px-2 py-1.5 text-muted-foreground text-xs leading-5">
-            {categories.length === 0
-              ? "No categories yet. Type a name to make the first one."
-              : "This note already has every category you have made."}
+            {categories.length === 0 ? words.none : words.allUsed}
           </p>
         ) : null}
       </PopoverPopup>

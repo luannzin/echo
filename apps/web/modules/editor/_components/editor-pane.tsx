@@ -15,13 +15,14 @@ import {
   undoableAt,
 } from "@/modules/editor/history";
 import { lineAtOffset } from "@/modules/editor/markdown";
-import { SAVE_STATE_LABEL, useAutosave } from "@/modules/notes/autosave";
+import { saveStateLabel, useAutosave } from "@/modules/notes/autosave";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
 import { SlashMenu } from "@/shared/_components/slash-menu";
 import { slashOptionId } from "@/shared/_components/slash-option";
 import { useCompletion } from "@/shared/lib/completion";
+import { copy } from "@/shared/lib/i18n";
 import { isRedoChord, isUndoChord } from "@/shared/lib/shortcuts";
 import type { Filing, SlashCommand } from "@/shared/lib/slash";
 import { numeric } from "@/shared/lib/styles";
@@ -95,6 +96,7 @@ export const EditorPane = ({
    */
   onFile?: (noteId: string, text: string, ask: Filing) => void;
 }) => {
+  const words = copy().editor;
   const { draft, setDraft, state } = useAutosave(noteId, note?.content ?? "", onSave);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const completion = useCompletion(textarea, complete);
@@ -138,11 +140,11 @@ export const EditorPane = ({
             : { category: argument.trim() };
       // A date echo cannot read is not a date, and an unnamed category is not a category.
       if (command.action.note === "due" && ask.dueAt === undefined) {
-        onNotice?.("No date in that yet");
+        onNotice?.(copy().composer.noDateYet);
         return;
       }
       if (command.action.note === "category" && ask.category === "") {
-        onNotice?.("Name the category");
+        onNotice?.(copy().composer.nameTheCategory);
         return;
       }
       onFile?.(noteId, text, ask);
@@ -190,16 +192,19 @@ export const EditorPane = ({
       const erased = history.current.past.at(-1);
       const putting = (erased?.text.length ?? 0) > history.current.present.text.length;
       walk(undo(history.current));
-      onNotice?.(putting ? "Put back what you erased" : "Took back what you wrote");
+      const said = copy().editor;
+      onNotice?.(putting ? said.reopenedWhatYouErased : said.tookBackWhatYouWrote);
       return;
     }
     const label = onUndo?.() ?? null;
-    onNotice?.(label === null ? "Nothing left to take back" : `Took back — ${label}`);
+    const said = copy().editor;
+    onNotice?.(label === null ? said.nothingLeftToTakeBack : said.tookBack(label));
   }, [appUndoAt, onUndo, onNotice, walk]);
 
   /** Only the words have a way forward: nothing the app takes back can be put back by a keystroke. */
   const putForward = useCallback(() => {
-    onNotice?.(walk(redo(history.current)) ? "Put it back" : "Nothing to put forward");
+    const said = copy().editor;
+    onNotice?.(walk(redo(history.current)) ? said.putItBack : said.nothingToPutForward);
   }, [walk, onNotice]);
 
   // Typing, and the first paint after the preview is opened on a note already full of words.
@@ -229,13 +234,15 @@ export const EditorPane = ({
     const query = slash.query;
     if (query === null || query.argument === null) return null;
     if (query.name === "due") {
-      if (query.argument.trim().length === 0) return "When? tomorrow, friday, in 2 weeks…";
+      const said = copy().composer;
+      if (query.argument.trim().length === 0) return said.whenPlaceholder;
       const when = parse(query.argument).dates[0];
-      return when ? `Due ${formatDue(when.date)}` : "No date in that yet";
+      return when ? said.due(formatDue(when.date)) : said.noDateYet;
     }
     if (query.name === "category") {
+      const said = copy().composer;
       const name = query.argument.trim();
-      return name.length === 0 ? "Name the category" : `Add ${name}`;
+      return name.length === 0 ? said.nameTheCategory : said.addCategory(name);
     }
     return null;
   }, [slash.query]);
@@ -247,7 +254,7 @@ export const EditorPane = ({
 
   return (
     <section
-      aria-label={note?.title || "New note"}
+      aria-label={note?.title || words.newNoteTab}
       onFocusCapture={onFocus}
       className={`relative flex min-w-0 flex-col overflow-y-auto transition-colors duration-200 ${
         split && !focused ? "bg-background/40" : ""
@@ -255,7 +262,7 @@ export const EditorPane = ({
     >
       {state === "idle" ? null : (
         <span key={state} className="animate-settle absolute end-4 top-3 z-10">
-          <Label>{SAVE_STATE_LABEL[state]}</Label>
+          <Label>{saveStateLabel(state)}</Label>
         </span>
       )}
 
@@ -268,9 +275,9 @@ export const EditorPane = ({
             title={
               stated
                 ? task?.completedAt
-                  ? `Done — ${task.title}`
-                  : `A task on this note — ${task?.title}`
-                : `echo reads this as something to do — "${detected?.text}"`
+                  ? words.doneWithTask(task.title)
+                  : words.taskOnThisNote(task?.title ?? "")
+                : words.readsAsSomethingToDo(detected?.text ?? "")
             }
             className={`max-w-56 gap-1 font-normal ${stated ? "" : "border-dashed text-muted-foreground"}`}
           >
@@ -279,7 +286,7 @@ export const EditorPane = ({
             ) : (
               <CircleDashed aria-hidden="true" className="size-3" />
             )}
-            <span className="truncate">{stated ? "Task" : "Reads as a task"}</span>
+            <span className="truncate">{stated ? words.task : words.readsAsATask}</span>
           </Badge>
         ) : null}
 
@@ -288,8 +295,8 @@ export const EditorPane = ({
             variant={task?.dueAt ? "secondary" : "outline"}
             title={
               task?.dueAt
-                ? "When this is due"
-                : `echo read a date in the note — ${read.deadline?.text}`
+                ? words.whenThisIsDue
+                : words.readADateInTheNote(read.deadline?.text ?? "")
             }
             className={`gap-1 font-normal ${numeric} ${
               task?.dueAt ? "" : "border-dashed text-muted-foreground"
@@ -305,7 +312,7 @@ export const EditorPane = ({
         ))}
 
         {stated || detected || due || categories.length > 0 ? null : (
-          <Label>Nothing filed yet</Label>
+          <Label>{words.nothingFiledYet}</Label>
         )}
       </div>
 
@@ -344,13 +351,13 @@ export const EditorPane = ({
             if (undoing) takeBack();
             else putForward();
           }}
-          aria-label="Note content"
+          aria-label={copy().composer.noteContent}
           role="combobox"
           aria-expanded={slash.open}
           aria-controls={MENU_ID}
           aria-autocomplete="list"
           aria-activedescendant={slash.open ? slashOptionId(MENU_ID, slash.active) : undefined}
-          placeholder="Write anything…"
+          placeholder={copy().composer.writeAnything}
           spellCheck={false}
           className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
         />

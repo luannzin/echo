@@ -12,6 +12,7 @@ import { PlaceRow } from "@/modules/explorer/_components/place-row";
 import type { Draft, Dragged } from "@/modules/explorer/model";
 import { NoteList } from "@/modules/notes/_components/note-list";
 import { Label } from "@/shared/_components/label";
+import { copy } from "@/shared/lib/i18n";
 
 /** The Inbox has no folder id of its own; `null` is what a note carries when it is not filed. */
 const INBOX = "inbox";
@@ -94,6 +95,7 @@ export const Explorer = ({
   const [dragged, setDragged] = useState<Dragged | null>(null);
   /** The row the pointer is over, `INBOX` for the Inbox and `null` for nothing. */
   const [over, setOver] = useState<string | null>(null);
+  const words = copy().explorer;
 
   const rows = flattenTree(buildTree(folders), expanded);
   const selected = folders.find((folder) => folder.id === selectedFolderId);
@@ -101,7 +103,7 @@ export const Explorer = ({
   const listTitle =
     categories?.find((category) => category.id === selectedCategoryId)?.name ??
     selected?.name ??
-    "All notes";
+    words.allNotes;
   const creatingAtRoot = draft?.mode === "create" && draft.parentId === null;
 
   /** A folder may not be dropped into itself or anything inside it, or the tree loses its root. */
@@ -139,11 +141,12 @@ export const Explorer = ({
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 flex-col gap-1 border-b px-2 pt-4 pb-3">
         <div className="flex items-center justify-between gap-2 px-2 pb-1">
-          <Label>Places</Label>
+          <Label>{words.places}</Label>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="New folder"
+            data-new="folder"
+            aria-label={copy().common.newFolder}
             onClick={() => setDraft({ mode: "create", parentId: null })}
             className="text-muted-foreground"
           >
@@ -156,7 +159,7 @@ export const Explorer = ({
               reader looks and the first place a note can be dragged. */}
           <li>
             <PlaceRow
-              label="Inbox"
+              label={words.inbox}
               icon={Inbox}
               count={inboxCount}
               selected={atInbox}
@@ -173,7 +176,7 @@ export const Explorer = ({
               tree, which made the one row that is always available the hardest one to find. */}
           <li>
             <PlaceRow
-              label="All notes"
+              label={words.allNotes}
               icon={Layers}
               count={allCount}
               selected={
@@ -219,9 +222,7 @@ export const Explorer = ({
         </ul>
 
         {folders.length === 0 && !creatingAtRoot ? (
-          <p className="px-2 py-1 text-muted-foreground text-xs leading-5">
-            No folders yet. Everything you write waits in the Inbox until you make one.
-          </p>
+          <p className="px-2 py-1 text-muted-foreground text-xs leading-5">{words.noFolders}</p>
         ) : null}
       </div>
 

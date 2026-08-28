@@ -7,6 +7,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Label } from "@/shared/_components/label";
 import { SlashOption } from "@/shared/_components/slash-option";
 import type { CaretPoint } from "@/shared/lib/caret-point";
+import { copy } from "@/shared/lib/i18n";
 import type { SlashCommand } from "@/shared/lib/slash";
 
 const WIDTH = 320;
@@ -15,16 +16,17 @@ const REACH = 280;
 
 /** What each half of the list is for, in the writer's terms rather than the code's. */
 const GROUPS = [
-  { id: "write", label: "Write", holds: (command: SlashCommand) => command.action.kind !== "note" },
-  {
-    id: "note",
-    label: "This note",
-    holds: (command: SlashCommand) => command.action.kind === "note",
-  },
+  { id: "write", holds: (command: SlashCommand) => command.action.kind !== "note" },
+  { id: "note", holds: (command: SlashCommand) => command.action.kind === "note" },
 ] as const;
 
 /** What pressing Enter will do, said in the words of the thing it is about to ask for. */
-const ASKS_FOR: Record<string, string> = { date: "to say when", name: "to name it" };
+const asksFor = (takes: SlashCommand["takes"]): string => {
+  const words = copy().slash;
+  if (takes === "date") return words.toSayWhen;
+  if (takes === "name") return words.toNameIt;
+  return words.forTheNextStep;
+};
 
 /**
  * The `/` menu: what you can write and what you can do, beside the caret that asked.
@@ -59,6 +61,7 @@ export const SlashMenu = ({
   reading: string | null;
   onPick: (command: SlashCommand) => void;
 }) => {
+  const words = copy().slash;
   const list = useRef<HTMLDivElement>(null);
 
   // Arrowing past the end of a scrolled list has to bring the row with it.
@@ -97,7 +100,7 @@ export const SlashMenu = ({
               ref={list}
               id={id}
               role="listbox"
-              aria-label="Commands"
+              aria-label={words.commands}
               className="max-h-64 overflow-y-auto"
             >
               {argument !== null
@@ -118,7 +121,7 @@ export const SlashMenu = ({
                     return (
                       <div key={group.id} className="pb-0.5 last:pb-0">
                         <p className="px-2 pt-1.5 pb-1">
-                          <Label>{group.label}</Label>
+                          <Label>{group.id === "write" ? words.write : words.thisNote}</Label>
                         </p>
                         {held.map((command) => {
                           const at = commands.indexOf(command);
@@ -155,24 +158,21 @@ export const SlashMenu = ({
                 {ready ? (
                   <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
                     <CornerDownLeft aria-hidden="true" className="size-3" />
-                    <Label>use</Label>
+                    <Label>{words.use}</Label>
                   </span>
                 ) : null}
               </>
             ) : asking ? (
               <p>
                 <Label>
-                  <Kbd>↵</Kbd>{" "}
-                  <span className="text-foreground/75">
-                    {ASKS_FOR[chosen?.takes ?? ""] ?? "for the next step"}
-                  </span>
+                  <Kbd>↵</Kbd> <span className="text-foreground/75">{asksFor(chosen?.takes)}</span>
                 </Label>
               </p>
             ) : (
               <p>
                 <Label>
-                  <Kbd>↑</Kbd> <Kbd>↓</Kbd> choose · <Kbd>↵</Kbd> or <Kbd>space</Kbd> use ·{" "}
-                  <Kbd>esc</Kbd>
+                  <Kbd>↑</Kbd> <Kbd>↓</Kbd> {words.choose} · <Kbd>↵</Kbd> / <Kbd>space</Kbd>{" "}
+                  {words.use} · <Kbd>{words.escape}</Kbd>
                 </Label>
               </p>
             )}

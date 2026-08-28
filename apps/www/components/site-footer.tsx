@@ -1,7 +1,8 @@
 import { Engraving } from "@/components/engraving";
 import { REPO } from "@/components/links";
+import type { Content } from "@/content/en";
 
-export const SiteFooter = () => (
+export const SiteFooter = ({ content }: { content: Content }) => (
   <footer className="relative overflow-hidden pt-16 md:pt-24">
     {/*
      * The name at poster scale, behind the closing line rather than in a band of its own. It is
@@ -21,24 +22,21 @@ export const SiteFooter = () => (
     <div className="shell relative">
       {/* The closing block is centred on purpose, but it is centred inside the same measure. */}
       <div className="mx-auto max-w-3xl text-center">
-        <h2 className="display text-[clamp(2.4rem,5.4vw,5rem)]">Take it with you</h2>
-        <p className="prose-lede mx-auto mt-6 text-ink/85">
-          Clone it, run it, keep it. There is no account to create, no trial to start, and nothing
-          to switch off later.
-        </p>
+        <h2 className="display text-[clamp(2.4rem,5.4vw,5rem)]">{content.footer.title}</h2>
+        <p className="prose-lede mx-auto mt-6 text-ink/85">{content.footer.lede}</p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <a
             href="#install"
             className="press label border rule-ink bg-ink px-6 py-3 text-brand transition-colors hover:bg-brand-deep hover:text-ink"
           >
-            Run it locally
+            {content.footer.run}
           </a>
           <a
             href={REPO}
             className="press label border rule-ink px-6 py-3 text-ink/85 transition-colors hover:bg-ink/10 hover:text-ink"
           >
-            Read the source on GitHub
+            {content.footer.source}
           </a>
         </div>
       </div>
@@ -49,13 +47,23 @@ export const SiteFooter = () => (
       </div>
 
       <div className="relative flex flex-wrap items-center justify-between gap-2 border-t rule-ink py-6">
-        <p className="label text-ink/85">echo · local-first notes</p>
-        <a
-          href={`${REPO}/tree/main/docs`}
-          className="label text-ink/85 transition-colors hover:text-ink"
-        >
-          Read the docs
-        </a>
+        <p className="label text-ink/85">{content.footer.tagline}</p>
+        <div className="flex items-center gap-5">
+          {/* The switcher again at the foot, so the choice is reachable at both ends of a long page. */}
+          <a
+            href={content.other.href}
+            hrefLang={content.other.label === "English" ? "en" : "pt-BR"}
+            className="label text-ink/85 transition-colors hover:text-ink"
+          >
+            {content.other.label}
+          </a>
+          <a
+            href={`${REPO}/tree/main/docs`}
+            className="label text-ink/85 transition-colors hover:text-ink"
+          >
+            {content.footer.docs}
+          </a>
+        </div>
       </div>
     </div>
   </footer>

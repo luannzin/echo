@@ -12,6 +12,7 @@ import {
 import { MenuNote } from "@/shared/_components/menu-note";
 import { Timestamp } from "@/shared/_components/timestamp";
 import type { FolderPath } from "@/shared/lib/folder-paths";
+import { copy } from "@/shared/lib/i18n";
 import { stagger } from "@/shared/lib/stagger";
 import { row } from "@/shared/lib/styles";
 
@@ -45,6 +46,7 @@ export const NoteRow = memo(
     onMove: (noteId: string, folderId: string | null) => void;
     onDelete: (note: Note) => void;
   }) => {
+    const words = copy().notes;
     const elsewhere = places.filter((choice) => choice.id !== note.folderId);
 
     const onDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
@@ -70,7 +72,7 @@ export const NoteRow = memo(
                 onFocus={() => onPreview(note.id)}
                 onBlur={() => onPreview(null)}
                 aria-current={selected ? "page" : undefined}
-                title={note.title || "Untitled"}
+                title={note.title || copy().common.untitled}
                 // Presses down under the pointer: opening a note is a navigation, and one that gives
                 // nothing back until the next screen arrives feels like a click that missed.
                 className={`${row} w-full gap-2 px-2 ${
@@ -81,18 +83,18 @@ export const NoteRow = memo(
               />
             }
           >
-            <span className="min-w-0 flex-1 truncate">{note.title || "Untitled"}</span>
+            <span className="min-w-0 flex-1 truncate">{note.title || copy().common.untitled}</span>
             <Timestamp at={note.updatedAt} />
           </ContextMenuTrigger>
           <ContextMenuPopup align="start" className="max-h-80 max-w-72 overflow-y-auto">
             {note.folderId === null ? null : (
               <ContextMenuItem closeOnClick onClick={() => onMove(note.id, null)}>
                 <Inbox aria-hidden="true" />
-                Back to Inbox
+                {words.backToInbox}
               </ContextMenuItem>
             )}
             {elsewhere.length === 0 && note.folderId === null ? (
-              <MenuNote>No folders yet. Make one and notes can be sent to it from here.</MenuNote>
+              <MenuNote>{words.noFoldersToSendTo}</MenuNote>
             ) : null}
             {elsewhere.map((choice) => (
               <ContextMenuItem
@@ -106,11 +108,9 @@ export const NoteRow = memo(
             ))}
             <ContextMenuItem closeOnClick onClick={() => onDelete(note)} variant="destructive">
               <Trash2 aria-hidden="true" />
-              Delete note
+              {copy().common.deleteNote}
             </ContextMenuItem>
-            <MenuNote>
-              Gone from the database, labels and task with it. Ctrl Z puts it back.
-            </MenuNote>
+            <MenuNote>{words.deletedWithEverything}</MenuNote>
           </ContextMenuPopup>
         </ContextMenu>
       </li>

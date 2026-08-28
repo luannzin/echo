@@ -23,21 +23,31 @@ import {
   type NoteCategory,
   type Task,
 } from "@echo/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { paletteCommands } from "@/app/commands";
 import { type CapturedTask, Composer } from "@/modules/capture/_components/composer";
 import { EditorMode } from "@/modules/editor/_components/editor-mode";
 import { Explorer } from "@/modules/explorer/_components/explorer";
 import { FilingPlan } from "@/modules/inbox/_components/filing-plan";
 import { Inbox } from "@/modules/inbox/_components/inbox";
-import { type FilingGroup, planFiling, reasonsFor as reasonsForNote } from "@/modules/inbox/plan";
+import {
+  type FilingGroup,
+  type InboxReason,
+  planFiling,
+  reasonsFor as reasonsForNote,
+} from "@/modules/inbox/plan";
 import { Learned } from "@/modules/intelligence/_components/learned";
 import { RelatedNotes } from "@/modules/intelligence/_components/related-notes";
 import type { Related } from "@/modules/intelligence/related";
 import { NoteEditor } from "@/modules/notes/_components/note-editor";
 import { Stream } from "@/modules/notes/_components/stream";
+import { Arrival } from "@/modules/onboarding/_components/arrival";
+import { Checklist } from "@/modules/onboarding/_components/checklist";
+import { Tour } from "@/modules/onboarding/_components/tour";
+import { reached, rememberFound } from "@/modules/onboarding/progress";
 import { CommandPalette } from "@/modules/search/_components/command-palette";
 import type { SearchPass } from "@/modules/search/model";
+import { Settings } from "@/modules/settings/_components/settings";
 import { AppShell } from "@/modules/shell/_components/app-shell";
 import { Pane } from "@/modules/shell/_components/pane";
 import type { View } from "@/modules/shell/view";
@@ -48,6 +58,14 @@ import { Label } from "@/shared/_components/label";
 import { byNote, countByCategory, labelsOf, type NoteLabels } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { folderPaths } from "@/shared/lib/folder-paths";
+import {
+  adoptLocale,
+  copy,
+  currentLocale,
+  type Locale,
+  readLocale,
+  setLocale,
+} from "@/shared/lib/i18n";
 import {
   POSTIT_NOTE,
   POSTIT_OPEN,
@@ -62,6 +80,12 @@ import { registerServiceWorker } from "@/shared/lib/service-worker";
 import { isUndoChord, shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
 import { isDesktopApp } from "@/shared/lib/tauri";
 import { navigate, noteRow } from "@/shared/lib/transition";
+
+/**
+ * What this build is called. Inlined at build time from the desktop bundle's own version, which is
+ * echo's version — see `next.config.ts`.
+ */
+const VERSION = process.env.NEXT_PUBLIC_ECHO_VERSION ?? "0.0.0";
 
 const ARRIVAL_GLOW_MS = 1400;
 const PREVIEW_INTENT_MS = 150;
@@ -133,6 +157,8 @@ const Page = () => {
   const [related, setRelated] = useState<Related[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisState>({ pending: 0, failed: false });
   const [model, setModel] = useState<EmbedderStatus>({ state: "idle" });
+  /** Which model wrote the vectors. Read once the runtime is up; only settings prints it. */
+  const [modelId, setModelId] = useState("");
   const [arrivedId, setArrivedId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -141,6 +167,21 @@ const Page = () => {
   const [desktopApp, setDesktopApp] = useState(false);
   /** A sticky note asking for its tab back. `at` changes so the same note can come home twice. */
   const [summon, setSummon] = useState<{ noteId: string; at: number } | undefined>(undefined);
+  /**
+   * Which language is on screen.
+   *
+   * The dictionary itself is a module (`shared/lib/i18n`), not state — every component imports it
+   * the way it imports its icons. This is only what re-renders the tree when it changes, and what
+   * keys the shell below so nothing memoised keeps a sentence in the language before last.
+   */
+  const [locale, setLocaleState] = useState<Locale>(currentLocale);
+  /**
+   * The greeting, the tour and the checklist. All three render closed and open to what was stored,
+   * for the same reason the panels do: the first paint has to match the prerendered markup.
+   */
+  const [greeting, setGreeting] = useState(false);
+  const [touring, setTouring] = useState(false);
+  const [checklistShown, setChecklistShown] = useState(false);
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
   const [folderFilter, setFolderFilter] = useState<string | undefined>(undefined);
@@ -225,7 +266,55 @@ const Page = () => {
     // Taken over from the head script in `layout.tsx`, which set it before anything painted.
     document.documentElement.dataset.echoMode = editor ? "editor" : "full";
 
+    // The head script in `layout.tsx` already decided this before anything painted; React reads it
+    // back rather than deciding again, so there is one answer and it is the one on screen.
+    const opened = readLocale();
+    adoptLocale(opened);
+    setLocaleState(opened);
+
+    setGreeting(!readPreference("arrival-done", false));
+    setTouring(!readPreference("tour-done", false));
+    setChecklistShown(!readPreference("checklist-hidden", false));
+
     registerServiceWorker();
+  }, []);
+
+  /**
+   * Changing the language: the dictionary moves, the choice is recorded, and the tree re-renders.
+   *
+   * The shell is keyed on the result. Six row components are memoised and their props do not change
+   * when the words do, so without the remount a reader would be left looking at rows still in the
+   * language they just left. It costs one remount on an action taken about once in a product's
+   * life, and nothing being written is lost to it: the surfaces that offer this choice are views of
+   * their own, so the composer is already unmounted by the time it is made.
+   */
+  const changeLocale = useCallback((next: Locale) => {
+    setLocale(next);
+    setLocaleState(next);
+  }, []);
+
+  /** Answered once, and never asked again. The tour picks up from here unless it was declined. */
+  const finishGreeting = useCallback(({ tour }: { tour: boolean }) => {
+    writePreference("arrival-done", true);
+    setGreeting(false);
+    if (tour) return;
+    writePreference("tour-done", true);
+    setTouring(false);
+  }, []);
+
+  const finishTour = useCallback(() => {
+    writePreference("tour-done", true);
+    setTouring(false);
+  }, []);
+
+  const restoreChecklist = useCallback(() => {
+    writePreference("checklist-hidden", false);
+    setChecklistShown(true);
+  }, []);
+
+  const hideChecklist = useCallback(() => {
+    writePreference("checklist-hidden", true);
+    setChecklistShown(false);
   }, []);
 
   /**
@@ -312,6 +401,7 @@ const Page = () => {
           echo.onAnalysis((state) => alive && setAnalysis(state)),
           echo.onModel((status) => alive && setModel(status)),
         ];
+        setModelId(echo.retrieval.modelId);
         unsubscribe = () => {
           for (const off of stop) off();
         };
@@ -733,7 +823,12 @@ const Page = () => {
           aliasAllowed: (a, b) =>
             ruleFor(rulesRef.current, "alias", aliasKey(a, b))?.outcome !== "reject",
         },
-        receive,
+        (pass) => {
+          // The one milestone the notebook cannot be asked about afterwards: nothing records that a
+          // search was run. Written down when it actually answers, and never unwritten.
+          if (pass.results.length > 0) rememberFound();
+          receive(pass);
+        },
       );
     },
     [],
@@ -932,7 +1027,7 @@ const Page = () => {
           : await echo.tasks.setDue(existing.id, ask.dueAt)
         : await echo.tasks.create({
             noteId,
-            title: note?.title || "Untitled",
+            title: note?.title || copy().common.untitled,
             dueAt: ask.dueAt ?? null,
           });
       setTasks((current) => replace(current, task));
@@ -1100,6 +1195,22 @@ const Page = () => {
     [view],
   );
 
+  /**
+   * Which of the five first things this notebook has done. Read out of the notes rather than
+   * counted, so it is already true for a reader who was here before any of this was.
+   */
+  const milestones = useMemo(
+    () => reached({ notes, tasks, assignments }),
+    [notes, tasks, assignments],
+  );
+
+  /** From settings. The first step points at the composer, so the composer has to be on screen. */
+  const replayTour = useCallback(() => {
+    writePreference("tour-done", false);
+    setTouring(true);
+    changeView("home");
+  }, [changeView]);
+
   const moveNote = useCallback(async (noteId: string, folderId: string | null) => {
     const echo = await getEcho();
     await echo.notes.move(noteId, folderId);
@@ -1171,12 +1282,13 @@ const Page = () => {
   );
 
   /**
-   * Why echo suggests a folder, in sentences rather than a score: the reader's own habit first —
+   * Why echo suggests a folder, as things rather than a score: the reader's own habit first —
    * "you usually put React and TypeScript notes there" — then the notes that actually argued for it,
-   * by name. A reason you can open is a reason you can disagree with.
+   * by name. A reason you can open is a reason you can disagree with. The Inbox says them; this
+   * only works out which of them are true.
    */
   const explainDestination = useCallback(
-    (noteId: string, suggestion: Destination): string[] => {
+    (noteId: string, suggestion: Destination): InboxReason[] => {
       const note = notes.find((held) => held.id === noteId);
       if (!note) return [];
       return reasonsForNote({
@@ -1354,7 +1466,8 @@ const Page = () => {
     setNavigationOpen(true);
     writePreference("notes-panel", true);
     requestAnimationFrame(() =>
-      document.querySelector<HTMLButtonElement>('[aria-label="New category"]')?.click(),
+      // By attribute rather than by accessible name: the name is a translation now.
+      document.querySelector<HTMLButtonElement>('[data-new="category"]')?.click(),
     );
   }, []);
 
@@ -1362,7 +1475,7 @@ const Page = () => {
     setNavigationOpen(true);
     writePreference("notes-panel", true);
     requestAnimationFrame(() =>
-      document.querySelector<HTMLButtonElement>('[aria-label="New folder"]')?.click(),
+      document.querySelector<HTMLButtonElement>('[data-new="folder"]')?.click(),
     );
   }, []);
 
@@ -1514,6 +1627,23 @@ const Page = () => {
         />
       );
     }
+    if (view === "settings") {
+      return (
+        <Settings
+          locale={locale}
+          onLocaleChange={changeLocale}
+          notes={notes}
+          rules={rules}
+          folders={folders}
+          onForget={(rule) => void forget(rule)}
+          model={model}
+          modelId={modelId}
+          version={VERSION}
+          onReplayTour={replayTour}
+          onRestoreChecklist={checklistShown ? undefined : restoreChecklist}
+        />
+      );
+    }
     if (view === "tasks") {
       return (
         <Tasks
@@ -1563,6 +1693,15 @@ const Page = () => {
     return composer(false);
   };
 
+  /**
+   * The greeting, shown once. Both conditions, so a cleared `localStorage` on a full notebook reads
+   * as a returning reader rather than a new one — and never before the database has answered, or a
+   * reader with four hundred notes would be greeted for the moment it takes to open them.
+   */
+  if (greeting && !loading && notes.length === 0 && !editorMode) {
+    return <Arrival locale={locale} onLocaleChange={changeLocale} onDone={finishGreeting} />;
+  }
+
   if (editorMode) {
     return (
       <EditorMode
@@ -1586,7 +1725,8 @@ const Page = () => {
   }
 
   return (
-    <>
+    // Keyed on the language: see `changeLocale`.
+    <Fragment key={locale}>
       <AppShell
         atHome={view === "home" && editing === null}
         onHome={() => changeView("home")}
@@ -1634,11 +1774,14 @@ const Page = () => {
             onPreviewNote={previewNote}
           />
         }
+        navigationFooter={
+          checklistShown ? <Checklist done={milestones} onDismiss={hideChecklist} /> : null
+        }
         workspace={workspace()}
         intelligence={
           <div className="flex h-full flex-col">
             <div className="min-h-0 flex-1">
-              <Pane title="Related">
+              <Pane title={copy().intelligence.related}>
                 <RelatedNotes
                   related={related.slice(0, RELATED_SHOWN)}
                   duplicate={duplicate}
@@ -1658,7 +1801,7 @@ const Page = () => {
             </div>
             <div className="border-t px-4 py-4 text-muted-foreground">
               <div className="pb-2">
-                <Label>Learned</Label>
+                <Label>{copy().intelligence.learned}</Label>
               </div>
               <Learned rules={rules} folders={folders} onForget={(rule) => void forget(rule)} />
             </div>
@@ -1675,7 +1818,9 @@ const Page = () => {
         onOpenNote={(noteId) => openSuggested(noteId)}
         model={model}
       />
-    </>
+      {/* Over the whole shell, and never over the greeting: they are two answers to one question. */}
+      {touring && !greeting ? <Tour done={milestones} onFinish={finishTour} /> : null}
+    </Fragment>
   );
 };
 

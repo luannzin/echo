@@ -3,6 +3,7 @@
 import type { CategorySource } from "@echo/types";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * One label on a note. A category the reader put there is stated; one echo read out of the note is
@@ -22,7 +23,7 @@ export const CategoryChip = ({
 }) => (
   <Badge
     variant={source === "user" ? "secondary" : "outline"}
-    title={source === "user" ? name : `${name} — echo read this from the note`}
+    title={source === "user" ? name : copy().category.readFromNote(name)}
     className={`animate-settle max-w-40 gap-1 font-normal ${
       source === "user" ? "" : "border-dashed text-muted-foreground"
     }`}
@@ -32,7 +33,7 @@ export const CategoryChip = ({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Remove ${name}`}
+        aria-label={copy().category.remove(name)}
         className="-me-0.5 rounded-sm text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X aria-hidden="true" className="size-3" />

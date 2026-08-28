@@ -6,9 +6,11 @@ import { Inbox as InboxIcon, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { InboxRow } from "@/modules/inbox/_components/inbox-row";
+import type { InboxReason } from "@/modules/inbox/plan";
 import { EmptyState } from "@/shared/_components/empty-state";
 import { Label } from "@/shared/_components/label";
 import { folderPaths } from "@/shared/lib/folder-paths";
+import { copy } from "@/shared/lib/i18n";
 import { stagger } from "@/shared/lib/stagger";
 
 /**
@@ -40,9 +42,10 @@ export const Inbox = ({
   onNewFolder: () => void;
   /** Works the whole pile out at once and shows it before anything moves. */
   onOrganize: () => void;
-  /** Why echo suggests what it does, in sentences the reader can disagree with. */
-  reasonsFor: (noteId: string, suggestion: Destination) => string[];
+  /** Why echo suggests what it does, as things the reader can disagree with. */
+  reasonsFor: (noteId: string, suggestion: Destination) => InboxReason[];
 }) => {
+  const words = copy().inbox;
   const list = useRef<HTMLUListElement>(null);
   /** Named and sorted once: every row offers the same destinations. */
   const places = useMemo(() => folderPaths(folders), [folders]);
@@ -62,8 +65,8 @@ export const Inbox = ({
 
   if (notes.length === 0) {
     return (
-      <EmptyState icon={InboxIcon} title="The Inbox is empty.">
-        Everything you have written is filed. New notes land here until you say where they belong.
+      <EmptyState icon={InboxIcon} title={words.empty}>
+        {words.emptyBody}
       </EmptyState>
     );
   }
@@ -76,15 +79,11 @@ export const Inbox = ({
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-6">
       <div className="flex items-baseline justify-between gap-4 pb-1">
-        <h1 className="font-display text-3xl tracking-tight">Inbox</h1>
-        <Label>
-          {notes.length} {notes.length === 1 ? "note" : "notes"} to place
-        </Label>
+        <h1 className="font-display text-3xl tracking-tight">{words.title}</h1>
+        <Label>{words.toPlace(notes.length)}</Label>
       </div>
       <p className="pb-4 text-muted-foreground text-sm leading-relaxed">
-        {folders.length === 0
-          ? "Make a folder and echo will start suggesting where new notes belong."
-          : "Where a note goes is your call. Echo only says where notes like it already are."}
+        {folders.length === 0 ? words.makeAFolder : words.yourCall}
       </p>
 
       {/* One press works the whole pile out. Nothing moves until the plan has been read. */}
@@ -92,7 +91,7 @@ export const Inbox = ({
         <div className="pb-6">
           <Button size="sm" variant="secondary" onClick={onOrganize} className="gap-2">
             <Wand2 aria-hidden="true" className="text-brand-bright" />
-            Organize {notes.length} notes
+            {words.organizeCount(notes.length)}
           </Button>
         </div>
       ) : null}

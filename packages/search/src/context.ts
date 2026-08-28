@@ -68,12 +68,22 @@ const SAME_PERIOD_MS = 14 * 24 * 60 * 60 * 1000;
 export const samePeriod = (a: Date, b: Date): boolean =>
   Math.abs(a.getTime() - b.getTime()) <= SAME_PERIOD_MS;
 
+/**
+ * Which of the four signals a note actually had, in the order they are worth reading.
+ *
+ * Codes rather than sentences. This package has no React in it and no language in it either: a
+ * sentence written here could not be reordered by a translation, and `it is in the same project`
+ * has no Portuguese that keeps the words in that order. The interface owns the words; this owns
+ * which of them are true.
+ */
+export type ContextReason = "same-project" | "co-opened" | "shared-concepts" | "same-period";
+
 /** Why a note was ranked where it was, as things the reader can check rather than as a number. */
-export const explainContext = (signals: ContextSignals): string[] => {
-  const because: string[] = [];
-  if (signals.sameProject) because.push("it is in the same project");
-  if ((signals.coOpened ?? 0) > 0) because.push("you usually open them together");
-  if ((signals.sharedConcepts ?? 0) > 0) because.push("it is about the same things");
-  if (signals.samePeriod) because.push("you wrote them around the same time");
+export const explainContext = (signals: ContextSignals): ContextReason[] => {
+  const because: ContextReason[] = [];
+  if (signals.sameProject) because.push("same-project");
+  if ((signals.coOpened ?? 0) > 0) because.push("co-opened");
+  if ((signals.sharedConcepts ?? 0) > 0) because.push("shared-concepts");
+  if (signals.samePeriod) because.push("same-period");
   return because;
 };

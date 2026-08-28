@@ -3,6 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { MarkdownBlock } from "@/modules/editor/_components/markdown-block";
 import { activeBlock, blocksOf } from "@/modules/editor/markdown";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * The note as it reads, beside the note as it is written. It follows the caret rather than the
@@ -39,12 +40,12 @@ export const PreviewPane = ({
 
   return (
     <section
-      aria-label="Preview"
+      aria-label={copy().editor.preview}
       ref={container}
       className="min-w-0 overflow-y-auto bg-muted/25 px-6 py-4"
     >
       {blocks.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nothing to preview yet.</p>
+        <p className="text-muted-foreground text-sm">{copy().editor.nothingToPreview}</p>
       ) : (
         <div className="flex flex-col gap-3 text-[17px] text-foreground/90">
           {blocks.map((block, at) => (

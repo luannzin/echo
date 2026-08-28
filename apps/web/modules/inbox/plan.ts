@@ -1,6 +1,7 @@
 import { folderPath } from "@echo/core";
 import type { Destination } from "@echo/search";
 import type { Folder, Note } from "@echo/types";
+import { compare, copy } from "@/shared/lib/i18n";
 
 /**
  * Where a pile of unfiled notes would go, worked out in one pass and shown before anything moves.
@@ -34,13 +35,13 @@ export const planFiling = (
   return [...groups.entries()]
     .map(([folderId, held]) => ({
       folderId,
-      label: folderId === null ? "Staying in the Inbox" : folderPath(folders, folderId),
+      label: folderId === null ? copy().inbox.stayingHere : folderPath(folders, folderId),
       notes: held,
     }))
     .sort((a, b) => {
       if (a.folderId === null) return 1;
       if (b.folderId === null) return -1;
-      return b.notes.length - a.notes.length || a.label.localeCompare(b.label);
+      return b.notes.length - a.notes.length || compare(a.label, b.label);
     });
 };
 
@@ -49,12 +50,24 @@ export const movedBy = (plan: readonly FilingGroup[]): number =>
   plan.reduce((total, group) => (group.folderId === null ? total : total + group.notes.length), 0);
 
 /**
- * Why echo thinks a note goes where it does, in sentences rather than a score.
+ * Why echo thinks a note goes where it does.
  *
  * The first one is the whole point of item 17: not "these notes are 0.71 similar" but "you usually
  * put React and TypeScript notes there" — the reader's own habit, said back to them in their own
  * words, which is what makes a suggestion something they can agree or disagree with.
+ *
+ * Structure rather than a sentence. Portuguese puts the concepts after the verb and the place at
+ * the end, and a reason built here as words could not be moved once it had been built.
  */
+export type InboxReason =
+  /** The reader's own habit: the concepts this note shares with what is already filed there. */
+  | { kind: "habit"; concepts: string[] }
+  /** One of the notes that actually argued for the destination, by name. */
+  | { kind: "neighbour"; title: string };
+
+/** Stable enough to key a list on: two reasons of a kind never carry the same subject. */
+export const reasonKey = (reason: InboxReason): string =>
+  reason.kind === "habit" ? `habit:${reason.concepts.join("|")}` : `neighbour:${reason.title}`;
 export const reasonsFor = ({
   note,
   destination,
@@ -68,8 +81,8 @@ export const reasonsFor = ({
   notesIn: readonly Note[];
   conceptsOf: (noteId: string) => readonly string[];
   titleOf: (noteId: string) => string | undefined;
-}): string[] => {
-  const reasons: string[] = [];
+}): InboxReason[] => {
+  const reasons: InboxReason[] = [];
 
   const here = new Set(conceptsOf(note.id).map((concept) => concept.toLowerCase()));
   const counts = new Map<string, number>();
@@ -80,19 +93,17 @@ export const reasonsFor = ({
   }
 
   const shared = [...counts.entries()]
-    .sort(([nameA, countA], [nameB, countB]) => countB - countA || nameA.localeCompare(nameB))
+    .sort(([nameA, countA], [nameB, countB]) => countB - countA || compare(nameA, nameB))
     .slice(0, 2)
     .map(([name]) => name);
 
-  if (shared.length > 0) {
-    reasons.push(`you usually put ${shared.join(" and ")} notes there`);
-  }
+  if (shared.length > 0) reasons.push({ kind: "habit", concepts: shared });
 
   // The notes that actually argued for it, by name. A reason the reader can open is a reason they
   // can disagree with; a percentage is not.
   for (const noteId of destination.because.slice(0, 2)) {
     const title = titleOf(noteId);
-    if (title) reasons.push(`“${title}” is there`);
+    if (title) reasons.push({ kind: "neighbour", title });
   }
 
   return reasons;

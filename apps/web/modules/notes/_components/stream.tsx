@@ -4,6 +4,7 @@ import type { Note } from "@echo/types";
 import { Fragment, memo, useEffect, useMemo, useRef } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StreamRow } from "@/modules/notes/_components/stream-row";
+import { copy } from "@/shared/lib/i18n";
 import { formatDay, sameDay } from "@/shared/lib/time";
 import { noteRow } from "@/shared/lib/transition";
 
@@ -79,7 +80,7 @@ export const Stream = memo(
       // One provider for the whole column: once a date has been read, the next answers instantly.
       <TooltipProvider>
         <div className="mx-auto w-full max-w-2xl px-6 py-10">
-          <h1 className="sr-only">Your notes</h1>
+          <h1 className="sr-only">{copy().notes.yourNotes}</h1>
           {chronological.map((note, index) => {
             const previous = chronological[index - 1];
             const turnsOver =

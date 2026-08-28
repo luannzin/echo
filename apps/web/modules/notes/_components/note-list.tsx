@@ -7,6 +7,7 @@ import { NoteRow } from "@/modules/notes/_components/note-row";
 import { Count } from "@/shared/_components/count";
 import { Label } from "@/shared/_components/label";
 import { folderPaths } from "@/shared/lib/folder-paths";
+import { copy } from "@/shared/lib/i18n";
 
 export const NoteList = ({
   title,
@@ -49,20 +50,19 @@ export const NoteList = ({
         <h2 id={headingId} className="min-w-0 truncate">
           <Label>{title}</Label>
         </h2>
-        <Count of={notes.length} label="notes" />
+        <Count of={notes.length} describe={copy().notes.countInList} />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         {failed ? (
           // An error that names no way out is just bad news. This one names two.
           <p role="alert" className="px-2 text-destructive text-sm leading-relaxed">
-            Local storage could not be opened. Reload the page, or check that this browser allows
-            site data for echo.
+            {copy().notes.storageFailed}
           </p>
         ) : loading ? (
           <NoteListSkeleton />
         ) : notes.length === 0 ? (
           <p className="px-2 text-muted-foreground text-sm leading-relaxed">
-            Nothing here yet. Whatever you write lands in this list.
+            {copy().notes.nothingHereYet}
           </p>
         ) : (
           <ul>

@@ -1,5 +1,6 @@
 import type { Folder } from "@echo/types";
 import { FolderPlus, type LucideIcon, Pencil, Trash2 } from "lucide-react";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * What is being dragged. The drop target has to know before the drop happens — `dataTransfer` only
@@ -29,10 +30,10 @@ export const folderActions = (
   onDelete: () => void,
 ): FolderAction[] => [
   {
-    label: "New folder inside",
+    label: copy().explorer.newFolderInside,
     icon: FolderPlus,
     run: () => onDraft({ mode: "create", parentId: folder.id }),
   },
-  { label: "Rename", icon: Pencil, run: () => onDraft({ mode: "rename", folder }) },
-  { label: "Delete folder", icon: Trash2, run: onDelete, destructive: true },
+  { label: copy().common.rename, icon: Pencil, run: () => onDraft({ mode: "rename", folder }) },
+  { label: copy().explorer.deleteFolder, icon: Trash2, run: onDelete, destructive: true },
 ];

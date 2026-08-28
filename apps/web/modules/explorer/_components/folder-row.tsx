@@ -15,6 +15,7 @@ import { FolderNameField } from "@/modules/explorer/_components/folder-name-fiel
 import { type Draft, type Dragged, folderActions } from "@/modules/explorer/model";
 import { Count } from "@/shared/_components/count";
 import { MenuNote } from "@/shared/_components/menu-note";
+import { copy } from "@/shared/lib/i18n";
 import { quiet, row } from "@/shared/lib/styles";
 
 const INDENT_PX = 12;
@@ -25,9 +26,6 @@ const INDENT_PX = 12;
  * reads as two lists rather than one pane.
  */
 const GUTTER_PX = 4;
-
-/** Said where the decision is made, because deleting a folder sounds like deleting what is in it. */
-const DELETE_NOTE = "Deleting a folder keeps its notes. They go back to the Inbox.";
 
 export const FolderRow = ({
   node,
@@ -74,6 +72,8 @@ export const FolderRow = ({
   const renaming = draft?.mode === "rename" && draft.folder.id === folder.id;
   const creatingHere = draft?.mode === "create" && draft.parentId === folder.id;
   const actions = folderActions(folder, onDraft, onDelete);
+  /** Said where the decision is made: deleting a folder sounds like deleting what is in it. */
+  const deleteNote = copy().explorer.deleteFolderHint;
 
   if (renaming) {
     return (
@@ -114,7 +114,11 @@ export const FolderRow = ({
                 sideways as notes arrive, and the tree flickers as you file into it. */}
             <button
               type="button"
-              aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
+              aria-label={
+                expanded
+                  ? copy().explorer.collapse(folder.name)
+                  : copy().explorer.expand(folder.name)
+              }
               aria-expanded={expanded}
               onClick={onToggle}
               className="flex w-5.5 shrink-0 items-center justify-center self-stretch rounded text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -159,7 +163,7 @@ export const FolderRow = ({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Actions for ${folder.name}`}
+                    aria-label={copy().explorer.actionsFor(folder.name)}
                     className={`shrink-0 text-muted-foreground ${quiet}`}
                   />
                 }
@@ -180,7 +184,7 @@ export const FolderRow = ({
                     </MenuItem>
                   </div>
                 ))}
-                <MenuNote>{DELETE_NOTE}</MenuNote>
+                <MenuNote>{deleteNote}</MenuNote>
               </MenuPopup>
             </Menu>
           </div>
@@ -199,7 +203,7 @@ export const FolderRow = ({
               </ContextMenuItem>
             </div>
           ))}
-          <MenuNote>{DELETE_NOTE}</MenuNote>
+          <MenuNote>{deleteNote}</MenuNote>
         </ContextMenuPopup>
       </ContextMenu>
 

@@ -85,9 +85,9 @@ test("the reason is the reader's own habit, in their own words", () => {
     titleOf: (noteId) => (noteId === "old" ? "The old note" : undefined),
   });
 
-  expect(reasons[0]).toBe("you usually put React and TypeScript notes there");
+  expect(reasons[0]).toEqual({ kind: "habit", concepts: ["React", "TypeScript"] });
   // And the note that argued for it, by name — a reason you can open is one you can disagree with.
-  expect(reasons[1]).toBe("“The old note” is there");
+  expect(reasons[1]).toEqual({ kind: "neighbour", title: "The old note" });
 });
 
 test("a folder sharing nothing with the note offers no habit", () => {

@@ -5,8 +5,9 @@ import type { LearningEventCreate } from "@echo/types";
 import { Check, ChevronDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
-import { believes, explain, type Signal } from "@/modules/capture/signals";
+import { believes, explain, type Signal, signalLabel } from "@/modules/capture/signals";
 import { MenuNote } from "@/shared/_components/menu-note";
+import { copy } from "@/shared/lib/i18n";
 
 export type Answer = "accepted" | "rejected";
 
@@ -21,6 +22,7 @@ export const SignalChip = ({
   answer: Answer | undefined;
   onCorrect: (event: LearningEventCreate, answer: Answer) => void;
 }) => {
+  const words = copy().signals;
   const rule = ruleFor(rules, signal.kind, signal.trigger);
   if (answer === "rejected") return null;
   if (answer !== "accepted" && !believes(signal, rules)) return null;
@@ -40,17 +42,17 @@ export const SignalChip = ({
         }
       >
         <span aria-hidden="true" className={`size-1.5 rounded-full ${signal.tone}`} />
-        {signal.label}
+        {signalLabel(signal)}
         <ChevronDown aria-hidden="true" className="size-3 text-muted-foreground" />
       </MenuTrigger>
       <MenuPopup align="start" className="max-w-64">
         <MenuItem closeOnClick onClick={() => correct("signal_accepted", "accepted")}>
           <Check aria-hidden="true" />
-          Yes, that&rsquo;s right
+          {words.thatIsRight}
         </MenuItem>
         <MenuItem closeOnClick onClick={() => correct("signal_rejected", "rejected")}>
           <X aria-hidden="true" />
-          {signal.kind === "task-phrase" ? "Not a task" : "Not a deadline"}
+          {signal.kind === "task-phrase" ? words.notATask : words.notADeadline}
         </MenuItem>
         <MenuSeparator />
         <MenuNote>{explain(signal, rule)}</MenuNote>

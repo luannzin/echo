@@ -3,6 +3,7 @@
 import type { ProjectBrief } from "@echo/core";
 import { SquareCheck } from "lucide-react";
 import { Label } from "@/shared/_components/label";
+import { copy } from "@/shared/lib/i18n";
 import { formatDay, formatDue } from "@/shared/lib/time";
 
 /**
@@ -25,14 +26,14 @@ export const ProjectBriefBlock = ({
   onOpenTasks: () => void;
 }) => (
   <section className="mb-6 rounded-lg border border-border bg-card/40 px-4 py-3.5">
+    {/* One sentence, built in the dictionary: the count, the project and the two dates sit in a
+        different order in every language, and this is the shape that lets them move. */}
     <p className="text-sm leading-relaxed">
-      You have written <span className="font-mono tabular-nums">{brief.count}</span>{" "}
-      {brief.count === 1 ? "note" : "notes"} about <span className="text-foreground">{scope}</span>,
-      from {formatDay(brief.from)} to {formatDay(brief.to)}.
+      {copy().timeline.written(brief.count, scope, formatDay(brief.from), formatDay(brief.to))}
     </p>
 
     <div className="pt-3">
-      <Label>Recently</Label>
+      <Label>{copy().timeline.recently}</Label>
       <ul className="pt-1">
         {brief.recent.map((note) => (
           <li key={note.id}>
@@ -41,7 +42,7 @@ export const ProjectBriefBlock = ({
               onClick={(event) => onOpenNote(note.id, event.currentTarget)}
               className="-mx-2 flex w-[calc(100%+1rem)] items-center rounded-md px-2 py-1 text-start text-sm outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
             >
-              <span className="truncate">{note.title || "Untitled"}</span>
+              <span className="truncate">{note.title || copy().common.untitled}</span>
             </button>
           </li>
         ))}
@@ -50,7 +51,7 @@ export const ProjectBriefBlock = ({
 
     {brief.themes.length > 0 ? (
       <div className="pt-3">
-        <Label>Recurring themes</Label>
+        <Label>{copy().timeline.recurringThemes}</Label>
         <p className="pt-1 text-muted-foreground text-sm">{brief.themes.join(" · ")}</p>
       </div>
     ) : null}
@@ -58,7 +59,7 @@ export const ProjectBriefBlock = ({
     {/* Only what is still open. A project's brief is about what is left, not what was finished. */}
     {brief.open.length > 0 ? (
       <div className="pt-3">
-        <Label>Open items</Label>
+        <Label>{copy().timeline.openItems}</Label>
         <ul className="pt-1">
           {brief.open.map((task) => (
             <li key={task.id} className="flex items-baseline gap-2 py-0.5 text-sm">
@@ -77,7 +78,7 @@ export const ProjectBriefBlock = ({
           onClick={onOpenTasks}
           className="-mx-1 mt-1 rounded-md px-1 py-0.5 text-muted-foreground text-xs outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          All tasks →
+          {copy().timeline.allTasks}
         </button>
       </div>
     ) : null}

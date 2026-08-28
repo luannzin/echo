@@ -1,13 +1,10 @@
 "use client";
 
+import { copy } from "@/shared/lib/i18n";
 import type { Suggestion } from "@/shared/lib/retrieval";
 
 /** How echo came by each word, in as few words as it takes to be honest about it. */
-const REASON: Record<Suggestion["kind"], string> = {
-  alias: "you also call it this",
-  phrase: "how you usually say it",
-  related: "you write it near this",
-};
+const reason = (kind: Suggestion["kind"]): string => copy().search[kind];
 
 /**
  * The reader's own words for what they just typed. Not a thesaurus and not the model: every one of
@@ -30,7 +27,7 @@ export const AlsoMean = ({
   return (
     <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2">
       <span className="pe-1 font-mono text-[0.625rem] text-muted-foreground uppercase tracking-[0.14em]">
-        You may also mean
+        {copy().search.youMayAlsoMean}
       </span>
       {suggestions.map((suggestion) => (
         <span
@@ -39,7 +36,7 @@ export const AlsoMean = ({
         >
           <button
             type="button"
-            title={REASON[suggestion.kind]}
+            title={reason(suggestion.kind)}
             onClick={() => onChoose(suggestion.text)}
             className="rounded-full px-2 py-0.5 outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
           >
@@ -51,7 +48,7 @@ export const AlsoMean = ({
             <button
               type="button"
               onClick={() => onReject(suggestion.text)}
-              aria-label={`These are not the same thing as ${suggestion.text}`}
+              aria-label={copy().search.notTheSameAs(suggestion.text)}
               className="rounded-e-full pe-1.5 ps-0.5 text-muted-foreground/60 outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
               ×

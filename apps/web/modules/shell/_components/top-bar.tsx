@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import type { View } from "@/modules/shell/view";
 import { Label } from "@/shared/_components/label";
+import { copy } from "@/shared/lib/i18n";
 
 export const TopBar = ({
   view,
@@ -29,6 +30,7 @@ export const TopBar = ({
   onEditorMode?: () => void;
 }) => {
   const atHome = view === "home";
+  const words = copy().shell.topBar;
 
   return (
     // Three columns rather than a row with a gap: the middle one is centred on the header, which is
@@ -36,9 +38,15 @@ export const TopBar = ({
     <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4">
       <Label>echo</Label>
       {/* The shortcut is printed on the control, which is how anyone learns it exists. */}
-      <Button variant="ghost" size="sm" onClick={onSearch} className="gap-2 text-muted-foreground">
+      <Button
+        variant="ghost"
+        size="sm"
+        data-tour="search"
+        onClick={onSearch}
+        className="gap-2 text-muted-foreground"
+      >
         <Search aria-hidden="true" />
-        <span className="hidden sm:inline">Search</span>
+        <span className="hidden sm:inline">{words.search}</span>
         <Kbd className="ms-1 hidden sm:inline-flex">{searchShortcut}</Kbd>
       </Button>
       <div className="flex items-center justify-end gap-1">
@@ -47,7 +55,7 @@ export const TopBar = ({
             variant="ghost"
             size="sm"
             onClick={onEditorMode}
-            aria-label="Open the editor"
+            aria-label={words.openEditor}
             className="text-muted-foreground"
           >
             <Maximize2 aria-hidden="true" />
@@ -57,7 +65,7 @@ export const TopBar = ({
           variant="ghost"
           size="sm"
           onClick={onToggleIntelligence}
-          aria-label={intelligenceOpen ? "Hide related notes" : "Show related notes"}
+          aria-label={intelligenceOpen ? words.hideRelated : words.showRelated}
           aria-pressed={intelligenceOpen}
           className="text-muted-foreground lg:hidden"
         >
@@ -73,12 +81,12 @@ export const TopBar = ({
           {atHome ? (
             <>
               <MessageSquareText aria-hidden="true" />
-              Stream
+              {words.stream}
             </>
           ) : (
             <>
               <PenLine aria-hidden="true" />
-              Write
+              {words.write}
             </>
           )}
         </Button>

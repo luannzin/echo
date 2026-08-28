@@ -24,6 +24,7 @@ import { Label } from "@/shared/_components/label";
 import { SlashMenu } from "@/shared/_components/slash-menu";
 import { slashOptionId } from "@/shared/_components/slash-option";
 import { useCompletion } from "@/shared/lib/completion";
+import { copy } from "@/shared/lib/i18n";
 import type { SlashCommand } from "@/shared/lib/slash";
 import { numeric } from "@/shared/lib/styles";
 import { formatDue } from "@/shared/lib/time";
@@ -31,15 +32,6 @@ import { useSlash } from "@/shared/lib/use-slash";
 
 const MAX_HEIGHT = 420;
 const DRAFT_SETTLE_MS = 400;
-
-const PROMPTS = [
-  "What's on your mind?",
-  "What are you thinking about?",
-  "Where did your head go today?",
-  "What's worth remembering?",
-  "What are you working through?",
-  "What just occurred to you?",
-];
 
 export type CapturedTask = { title: string; dueAt: Date | null };
 
@@ -106,6 +98,7 @@ export const Composer = ({
   onRestored?: () => void;
   docked?: boolean;
 }) => {
+  const words = copy().composer;
   const [draft, setDraft] = useState("");
   /** Signals answered in this draft. Cleared with the draft, because the next note is a new note. */
   const [settled, setSettled] = useState<Record<string, Answer>>({});
@@ -144,8 +137,13 @@ export const Composer = ({
       }
     }, []),
   });
-  // Chosen once per visit: a prompt that changed under the cursor would be a distraction.
-  const [prompt] = useState(() => PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
+  /**
+   * Chosen once per visit: a prompt that changed under the cursor would be a distraction. The index
+   * is what is held, not the sentence, so switching language re-asks the same question in the new
+   * one rather than picking a different question.
+   */
+  const [promptIndex] = useState(() => Math.floor(Math.random() * copy().composer.prompts.length));
+  const prompt = words.prompts[promptIndex];
 
   // Grow with the text, then scroll. Measuring collapses the box for an instant, and while it is
   // collapsed the stream around it is shorter — so the browser clamps its scroll position and the
@@ -210,19 +208,19 @@ export const Composer = ({
     const query = slash.query;
     if (query === null || query.argument === null) return null;
     if (query.name === "due") {
-      if (query.argument.trim().length === 0) return "When? tomorrow, friday, in 2 weeks…";
+      if (query.argument.trim().length === 0) return words.whenPlaceholder;
       const when = parse(query.argument).dates[0];
-      return when ? `Due ${formatDue(when.date)}` : "No date in that yet";
+      return when ? words.due(formatDue(when.date)) : words.noDateYet;
     }
     if (query.name === "category") {
       const name = query.argument.trim();
-      if (name.length === 0) return "Name the category";
+      if (name.length === 0) return words.nameTheCategory;
       return categories.some((category) => category.name.toLowerCase() === name.toLowerCase())
-        ? `Add ${name}`
-        : `New category — ${name}`;
+        ? words.addCategory(name)
+        : words.newCategoryNamed(name);
     }
     return null;
-  }, [slash.query, categories]);
+  }, [slash.query, categories, words]);
 
   /** What echo will put on this note if the writer says nothing — minus whatever they took off. */
   const offered = predicted.filter((category) => !declined.has(category.id));
@@ -321,11 +319,12 @@ export const Composer = ({
           the foot of the stream, so it morphs rather than being replaced. */}
       <div
         id="composer-shell"
+        data-tour="composer"
         style={{ viewTransitionName: "composer" }}
         className="rounded-2xl border border-border bg-card shadow-black/20 shadow-lg transition-colors duration-200 focus-within:border-ring"
       >
         <label className="sr-only" htmlFor="composer">
-          Write a note
+          {words.writeANote}
         </label>
         {/* The suggestion sits behind the words, in the same type, so the box stays one surface. */}
         <div className="relative">
@@ -359,7 +358,7 @@ export const Composer = ({
             aria-activedescendant={slash.open ? slashOptionId(MENU_ID, slash.active) : undefined}
             rows={1}
             spellCheck={false}
-            placeholder={docked ? "Write another…" : "Write anything…"}
+            placeholder={docked ? words.writeAnother : words.writeAnything}
             className={`relative ${WRITING} outline-none placeholder:text-muted-foreground`}
           />
 
@@ -378,7 +377,7 @@ export const Composer = ({
         </div>
 
         <div className="flex items-center justify-between gap-3 px-5 pb-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <div data-tour="signals" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {/* One slot, three things it can be saying: what echo is, how much has been written, or
                 the way back from a note that has just gone. */}
             <p
@@ -387,27 +386,23 @@ export const Composer = ({
             >
               <Label>
                 {completion.ghost ? (
-                  <span className="text-foreground/70">Tab to complete</span>
+                  <span className="text-foreground/70">{words.tabToComplete}</span>
                 ) : filled ? (
-                  `${countWords(draft)} words`
+                  words.words(countWords(draft))
                 ) : undoLabel ? (
-                  <span className="text-foreground/70">Sent · {undoLabel} to take it back</span>
+                  <span className="text-foreground/70">{words.sentTakeBack(undoLabel)}</span>
                 ) : (
-                  "Local · private"
+                  words.localPrivate
                 )}
               </Label>
             </p>
             {commanded.task ? (
-              <Badge
-                variant="secondary"
-                title="You asked for this to be a task"
-                className="gap-1 font-normal"
-              >
+              <Badge variant="secondary" title={words.askedForTask} className="gap-1 font-normal">
                 <CircleDashed aria-hidden="true" className="size-3" />
-                Task
+                {words.task}
                 <button
                   type="button"
-                  aria-label="Not a task after all"
+                  aria-label={words.notATaskAfterAll}
                   onClick={() => setCommanded((c) => ({ ...c, task: false, dueAt: null }))}
                   className="-me-1 rounded-full px-1 text-muted-foreground hover:text-foreground"
                 >
@@ -418,14 +413,14 @@ export const Composer = ({
             {commanded.dueAt ? (
               <Badge
                 variant="secondary"
-                title="When you said this is due"
+                title={words.whenDue}
                 className={`gap-1 font-normal ${numeric}`}
               >
                 <CalendarClock aria-hidden="true" className="size-3" />
                 {formatDue(commanded.dueAt)}
                 <button
                   type="button"
-                  aria-label="Take the due date off"
+                  aria-label={words.takeDateOff}
                   onClick={() => setCommanded((c) => ({ ...c, dueAt: null }))}
                   className="-me-1 rounded-full px-1 text-muted-foreground hover:text-foreground"
                 >
@@ -471,12 +466,12 @@ export const Composer = ({
             type="button"
             onClick={commit}
             disabled={!filled}
-            aria-label="Save note"
+            aria-label={words.saveNote}
             className={`flex h-8 items-center gap-2 rounded-full bg-brand-bright px-3 font-medium text-brand-ink text-xs [transition:opacity_200ms_var(--ease-out-quart),background-color_200ms_var(--ease-out-quart),transform_120ms_var(--ease-out-quart)] hover:bg-brand-bright/90 active:scale-[0.96] ${
               filled ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
-            Save
+            {words.save}
             <CornerDownLeft aria-hidden="true" className="size-3.5" />
           </button>
         </div>
@@ -486,12 +481,12 @@ export const Composer = ({
         <p className="text-center text-muted-foreground text-xs">
           {slash.open ? (
             <>
-              <Kbd>Enter</Kbd> to use the command · <Kbd>Esc</Kbd> to keep writing
+              <Kbd>Enter</Kbd> {words.toUseCommand} · <Kbd>Esc</Kbd> {words.toKeepWriting}
             </>
           ) : (
             <>
-              <Kbd>Enter</Kbd> to save · <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> for a new line ·{" "}
-              <Kbd>/</Kbd> for commands
+              <Kbd>Enter</Kbd> {words.toSave} · <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> {words.forNewLine}{" "}
+              · <Kbd>/</Kbd> {words.forCommands}
             </>
           )}
         </p>

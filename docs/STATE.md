@@ -1,7 +1,7 @@
 # STATE
 
 Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
-rebuild, E1, E2, desktop fixes pass**
+rebuild, E1, E2, desktop fixes pass, P8a–P8e (language and arrival)**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -762,6 +762,85 @@ parser · Tomorrow*.
 pane are written and typecheck, but the dev server died mid-session (`write EPIPE` in its own log,
 unrelated to this work) and they have not been driven. That is the next thing to look at.
 
+### P8a–P8e — Language and arrival
+Spec: `docs/superpowers/specs/2026-08-27-language-and-arrival-design.md`. Phase 7 (sync) is still
+ahead of this; nothing here waits on it and nothing here pretends it is done.
+
+**P8a — the application speaks two languages.** `apps/web/shared/lib/i18n/`: `en.ts` is the
+specification, `pt.ts` is annotated against it, and `copy()` reads whichever is active. 275 keys.
+`bun run typecheck` **is** the translation completeness check — a key added to English and not
+answered in Portuguese does not compile — so there is no message compiler, no extraction step and no
+runtime dependency. A value that varies is a function returning the finished sentence, which is what
+lets `notas assim vão para Trabalho/Auth` put the folder where English puts the verb.
+
+Three structural changes, not substitutions:
+- `packages/search/src/context.ts` `explainContext` returns `ContextReason` codes instead of English
+  clauses. A package with no React in it has no language in it either.
+- `modules/inbox/plan.ts` `reasonsFor` returns `InboxReason` structures; the row says them, and joins
+  the concepts with `Intl.ListFormat` rather than `" and "`.
+- `learned.tsx` had a subject and a predicate glued at the render site. It is one whole sentence now,
+  with `lit()` finding the reader's own words inside it wherever the language put them.
+
+Also: `Count` takes a `describe(count)` rather than a noun to paste onto a number; `time.ts` takes
+the locale and its format tokens from `i18n/locales.ts`, because Portuguese puts `de` between the day
+and the month; `slash.ts` and `commands.ts` keep bilingual match keywords, since a reader who set the
+interface to Portuguese may still reach for `search`. The language is decided before anything paints
+by a blocking script in `layout.tsx`, the same trick `MODE_ON_OPEN` already used, and `<html lang>` is
+the single source of truth React reads back on mount.
+
+The shell is keyed on the locale. Six components are `memo()`d and their props do not change when the
+words do; without the remount a reader would be left looking at rows in the language they just left.
+
+**P8b — the site is two documents.** No `app/layout.tsx`: `app/(en)/` and `app/(pt)/` are route
+groups with nothing above them, which is the only way each document declares its own `<html lang>` in
+a static export. English keeps `/`, Portuguese is `/pt-br`, both emit `hreflang` for each other and
+`x-default` for the root. Content is data in `content/{en,pt}.ts` handed down as props — and, unlike
+the app's dictionary, it may not hold functions, because it crosses into `install-box.tsx`, which is
+a client component. No detection redirect: the other language is a link in the nav and the footer,
+written in the language it leads to.
+
+**P8c — settings.** A sixth destination, and the rail's disabled button made real. Language, storage,
+appearance, motion, what echo has learned, export, reset, the shortcut map, and what this build is.
+`preferences.ts` grew a typed `Choice` store over the same synchronous `localStorage`, keys named as
+Phase 7's `user_preferences` will name them. **Light mode is real**: the palette was already at
+`:root` and the theme is the `.dark` class, so it was tokens rather than a redesign. The version is
+read at build time from `apps/desktop/src-tauri/tauri.conf.json`, which is the one file that declares
+it.
+
+**P8d — arrival.** A first run that asks two questions and stops (language, and storage with sync
+shown honestly disabled), a tour of coach marks over the real interface, and a five-item checklist at
+the foot of the notes panel.
+
+The rule underneath all three: **nothing keeps its own idea of progress.** Four of the five
+milestones are read back out of the notebook (`onboarding/progress.ts`), so a reader who wrote notes
+before any of this shipped opens the app to a list that is already finished. The fifth, `found`, is
+the named exception — nothing in the database records that a search was run — and it is written down
+when a search actually answers.
+
+The tour advances when the reader does the thing, watched on the same milestones. It points at
+controls by a `data-tour` attribute, so no component knows it is being explained, and the light is
+one fixed element with a `100vmax` shadow ring and no pointer events, so what it is lighting stays
+clickable. Escape ends it from anywhere. Next is there for the one step that is not the reader's to
+force.
+
+**P8e — identity.** The dither and the burst plate crossed into the app
+(`shared/_components/engraving.tsx`), a deliberate second copy for the same reason the two
+`globals.css` files re-declare the brand values. `docs/DESIGN.md` records the bounded exception: the
+arrival surfaces are the one place inside the application where the loud half of the brand is used,
+because they are seen once.
+
+Verified in the browser: the app negotiated Portuguese out of the browser on first load and rendered
+every screen in it; switching to English in settings repainted the whole tree with no reload; the
+theme flipped both ways and survived a reload; the greeting appeared once and only with an empty
+notebook; writing `Falar com a Ana sobre o deploy até sexta` advanced the tour from step 1 to step 2
+and ticked the checklist to 1 of 5; the spotlight travelled to each anchor; replaying from settings
+resumed at step 2 rather than re-teaching step 1. Both site documents build, and neither scrolls
+sideways at 375px.
+
+Verification: `bun run typecheck` (13/13) · `bun run lint` (clean, 293 files) · `bun run test`
+(57 app tests, 21 db tests) · `bun run --cwd apps/web build` · `bun run --cwd apps/www build`
+(`index.html` + `pt-br.html`).
+
 ## In progress
 - **E2's simpler-mode half is unverified.** Written, typechecked, and never driven — see above.
   Still open from Phase 5: whether projects should be their
@@ -1108,6 +1187,15 @@ production app still opens its database, files a note from the Inbox and moves o
   (`key={note.id}`) and `save` is a stable `useCallback`, so a draft cannot outlive its note.
 
 ## Known gaps / debt
+- **The manifest is English only.** `app/manifest.ts` is one file in a static export and browsers do
+  not negotiate a localised one, so an installed app's name stays English whatever the interface is
+  set to. Same for the desktop bundle's `shortDescription` / `longDescription` in `tauri.conf.json`.
+- **`components/ui/calendar.tsx` calls `toLocaleString("default", ...)`** for its month names. It is
+  registry-owned and must not be hand-edited, so its months follow the machine rather than the
+  interface. It is the one string in the app the dictionary does not reach.
+- **`indexedDB.databases()` is how "delete everything" finds the stores to drop.** Firefox only grew
+  it recently; where it is missing the preferences still go and the notes do not. `shared/lib/erase.ts`
+  says so.
 - ~~The embedding model has not run end to end.~~ **It has.** Verified in the production build:
   model downloads with visible progress, notes are embedded, and "merchant inventory" finds the
   HEREZE note by meaning alone.

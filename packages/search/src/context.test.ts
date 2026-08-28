@@ -83,10 +83,10 @@ test("context is worth less than meaning on its own", () => {
   expect(DEFAULT_WEIGHTS.context).toBeLessThan(DEFAULT_WEIGHTS.semantic);
 });
 
-test("the reasons are sentences about the reader's own notes, never a score", () => {
+test("the reasons name which signals were true, never a score", () => {
   expect(explainContext({ sameProject: true, coOpened: 0.4 })).toEqual([
-    "it is in the same project",
-    "you usually open them together",
+    "same-project",
+    "co-opened",
   ]);
   expect(explainContext({})).toEqual([]);
 });

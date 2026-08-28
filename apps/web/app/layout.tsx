@@ -40,6 +40,43 @@ if(window.__TAURI_INTERNALS__&&localStorage.getItem('echo:editor-mode')==='true'
 document.documentElement.dataset.echoMode='editor'
 }catch(e){}`;
 
+/**
+ * Which language the window was left in, decided before anything paints.
+ *
+ * Same reason as `MODE_ON_OPEN`, and the same shape: the prerendered markup carries `lang="en"`
+ * because a static export has to carry something, and only a blocking script can correct it before
+ * the first frame. React reads the attribute back on mount rather than deciding again, so there is
+ * one answer to what language this is and it is the one already on screen.
+ *
+ * Matched on the language subtag alone, mirroring `negotiate` in `shared/lib/i18n/locales.ts`: a
+ * browser set to `pt-PT` is closer to this than to English. It fails to English.
+ */
+const LANGUAGE_ON_OPEN = `try{
+var s=localStorage.getItem('echo:locale');
+var l=['en','pt-BR'];
+if(l.indexOf(s)<0){s=null;
+for(var i=0;i<navigator.languages.length&&!s;i++){
+var t=navigator.languages[i].toLowerCase().split('-')[0];
+for(var j=0;j<l.length;j++)if(l[j].toLowerCase().split('-')[0]===t){s=l[j];break}}}
+document.documentElement.lang=s||'en'
+}catch(e){}`;
+
+/**
+ * How the window looks, decided before anything paints.
+ *
+ * The markup ships with `class="dark"` because a static export has to ship with something, and this
+ * only ever takes it off. Failing closed means failing to dark, which is what echo was before there
+ * was a choice: a light reader sees one dark frame at worst, and only where the script cannot run.
+ */
+const APPEARANCE_ON_OPEN = `try{
+var t=localStorage.getItem('echo:theme')||'dark';
+var l=t==='light'||(t==='system'&&matchMedia('(prefers-color-scheme: light)').matches);
+document.documentElement.classList.toggle('dark',!l);
+document.documentElement.style.colorScheme=l?'light':'dark';
+if(localStorage.getItem('echo:motion')==='reduced')
+document.documentElement.dataset.echoMotion='reduced'
+}catch(e){}`;
+
 const RootLayout = ({ children }: { children: ReactNode }) => (
   <html
     lang="en"
@@ -48,6 +85,8 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
   >
     <head>
       <script dangerouslySetInnerHTML={{ __html: MODE_ON_OPEN }} />
+      <script dangerouslySetInnerHTML={{ __html: LANGUAGE_ON_OPEN }} />
+      <script dangerouslySetInnerHTML={{ __html: APPEARANCE_ON_OPEN }} />
     </head>
     <body className="min-h-dvh font-sans antialiased">{children}</body>
   </html>

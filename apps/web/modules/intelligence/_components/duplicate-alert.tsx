@@ -4,6 +4,7 @@ import { CopyCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { Related } from "@/modules/intelligence/related";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * Never merged, never rewritten: echo says what it noticed and the writer decides. Neutral on
@@ -20,19 +21,21 @@ export const DuplicateAlert = ({
 }) => (
   <Alert className="animate-settle">
     <CopyCheck aria-hidden="true" />
-    <AlertTitle>You may have written this before</AlertTitle>
+    <AlertTitle>{copy().intelligence.writtenBefore}</AlertTitle>
     <AlertDescription>
-      <p className="line-clamp-2 text-xs leading-5">{duplicate.note.title || "Untitled"}</p>
+      <p className="line-clamp-2 text-xs leading-5">
+        {duplicate.note.title || copy().common.untitled}
+      </p>
       <div className="flex gap-1">
         <Button
           size="sm"
           variant="outline"
           onClick={(event) => onOpen(duplicate.note.id, event.currentTarget)}
         >
-          Open it
+          {copy().intelligence.openIt}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => onDismiss(duplicate.note.id)}>
-          Not the same
+          {copy().intelligence.notTheSame}
         </Button>
       </div>
     </AlertDescription>

@@ -10,6 +10,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { MenuNote } from "@/shared/_components/menu-note";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * The notes you have open, in the order you opened them or the order you dragged them into. Nothing
@@ -49,7 +50,7 @@ export const TabStrip = ({
         <Tab
           key={noteId}
           noteId={noteId}
-          title={noteOf(noteId)?.title || "New note"}
+          title={noteOf(noteId)?.title || copy().editor.newNoteTab}
           active={noteId === active}
           beside={noteId === secondary}
           dragging={noteId === dragging}
@@ -167,7 +168,7 @@ const Tab = memo(
           </button>
           <button
             type="button"
-            aria-label={`Close ${title}`}
+            aria-label={copy().editor.closeNamed(title)}
             onClick={() => onClose(noteId)}
             // Always reachable by keyboard, and on a phone, where there is no hover to reveal it.
             className="me-1.5 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 outline-none transition-opacity duration-150 pointer-coarse:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 hover:text-foreground"
@@ -180,16 +181,14 @@ const Tab = memo(
           {onPin === undefined ? null : (
             <ContextMenuItem closeOnClick onClick={() => onPin(noteId)}>
               <Pin aria-hidden="true" />
-              Pin to the desktop
+              {copy().editor.pinToDesktop}
             </ContextMenuItem>
           )}
           <ContextMenuItem closeOnClick onClick={() => onClose(noteId)}>
             <X aria-hidden="true" />
-            Close tab
+            {copy().editor.closeTab}
           </ContextMenuItem>
-          {onPin === undefined ? null : (
-            <MenuNote>A sticky note that stays above everything, until you send it back.</MenuNote>
-          )}
+          {onPin === undefined ? null : <MenuNote>{copy().editor.stickyNoteHint}</MenuNote>}
         </ContextMenuPopup>
       </ContextMenu>
     );

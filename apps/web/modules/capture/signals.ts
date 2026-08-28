@@ -1,5 +1,6 @@
 import { adjust, type LearnedRule, ruleFor } from "@echo/learning";
 import type { ParseResult } from "@echo/parser";
+import { copy } from "@/shared/lib/i18n";
 
 /** Under this, echo has been told often enough that it should stop mentioning it. */
 export const WORTH_SAYING = 0.4;
@@ -8,7 +9,14 @@ export type Signal = {
   kind: "task-phrase" | "deadline-phrase";
   /** The phrase that gave it away — what a correction is filed under. */
   trigger: string;
-  label: string;
+  /**
+   * The writer's own words for the date, for a deadline; null for a task.
+   *
+   * Their words rather than a finished label, because the label around them is a sentence in
+   * whatever language the interface is in, and this is read once per keystroke while that can
+   * change underneath it.
+   */
+  text: string | null;
   /** Colour is meaning here: blue is echo's one accent, amber is time running out. */
   tone: string;
   /** What the parser thought, before anything this reader has taught echo. */
@@ -27,7 +35,7 @@ export const readSignals = (parsed: ParseResult): Signal[] => {
     signals.push({
       kind: "task-phrase",
       trigger: task.trigger,
-      label: "Task",
+      text: null,
       tone: "bg-brand-bright",
       detected: task.confidence,
     });
@@ -41,7 +49,7 @@ export const readSignals = (parsed: ParseResult): Signal[] => {
     signals.push({
       kind: "deadline-phrase",
       trigger: when.marker ?? "date",
-      label: `Due ${when.text}`,
+      text: when.text,
       tone: "bg-warning",
       detected: when.marker ? 0.8 : 0.6,
     });
@@ -59,19 +67,22 @@ export const believes = (signal: Signal, rules: LearnedRule[]): boolean =>
 
 export const signalKey = (signal: Signal): string => `${signal.kind}:${signal.trigger}`;
 
+/** What the chip says. Read at render, so a language change repaints it. */
+export const signalLabel = (signal: Signal): string =>
+  signal.text === null ? copy().signals.task : copy().composer.due(signal.text);
+
 /** The reason behind a suggestion, in the reader's own words rather than a score. */
 export const explain = (signal: Signal, rule: LearnedRule | undefined): string => {
-  const meaning = signal.kind === "task-phrase" ? "something to do" : "a limit to work against";
+  const words = copy().signals;
+  const meaning = signal.kind === "task-phrase" ? words.somethingToDo : words.aLimitToWork;
   const read =
     signal.trigger === "checkbox"
-      ? "A ticked box reads as something to do."
+      ? words.tickedBox
       : signal.trigger === "date"
-        ? "A date in the note is when it is due, unless you say otherwise."
-        : `“${signal.trigger}” reads as ${meaning}.`;
+        ? words.dateIsDue
+        : words.reads(signal.trigger, meaning);
 
   if (!rule) return read;
-  const times = rule.support === 1 ? "once" : `${rule.support} times`;
-  return rule.outcome === "accept"
-    ? `${read} You have agreed ${times}.`
-    : `${read} You have said otherwise ${times}, so echo is less sure.`;
+  const times = words.times(rule.support);
+  return rule.outcome === "accept" ? words.agreed(read, times) : words.saidOtherwise(read, times);
 };

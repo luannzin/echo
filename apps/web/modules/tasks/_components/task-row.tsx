@@ -6,6 +6,7 @@ import { ArrowUpRight, Folder as FolderIcon, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { copy } from "@/shared/lib/i18n";
 import { numeric, quiet } from "@/shared/lib/styles";
 import { formatDue, formatExact, formatStamp } from "@/shared/lib/time";
 
@@ -27,6 +28,7 @@ export const TaskRow = memo(
     onDelete: (task: Task) => void;
     onOpenNote: (noteId: string, from: HTMLElement) => void;
   }) => {
+    const words = copy().tasks;
     const done = task.completedAt !== null;
     const where = note?.folderId ? folderPath(folders, note.folderId) : null;
 
@@ -47,7 +49,7 @@ export const TaskRow = memo(
         <Checkbox
           checked={done}
           onCheckedChange={(checked) => onToggle(task, checked === true)}
-          aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
+          aria-label={done ? words.reopen(task.title) : words.complete(task.title)}
           className="mt-0.5 shrink-0"
         />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -63,7 +65,7 @@ export const TaskRow = memo(
           <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-muted-foreground text-xs">
             {/* Done outranks due: once it is finished, when it was due stops being the news. */}
             {done && task.completedAt ? (
-              <span className={numeric}>Done {formatStamp(task.completedAt)}</span>
+              <span className={numeric}>{words.doneAt(formatStamp(task.completedAt))}</span>
             ) : task.dueAt ? (
               <span
                 title={formatExact(task.dueAt)}
@@ -79,7 +81,7 @@ export const TaskRow = memo(
                 onClick={(event) => onOpenNote(note.id, event.currentTarget)}
                 className="inline-flex max-w-full items-center gap-1 truncate rounded outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className="truncate">{note.title || "Untitled"}</span>
+                <span className="truncate">{note.title || copy().common.untitled}</span>
                 <ArrowUpRight aria-hidden="true" className="size-3 shrink-0" />
               </button>
             ) : null}
@@ -94,7 +96,7 @@ export const TaskRow = memo(
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`Remove ${task.title}`}
+          aria-label={words.remove(task.title)}
           onClick={() => onDelete(task)}
           className={`shrink-0 text-muted-foreground hover:text-destructive ${quiet}`}
         >

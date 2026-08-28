@@ -5,6 +5,7 @@ import { BottomNav } from "@/modules/shell/_components/bottom-nav";
 import { Rail } from "@/modules/shell/_components/rail";
 import { TopBar } from "@/modules/shell/_components/top-bar";
 import type { View } from "@/modules/shell/view";
+import { copy } from "@/shared/lib/i18n";
 
 /**
  * Shell frame: rail | navigation | workspace | intelligence on a desktop, and the same four regions
@@ -17,6 +18,7 @@ import type { View } from "@/modules/shell/view";
  */
 export const AppShell = ({
   navigation,
+  navigationFooter,
   workspace,
   intelligence,
   atHome,
@@ -34,6 +36,8 @@ export const AppShell = ({
   onEditorMode,
 }: {
   navigation: ReactNode;
+  /** Held under the navigation rather than inside it: the panel is a list, this is not part of it. */
+  navigationFooter?: ReactNode;
   workspace: ReactNode;
   intelligence: ReactNode;
   atHome: boolean;
@@ -57,7 +61,7 @@ export const AppShell = ({
       href="#workspace"
       className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:start-2 focus-visible:top-2 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-card focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm"
     >
-      Skip to writing
+      {copy().shell.skipToWriting}
     </a>
 
     <Rail
@@ -82,7 +86,7 @@ export const AppShell = ({
       and a panel the reader waits for is a panel they stop opening.
     */}
     <aside
-      aria-label="Navigation"
+      aria-label={copy().shell.navigation}
       inert={!navigationOpen}
       className={`fixed inset-y-0 start-0 z-40 w-[min(20rem,85vw)] shrink-0 overflow-hidden border-e bg-sidebar shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] md:relative md:z-auto md:bg-transparent md:shadow-none md:transition-[width,opacity,border-color] md:duration-180 ${
         navigationOpen
@@ -90,7 +94,10 @@ export const AppShell = ({
           : "-translate-x-full border-transparent md:pointer-events-none md:w-0 md:translate-x-0 md:opacity-0 rtl:translate-x-full"
       }`}
     >
-      <div className="h-full w-[min(20rem,85vw)] md:w-60">{navigation}</div>
+      <div className="flex h-full w-[min(20rem,85vw)] flex-col md:w-60">
+        <div className="min-h-0 flex-1">{navigation}</div>
+        {navigationFooter}
+      </div>
     </aside>
 
     <div className="flex min-w-0 flex-1 flex-col">
@@ -117,7 +124,7 @@ export const AppShell = ({
 
     {/* At lg a column beside the writing; below it, a sheet that rises over the bottom bar. */}
     <aside
-      aria-label="Intelligence"
+      aria-label={copy().shell.intelligence}
       inert={!intelligenceOpen}
       className={`fixed inset-x-0 bottom-0 z-40 h-[60dvh] shrink-0 overflow-hidden rounded-t-2xl border-t bg-card shadow-2xl shadow-black/40 transition-transform duration-200 ease-[var(--ease-out-quart)] lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:rounded-none lg:border-t-0 lg:border-s lg:bg-transparent lg:shadow-none lg:transition-[width,opacity,border-color] lg:duration-180 ${
         intelligenceOpen

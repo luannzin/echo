@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Label } from "@/shared/_components/label";
 import { MenuNote } from "@/shared/_components/menu-note";
+import { copy } from "@/shared/lib/i18n";
 import { numeric, row } from "@/shared/lib/styles";
 import { formatStamp } from "@/shared/lib/time";
 
@@ -65,7 +66,7 @@ export const NoteAside = ({
         />
       ) : null}
       <aside
-        aria-label="Notes"
+        aria-label={copy().editor.notes}
         inert={!open}
         // Slides rather than takes width: the panes beside it keep their measurements, so opening
         // this never reflows the words someone is in the middle of writing.
@@ -74,13 +75,13 @@ export const NoteAside = ({
         }`}
       >
         <div className="shrink-0 px-3 pt-3 pb-2">
-          <Label>Notes</Label>
+          <Label>{copy().editor.notes}</Label>
         </div>
 
         <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
           {notes.length === 0 ? (
             <li className="px-2 py-1 text-muted-foreground text-sm leading-relaxed">
-              Nothing written yet.
+              {copy().editor.nothingWrittenYet}
             </li>
           ) : (
             notes.map((note) => (
@@ -97,7 +98,7 @@ export const NoteAside = ({
                         type="button"
                         onClick={() => onOpenNote(note.id)}
                         aria-current={note.id === activeId ? "page" : undefined}
-                        title={note.title || "Untitled"}
+                        title={note.title || copy().common.untitled}
                         className={`${row} w-full gap-2 px-2 ${
                           note.id === activeId
                             ? "bg-sidebar-accent text-foreground"
@@ -107,7 +108,7 @@ export const NoteAside = ({
                     }
                   >
                     <span className="min-w-0 flex-1 truncate text-start">
-                      {note.title || "Untitled"}
+                      {note.title || copy().common.untitled}
                     </span>
                     <span
                       className={`shrink-0 text-[0.625rem] text-muted-foreground/80 ${numeric}`}
@@ -122,9 +123,9 @@ export const NoteAside = ({
                       variant="destructive"
                     >
                       <Trash2 aria-hidden="true" />
-                      Delete note
+                      {copy().common.deleteNote}
                     </ContextMenuItem>
-                    <MenuNote>Gone from the database. Ctrl Z puts it back.</MenuNote>
+                    <MenuNote>{copy().editor.deletedFromDatabase}</MenuNote>
                   </ContextMenuPopup>
                 </ContextMenu>
               </li>

@@ -2,6 +2,7 @@
 
 import { FolderTree, Inbox, type LucideIcon, PenLine, Search, SquareCheck } from "lucide-react";
 import type { View } from "@/modules/shell/view";
+import { copy } from "@/shared/lib/i18n";
 
 type Item = {
   label: string;
@@ -30,33 +31,34 @@ export const BottomNav = ({
   placesOpen: boolean;
   inboxCount: number;
 }) => {
+  const words = copy().shell.bottomNav;
   const items: Item[] = [
     {
-      label: "Write",
+      label: words.write,
       icon: PenLine,
       active: view === "home" || view === "stream",
       onSelect: () => onViewChange("home"),
     },
-    { label: "Search", icon: Search, active: false, onSelect: onSearch },
+    { label: words.search, icon: Search, active: false, onSelect: onSearch },
     {
-      label: "Inbox",
+      label: words.inbox,
       icon: Inbox,
       active: view === "inbox",
       badge: inboxCount,
       onSelect: () => onViewChange("inbox"),
     },
     {
-      label: "Tasks",
+      label: words.tasks,
       icon: SquareCheck,
       active: view === "tasks",
       onSelect: () => onViewChange("tasks"),
     },
-    { label: "Places", icon: FolderTree, active: placesOpen, onSelect: onPlaces },
+    { label: words.places, icon: FolderTree, active: placesOpen, onSelect: onPlaces },
   ];
 
   return (
     <nav
-      aria-label="Primary"
+      aria-label={copy().shell.primary}
       // Above the home indicator on a phone that has one, and above nothing on one that does not.
       className="fixed inset-x-0 bottom-0 z-40 flex border-sidebar-border border-t bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
     >

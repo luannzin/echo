@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { copy } from "@/shared/lib/i18n";
 
 const AUTOSAVE_DELAY_MS = 500;
 
 export type SaveState = "idle" | "saving" | "saved" | "failed";
 
-export const SAVE_STATE_LABEL: Record<Exclude<SaveState, "idle">, string> = {
-  saving: "Saving…",
-  saved: "Saved",
-  failed: "Save failed",
+/** What the dirty-state indicator says. A function, not a table: the words move with the language. */
+export const saveStateLabel = (state: Exclude<SaveState, "idle">): string => {
+  const words = copy().notes;
+  if (state === "saving") return words.saving;
+  return state === "saved" ? words.saved : words.saveFailed;
 };
 
 /**

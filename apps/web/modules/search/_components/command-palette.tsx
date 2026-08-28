@@ -28,6 +28,7 @@ import {
   queryTerms,
   type SearchPass,
 } from "@/modules/search/model";
+import { copy } from "@/shared/lib/i18n";
 import type { Suggestion } from "@/shared/lib/retrieval";
 
 /** Short: the first pass is a lookup, not a scan. This skips keystrokes rather than buying time. */
@@ -65,6 +66,7 @@ export const CommandPalette = ({
   onRejectAlias: (typed: string, offered: string) => void;
   model: EmbedderStatus;
 }) => {
+  const words = copy().search;
   const [query, setQuery] = useState("");
   const [pass, setPass] = useState<SearchPass | null>(null);
   const [searching, setSearching] = useState(false);
@@ -123,11 +125,11 @@ export const CommandPalette = ({
   const suggestions = useMemo(() => onSuggest(settled), [settled, onSuggest]);
 
   const emptyMessage = searching
-    ? "Looking…"
+    ? words.looking
     : unavailable
-      ? "Search needs the local database, which could not be opened. Reload the page to try again."
+      ? words.databaseFailed
       : query.trim()
-        ? "Nothing matches that."
+        ? words.nothingMatches
         : null;
 
   const renderRow = (row: PaletteRow) =>
@@ -156,7 +158,7 @@ export const CommandPalette = ({
 
   const renderGroup = (group: PaletteGroup) => (
     <CommandGroup key={group.value} items={group.items}>
-      <CommandGroupLabel>{group.value}</CommandGroupLabel>
+      <CommandGroupLabel>{group.label}</CommandGroupLabel>
       <CommandCollection>{renderRow}</CommandCollection>
     </CommandGroup>
   );
@@ -165,9 +167,9 @@ export const CommandPalette = ({
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       {/* Near-instant on purpose. A palette is opened dozens of times a day from the keyboard, and
           waiting for it to arrive is the one thing it must never do. */}
-      <CommandDialogPopup className="duration-100" aria-label="Search and commands">
+      <CommandDialogPopup className="duration-100" aria-label={words.title}>
         <Command items={groups} mode="none" value={query} onValueChange={setQuery}>
-          <CommandInput placeholder="Search notes, or type a command…" />
+          <CommandInput placeholder={words.placeholder} />
           {/* Above the answers rather than beside them: it is a question about the question. */}
           <AlsoMean
             suggestions={suggestions}
@@ -194,7 +196,7 @@ export const CommandPalette = ({
           <CommandList>{renderGroup}</CommandList>
           <CommandFooter>
             <span>
-              <Kbd>↑</Kbd> <Kbd>↓</Kbd> to move · <Kbd>Enter</Kbd> to open
+              <Kbd>↑</Kbd> <Kbd>↓</Kbd> {words.toMove} · <Kbd>Enter</Kbd> {words.toOpen}
             </span>
             {/* What the answer was made of. A reader whose model is still arriving should know the
                 list is going to get better, not wonder why it is not better already. */}

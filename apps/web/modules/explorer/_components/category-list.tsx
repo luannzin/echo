@@ -14,6 +14,7 @@ import { FolderNameField } from "@/modules/explorer/_components/folder-name-fiel
 import { Count } from "@/shared/_components/count";
 import { Label } from "@/shared/_components/label";
 import { MenuNote } from "@/shared/_components/menu-note";
+import { copy } from "@/shared/lib/i18n";
 import { row } from "@/shared/lib/styles";
 
 /**
@@ -41,6 +42,7 @@ export const CategoryList = ({
 }) => {
   /** The row that has turned into a text field: a new category, or one being renamed. */
   const [naming, setNaming] = useState<{ id: string } | "new" | null>(null);
+  const words = copy().explorer;
 
   const submit = (name: string) => {
     const trimmed = name.trim();
@@ -54,11 +56,12 @@ export const CategoryList = ({
   return (
     <div className="flex flex-col gap-1 px-2 pt-4 pb-3">
       <div className="flex items-center justify-between gap-2 px-2 pb-1">
-        <Label>Categories</Label>
+        <Label>{words.categories}</Label>
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="New category"
+          data-new="category"
+          aria-label={copy().common.newCategory}
           onClick={() => setNaming("new")}
           className="text-muted-foreground"
         >
@@ -73,7 +76,7 @@ export const CategoryList = ({
               <FolderNameField
                 depth={0}
                 initial={category.name}
-                label="Category name"
+                label={words.categoryName}
                 onSubmit={submit}
                 onCancel={() => setNaming(null)}
               />
@@ -99,12 +102,15 @@ export const CategoryList = ({
                 >
                   <Tag aria-hidden="true" className="size-3.5 shrink-0" />
                   <span className="min-w-0 flex-1 truncate text-start">{category.name}</span>
-                  <Count of={countOf(category.id)} label={`tagged ${category.name}`} />
+                  <Count
+                    of={countOf(category.id)}
+                    describe={(tagged) => words.taggedCount(tagged, category.name)}
+                  />
                 </ContextMenuTrigger>
                 <ContextMenuPopup align="start" className="max-w-64">
                   <ContextMenuItem closeOnClick onClick={() => setNaming({ id: category.id })}>
                     <Pencil aria-hidden="true" />
-                    Rename
+                    {copy().common.rename}
                   </ContextMenuItem>
                   <ContextMenuItem
                     closeOnClick
@@ -112,9 +118,9 @@ export const CategoryList = ({
                     variant="destructive"
                   >
                     <Trash2 aria-hidden="true" />
-                    Delete category
+                    {words.deleteCategory}
                   </ContextMenuItem>
-                  <MenuNote>Deleting it takes the label off every note. The notes stay.</MenuNote>
+                  <MenuNote>{words.deleteCategoryHint}</MenuNote>
                 </ContextMenuPopup>
               </ContextMenu>
             </li>
@@ -125,7 +131,7 @@ export const CategoryList = ({
           <li>
             <FolderNameField
               depth={0}
-              label="Category name"
+              label={words.categoryName}
               onSubmit={submit}
               onCancel={() => setNaming(null)}
             />
@@ -134,10 +140,7 @@ export const CategoryList = ({
       </ul>
 
       {categories.length === 0 && naming !== "new" ? (
-        <p className="px-2 py-1 text-muted-foreground text-xs leading-5">
-          A category is a label, not a place — a note can carry several. Make one and echo starts
-          putting it on the notes that belong with it.
-        </p>
+        <p className="px-2 py-1 text-muted-foreground text-xs leading-5">{words.noCategories}</p>
       ) : null}
     </div>
   );

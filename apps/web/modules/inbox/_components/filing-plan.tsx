@@ -8,6 +8,7 @@ import type { FilingGroup } from "@/modules/inbox/plan";
 import { movedBy } from "@/modules/inbox/plan";
 import { Label } from "@/shared/_components/label";
 import type { FolderPath } from "@/shared/lib/folder-paths";
+import { copy } from "@/shared/lib/i18n";
 import { stagger } from "@/shared/lib/stagger";
 
 /**
@@ -32,19 +33,21 @@ export const FilingPlan = ({
   onAccept: () => void;
   onCancel: () => void;
 }) => {
+  const words = copy().inbox;
   const moving = movedBy(plan);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-6">
       <div className="flex items-baseline justify-between gap-4 pb-1">
-        <h1 className="font-display text-3xl tracking-tight">Organize the Inbox</h1>
+        <h1 className="font-display text-3xl tracking-tight">{words.organize}</h1>
         <Label>
-          {moving} of {plan.reduce((total, group) => total + group.notes.length, 0)} moving
+          {words.movingOf(
+            moving,
+            plan.reduce((total, group) => total + group.notes.length, 0),
+          )}
         </Label>
       </div>
-      <p className="pb-6 text-muted-foreground text-sm leading-relaxed">
-        Nothing has moved yet. Send anything somewhere else first, then accept the rest in one go.
-      </p>
+      <p className="pb-6 text-muted-foreground text-sm leading-relaxed">{words.nothingHasMoved}</p>
 
       {plan.map((group, index) => (
         <section
@@ -58,9 +61,7 @@ export const FilingPlan = ({
             ) : (
               <FolderOpen aria-hidden="true" className="size-3 text-brand-bright" />
             )}
-            <Label>
-              {group.label} · {group.notes.length}
-            </Label>
+            <Label>{words.groupCount(group.label, group.notes.length)}</Label>
           </div>
 
           <ul className="flex flex-col">
@@ -69,7 +70,9 @@ export const FilingPlan = ({
                 key={note.id}
                 className="flex items-center gap-2 border-border/60 border-t py-1.5 first:border-t-0"
               >
-                <span className="min-w-0 flex-1 truncate text-sm">{note.title || "Untitled"}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {note.title || copy().common.untitled}
+                </span>
                 <Elsewhere
                   note={note}
                   places={places}
@@ -86,10 +89,10 @@ export const FilingPlan = ({
       <div className="sticky bottom-0 flex items-center gap-2 border-t bg-background py-3">
         <Button onClick={onAccept} disabled={moving === 0} className="gap-2">
           <Check aria-hidden="true" />
-          {moving === 0 ? "Nothing to move" : `File ${moving}`}
+          {moving === 0 ? words.nothingToMove : words.fileCount(moving)}
         </Button>
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {copy().common.cancel}
         </Button>
       </div>
     </div>
@@ -114,19 +117,19 @@ const Elsewhere = ({
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`Send ${note.title || "this note"} somewhere else`}
+          aria-label={copy().inbox.sendSomewhereElse(note.title || copy().inbox.thisNote)}
           className="shrink-0 gap-1 text-muted-foreground text-xs"
         />
       }
     >
-      Elsewhere
+      {copy().inbox.elsewhere}
       <ArrowRight aria-hidden="true" />
     </MenuTrigger>
     <MenuPopup align="end" className="max-h-80 max-w-72 overflow-y-auto">
       {current !== null ? (
         <MenuItem closeOnClick onClick={() => onReassign(note.id, null)}>
           <InboxIcon aria-hidden="true" />
-          Keep in the Inbox
+          {copy().inbox.keepInInbox}
         </MenuItem>
       ) : null}
       {places

@@ -2,6 +2,7 @@ import type { EmbedderStatus } from "@echo/embeddings";
 import type { SearchResult } from "@echo/search";
 import type { Note } from "@echo/types";
 import type { LucideIcon } from "lucide-react";
+import { copy } from "@/shared/lib/i18n";
 import type { SearchPass } from "@/shared/lib/retrieval";
 
 const EXCERPT_LENGTH = 140;
@@ -28,20 +29,22 @@ export type PaletteRow =
   | { value: string; kind: "command"; command: PaletteCommand }
   | { value: string; kind: "note"; result: SearchResult };
 
-export type PaletteGroup = { value: string; items: PaletteRow[] };
+/** `value` identifies the group to the list primitive; `label` is what a reader sees. */
+export type PaletteGroup = { value: string; label: string; items: PaletteRow[] };
 
 /** How this answer was reached, in as few words as it takes to be honest about it. */
 export const describePass = (pass: SearchPass | null, model: EmbedderStatus): string => {
-  if (pass === null || pass.results.length === 0) return "Searched on this device";
-  if (pass.stage === "meaning") return "Words and meaning";
+  const words = copy().search;
+  if (pass === null || pass.results.length === 0) return words.searchedOnThisDevice;
+  if (pass.stage === "meaning") return words.wordsAndMeaning;
   // The native runtime cannot count its own download, so there is a wait to report and no fraction
   // to report it with. Saying so beats rounding an absence to zero percent.
   if (model.state === "loading")
     return model.progress === undefined
-      ? "Words · meaning still arriving"
-      : `Words · meaning at ${Math.round(model.progress * 100)}%`;
-  if (model.state === "unavailable") return "Words only — the model could not be loaded";
-  return "Words · meaning in a moment";
+      ? words.wordsMeaningArriving
+      : words.wordsMeaningAt(Math.round(model.progress * 100));
+  if (model.state === "unavailable") return words.wordsOnly;
+  return words.wordsMeaningSoon;
 };
 
 /** The words a reader typed, lowercased and stripped of punctuation, longest first. */
@@ -97,12 +100,13 @@ export const groupRows = (
     command,
   }));
 
+  const words = copy().search;
   return (
     text.length > 0
       ? [
-          { value: "Notes", items: notes },
-          { value: "Commands", items: rows },
+          { value: "notes", label: words.notes, items: notes },
+          { value: "commands", label: words.commands, items: rows },
         ]
-      : [{ value: "Commands", items: rows }]
+      : [{ value: "commands", label: words.commands, items: rows }]
   ).filter((group) => group.items.length > 0);
 };

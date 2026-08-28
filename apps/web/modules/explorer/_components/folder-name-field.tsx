@@ -1,6 +1,7 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
+import { copy } from "@/shared/lib/i18n";
 
 const INDENT_PX = 12;
 /** Puts the field's text on the same edge as the name it is replacing, gutter and padding included. */
@@ -10,7 +11,7 @@ const GUTTER_PX = 22;
 export const FolderNameField = ({
   depth,
   initial = "",
-  label = "Folder name",
+  label,
   onSubmit,
   onCancel,
 }: {
@@ -21,6 +22,8 @@ export const FolderNameField = ({
   onSubmit: (name: string) => void;
   onCancel: () => void;
 }) => {
+  const named = label ?? copy().explorer.folderName;
+
   // Focused and selected on mount, the same way the composer takes the cursor: naming something is
   // the only reason this row exists.
   const takeCursor = (element: HTMLInputElement | null) => {
@@ -44,8 +47,8 @@ export const FolderNameField = ({
       <input
         ref={takeCursor}
         defaultValue={initial}
-        aria-label={label}
-        placeholder={label}
+        aria-label={named}
+        placeholder={named}
         maxLength={200}
         onKeyDown={onKeyDown}
         // Clicking away keeps what was typed: the reader moved on, they did not change their mind,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { SlashCommand } from "@/shared/lib/slash";
+import { type SlashCommand, slashHint, slashLabel } from "@/shared/lib/slash";
 
 /** Where a row lives in the accessibility tree, so the textarea can point the reader at it. */
 export const slashOptionId = (base: string, at: number): string => `${base}-option-${at}`;
@@ -52,11 +52,11 @@ export const SlashOption = ({
       <command.icon aria-hidden="true" className="size-3.5" />
     </span>
 
-    <span className="min-w-0 flex-1 truncate text-sm">{command.label}</span>
+    <span className="min-w-0 flex-1 truncate text-sm">{slashLabel(command)}</span>
 
     {argument === null ? (
       <span className="shrink-0 font-mono text-[0.6875rem] text-muted-foreground/70">
-        {command.hint}
+        {slashHint(command)}
       </span>
     ) : (
       <span className="min-w-0 max-w-40 truncate text-brand-bright text-sm">

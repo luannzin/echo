@@ -51,8 +51,13 @@
 
 @layer base {
   html {
+    /* Set by the bootstrap script in `layout.tsx`, which knows which palette the reader chose. */
     color-scheme: dark;
     @apply font-sans;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
   }
 
   body {
@@ -109,6 +114,20 @@
       transition-duration: 0.01ms !important;
       /* biome-ignore-end lint/complexity/noImportantStyles: reduced-motion override */
     }
+  }
+
+  /*
+   * The same promise, asked for in settings rather than in the operating system. It only ever
+   * points the same way the media query does: there is no preference for *more* motion than the
+   * machine asked for, so nothing here can undo the block above.
+   */
+  :root[data-echo-motion="reduced"] *,
+  :root[data-echo-motion="reduced"] *::before,
+  :root[data-echo-motion="reduced"] *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: same reason as the media query above */
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: reduced-motion override */
   }
   * {
     @apply border-border outline-ring/50;
@@ -396,5 +415,31 @@
   from {
     opacity: 0;
     filter: blur(3px);
+  }
+}
+
+/*
+ * The engraved plate, breathing.
+ *
+ * Clock-driven and CSS-only, the way the marketing site moves: a scroll timeline would be finished
+ * before anyone looked at a screen that does not scroll, and a pointer listener would be JavaScript
+ * doing what a keyframe already does. Slow and small enough that it reads as light rather than as
+ * something moving — six percent over half a minute is well under a pixel a second.
+ *
+ * `docs/DESIGN.md` rations this to the arrival surfaces. It is the one place the quiet half of the
+ * product borrows the loud half's voice, and it is seen once.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .plate-drift {
+    animation: plate-drift 34s var(--ease-in-out-quart) infinite alternate;
+  }
+
+  @keyframes plate-drift {
+    from {
+      transform: translate3d(3%, -1%, 0) scale(1.02);
+    }
+    to {
+      transform: translate3d(-3%, 1%, 0) scale(1.06);
+    }
   }
 }

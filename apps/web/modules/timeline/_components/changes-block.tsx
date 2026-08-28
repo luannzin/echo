@@ -3,6 +3,7 @@
 import type { Change } from "@echo/core";
 import { Sparkles } from "lucide-react";
 import { Label } from "@/shared/_components/label";
+import { copy } from "@/shared/lib/i18n";
 import { formatStamp } from "@/shared/lib/time";
 
 /**
@@ -28,9 +29,7 @@ export const ChangesBlock = ({
     <section className="mb-6 rounded-lg border border-brand-bright/25 bg-brand-bright/[0.04] px-4 py-3">
       <div className="flex items-center gap-2 pb-2">
         <Sparkles aria-hidden="true" className="size-3 text-muted-foreground" />
-        <Label>
-          {scope} · since you were last here, {formatStamp(change.since)}
-        </Label>
+        <Label>{copy().timeline.changedSince(scope, formatStamp(change.since))}</Label>
       </div>
 
       <ul className="flex flex-col gap-0.5">
@@ -41,7 +40,7 @@ export const ChangesBlock = ({
               onClick={(event) => onOpen(note.id, event.currentTarget)}
               className="-mx-2 flex w-[calc(100%+1rem)] items-center rounded-md px-2 py-1 text-start text-sm outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
             >
-              <span className="truncate">{note.title || "Untitled"}</span>
+              <span className="truncate">{note.title || copy().common.untitled}</span>
             </button>
           </li>
         ))}
@@ -49,7 +48,7 @@ export const ChangesBlock = ({
 
       {change.concepts.length > 0 ? (
         <p className="pt-2 text-muted-foreground text-xs">
-          New here: {change.concepts.join(" · ")}
+          {copy().timeline.newHere(change.concepts.join(" · "))}
         </p>
       ) : null}
     </section>
