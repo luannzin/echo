@@ -21,6 +21,8 @@
 //! because "Save a copy" asked, and the window-state one because the size you drag a window to is
 //! the size it should open at.
 
+mod mcp;
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -82,9 +84,14 @@ fn cached_file(cache: &Path, name: &str) -> Result<Vec<u8>, String> {
     let mut response = ureq::get(&url)
         .call()
         .map_err(|cause| format!("{name} could not be fetched: {cause}"))?;
-    let mut reader = response.body_mut().with_config().limit(MAX_DOWNLOAD).reader();
+    let mut reader = response
+        .body_mut()
+        .with_config()
+        .limit(MAX_DOWNLOAD)
+        .reader();
     let mut file = fs::File::create(&partial).map_err(|cause| cause.to_string())?;
-    io::copy(&mut reader, &mut file).map_err(|cause| format!("{name} could not be saved: {cause}"))?;
+    io::copy(&mut reader, &mut file)
+        .map_err(|cause| format!("{name} could not be saved: {cause}"))?;
     drop(file);
 
     fs::rename(&partial, &path).map_err(|cause| cause.to_string())?;
@@ -207,12 +214,18 @@ mod tests {
         for vector in [&one[0], &other[0]] {
             assert_eq!(vector.len(), 384, "the app stores 384-wide vectors");
             let norm: f32 = vector.iter().map(|v| v * v).sum::<f32>().sqrt();
-            assert!((norm - 1.0).abs() < 1e-3, "vectors should be unit length, got {norm}");
+            assert!(
+                (norm - 1.0).abs() < 1e-3,
+                "vectors should be unit length, got {norm}"
+            );
         }
         // Different notes, different directions — a model that returned the same vector for both
         // would pass every check above and make search useless.
         let dot: f32 = one[0].iter().zip(&other[0]).map(|(a, b)| a * b).sum();
-        assert!(dot < 0.999, "distinct notes should not collapse to one vector, got {dot}");
+        assert!(
+            dot < 0.999,
+            "distinct notes should not collapse to one vector, got {dot}"
+        );
     }
 
     /// The reason this module exists at all, kept runnable.
@@ -244,7 +257,9 @@ mod tests {
 
         let settled = resident_kb();
         for round in 0..300 {
-            model.embed(vec![text.clone()], None).expect("embedding should succeed");
+            model
+                .embed(vec![text.clone()], None)
+                .expect("embedding should succeed");
             if round % 50 == 0 {
                 println!("  round {round}: {} MB", resident_kb() / 1024);
             }
@@ -252,7 +267,11 @@ mod tests {
         let after = resident_kb();
 
         let grew_mb = after.saturating_sub(settled) / 1024;
-        println!("settled {} MB -> after 300 inferences {} MB", settled / 1024, after / 1024);
+        println!(
+            "settled {} MB -> after 300 inferences {} MB",
+            settled / 1024,
+            after / 1024
+        );
         assert!(
             grew_mb < 256,
             "300 inferences grew resident memory by {grew_mb} MB; the webview runtime this replaces grew by ~15000 MB"
@@ -279,7 +298,20 @@ pub fn run() {
                 .build(),
         )
         .manage(Model(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![embed])
+        // The MCP server: a door other programs can knock on, closed until the reader opens it in
+        // settings. Everything behind it happens in the web app — `src/mcp.rs` explains why it has
+        // to, and why nothing about a note appears in this crate.
+        .setup(|app| {
+            app.manage(mcp::state(app.handle())?);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            embed,
+            mcp::mcp_ready,
+            mcp::mcp_reply,
+            mcp::mcp_start,
+            mcp::mcp_stop,
+        ])
         .run(tauri::generate_context!())
         .expect("echo failed to start");
 }

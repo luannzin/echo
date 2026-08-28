@@ -66,6 +66,7 @@ import {
   readLocale,
   setLocale,
 } from "@/shared/lib/i18n";
+import { type McpEndpoint, serveMcp, startMcp, stopMcp } from "@/shared/lib/mcp";
 import {
   POSTIT_NOTE,
   POSTIT_OPEN,
@@ -165,6 +166,8 @@ const Page = () => {
   /** The simpler mode. Never on until the effect below has worked out where it is running. */
   const [editorMode, setEditorMode] = useState(false);
   const [desktopApp, setDesktopApp] = useState(false);
+  /** Where an assistant may reach echo, while the reader is letting one. */
+  const [assistants, setAssistants] = useState<McpEndpoint | null>(null);
   /** A sticky note asking for its tab back. `at` changes so the same note can come home twice. */
   const [summon, setSummon] = useState<{ noteId: string; at: number } | undefined>(undefined);
   /**
@@ -1083,6 +1086,23 @@ const Page = () => {
   }, []);
 
   /**
+   * The tools the desktop shell offers to whatever assistant the reader has pointed at echo.
+   *
+   * Answering is always wired up; serving is not. The registry has to be declared before the shell
+   * can answer a connection, and declaring what echo *could* do opens nothing — the port stays shut
+   * until the reader opens it in settings, and opens itself again on the next launch if they did.
+   */
+  useEffect(() => {
+    const stop = serveMcp();
+    if (isDesktopApp() && readPreference("mcp", false)) {
+      void startMcp()
+        .then(setAssistants)
+        .catch((cause) => console.error("[echo] assistants could not be let in:", cause));
+    }
+    return stop;
+  }, []);
+
+  /**
    * The sticky notes out on the desktop. Each one is its own window with no database behind it —
    * PGlite has a single writer and this window is it — so they ask here for the words they were
    * opened with, and hand every edit straight back.
@@ -1210,6 +1230,21 @@ const Page = () => {
     setTouring(true);
     changeView("home");
   }, [changeView]);
+
+  /** The settings switch. The answer is remembered, so the door opens again on the next launch. */
+  const letAssistantsIn = useCallback(async (on: boolean) => {
+    if (!on) {
+      await stopMcp();
+      writePreference("mcp", false);
+      setAssistants(null);
+      return;
+    }
+    // Written only once the server is actually up: a preference that says "on" against a port that
+    // never opened would fail silently on every launch afterwards.
+    const endpoint = await startMcp();
+    writePreference("mcp", true);
+    setAssistants(endpoint);
+  }, []);
 
   const moveNote = useCallback(async (noteId: string, folderId: string | null) => {
     const echo = await getEcho();
@@ -1645,6 +1680,8 @@ const Page = () => {
           version={VERSION}
           onReplayTour={replayTour}
           onRestoreChecklist={checklistShown ? undefined : restoreChecklist}
+          assistants={assistants}
+          onAssistantsChange={desktopApp ? letAssistantsIn : undefined}
         />
       );
     }

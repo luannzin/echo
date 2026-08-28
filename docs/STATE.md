@@ -1,7 +1,7 @@
 # STATE
 
-Last updated: 2026-08-27 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
-rebuild, E1, E2, desktop fixes pass, P8a–P8e (language and arrival)**
+Last updated: 2026-08-28 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
+rebuild, E1, E2, desktop fixes pass, P8a–P8e (language and arrival), MCP**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -841,6 +841,54 @@ Verification: `bun run typecheck` (13/13) · `bun run lint` (clean, 293 files) �
 (57 app tests, 21 db tests) · `bun run --cwd apps/web build` · `bun run --cwd apps/www build`
 (`index.html` + `pt-br.html`).
 
+### MCP — echo as something an assistant can use
+
+A door other programs can knock on. The desktop app serves MCP over loopback HTTP, so whatever
+assistant the reader already runs on this machine can search, read and write their notes through
+tools echo defines, without echo shipping an AI of its own or asking for an API key. Nothing about
+the no-AI promise moves: echo still does not call a model to work, and the reader still chooses
+whether any of this is switched on.
+
+**The shape is forced by where the notes are.** PGlite lives in IndexedDB, which no second process
+can open and would corrupt if it could — so the server runs inside the desktop process and every
+call it accepts is forwarded into the webview. `src-tauri/src/mcp.rs` is transport and nothing else:
+it knows a tool has a name, a description and a JSON Schema. `apps/web/shared/lib/mcp.ts` holds the
+tools, because that is where the domain is. Adding one is an entry in `TOOLS` and no Rust at all.
+
+**The registry is pushed up, not pulled down.** `initialize` carries the server's instructions and
+rmcp's `get_info` is synchronous, so it cannot wait on a webview. The web app publishes its
+instructions and tool list through `mcp_ready` at startup and after every reload; the Rust side
+holds the last copy and answers from it.
+
+**Twenty-two tools, the full surface.** Notes (search, list, read, create, update, archive, delete),
+folders, categories, tasks, what the notes say about this week, and what echo has learned. Each
+input schema is generated from the zod schema beside it, so what a caller is told and what is
+actually enforced cannot drift apart. The server's `instructions` field is where echo says what
+these notes *are* — one person's own thinking, in their own words, search before you write, capture
+their words rather than a summary of them.
+
+**What an assistant may not do is the interesting half.** `observations` and `learning.record` have
+no tools and will not get them: both are a record of what the reader themselves did, every learned
+rule is measured against them, and an assistant writing there would invent attention nobody paid
+with no way to tell the invented rows from the real ones afterwards. Categories assigned over MCP
+are recorded as `auto`, so rule 9 still holds and the reader's own label always wins. Deleting is
+guarded in the tool rather than in the advice — a note must be archived first, a folder must be
+empty — because MCP's annotations are hints a client is free to ignore. `docs/ARCHITECTURE.md` rule
+12 is where that now lives.
+
+**Three guards on the port.** Loopback bind, `Host` and `Origin` validation, and a bearer token kept
+at `0600` in the reader's config directory. A local port is not an authentication boundary: every
+other process on the machine can reach it. Off until the reader turns it on in settings, remembered
+across launches, and the port is chosen by the operating system each time it opens so a second copy
+of echo cannot fail to start. The settings screen copies the address and the token to the clipboard
+and never prints the token, because a settings screen is a thing people show other people.
+
+Verification: `bun run typecheck` (13/13) · `bun run lint` (clean) · `bun run test` (8 new tests
+covering the schemas, the two delete guards, and the absence of the observation tools) ·
+`cargo test` (3 new tests covering the token comparison and the annotation passthrough). The
+end-to-end path — turning it on in a running window and connecting a real client — has not been
+driven; see "Known gaps".
+
 ## In progress
 - **E2's simpler-mode half is unverified.** Written, typechecked, and never driven — see above.
   Still open from Phase 5: whether projects should be their
@@ -1233,6 +1281,14 @@ production app still opens its database, files a note from the Inbox and moves o
   turned into one from the editor yet — the note editor has no signal chips.
 - The desktop window has never been *looked at* — it builds, launches and stays up, but WebKitGTK is
   a different engine from the one every other check ran against.
+- **The MCP server has never been connected to.** Both halves are typechecked and unit-tested, and
+  the bridge between them — emit into the webview, answer back through `mcp_reply` — has not run
+  once against a live window, because it needs the desktop app open and the toggle pressed. The
+  first thing to do is turn it on in settings, point any MCP client at the address and token, and
+  watch `tools/list` come back with twenty-two entries.
+- The MCP server only answers while echo is open; a client started first gets a refused connection.
+  Fixing that means a tray icon and autostart, or moving the database to disk — both their own
+  piece of work, neither one this needed.
 - `bun run build:desktop` on macOS needs `icon.icns`, which `bun run --cwd apps/desktop tauri icon`
   generates. The repo carries the PNGs and the `.ico` because those are what Linux and Windows want.
 - No offline indicator, deliberately: there is nothing to say. If the model has not been downloaded

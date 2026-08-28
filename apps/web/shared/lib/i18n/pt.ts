@@ -509,6 +509,22 @@ export const pt: Dictionary = {
     restoreChecklist: "Trazer a lista de volta",
     restoreChecklistNote: "A lista das primeiras coisas para experimentar, no painel de notas.",
 
+    assistants: "Assistentes",
+    assistantsNote:
+      "Deixe um assistente de IA neste aparelho ler e escrever suas notas, pelas ferramentas que echo entrega a ele. Ele fala com echo direto — nada vai para servidor nenhum, e só funciona enquanto echo estiver aberto.",
+    assistantsOff: "Nada consegue alcançar echo",
+    assistantsOn: "Escutando, só neste aparelho",
+    assistantsStart: "Ligar",
+    assistantsStop: "Desligar",
+    assistantsFailed: "Não foi possível ligar",
+    assistantsCare:
+      "O que receber estes dois pode ler, mudar e apagar todas as suas notas. Entregue só a programas em que você confia.",
+    assistantsAddress: "Endereço",
+    assistantsToken: "Token",
+    assistantsTokenHidden: "Escondido. Copie para colar.",
+    assistantsCopy: "Copiar",
+    assistantsCopied: "Copiado",
+
     keyboard: "Teclado",
     shortcuts: {
       palette: "Busca e comandos",

@@ -521,6 +521,22 @@ export const en = {
     restoreChecklist: "Bring the checklist back",
     restoreChecklistNote: "The list of first things to try, back in the notes panel.",
 
+    assistants: "Assistants",
+    assistantsNote:
+      "Let an AI assistant on this machine read and write your notes, through the tools echo gives it. It reaches echo directly — nothing goes to a server, and it only works while echo is open.",
+    assistantsOff: "Nothing can reach echo",
+    assistantsOn: "Listening, on this machine only",
+    assistantsStart: "Turn it on",
+    assistantsStop: "Turn it off",
+    assistantsFailed: "That could not be started",
+    assistantsCare:
+      "Whatever you give these two to can read, change and delete every note. Give them only to software you trust.",
+    assistantsAddress: "Address",
+    assistantsToken: "Token",
+    assistantsTokenHidden: "Hidden. Copy it to paste it.",
+    assistantsCopy: "Copy",
+    assistantsCopied: "Copied",
+
     keyboard: "Keyboard",
     shortcuts: {
       palette: "Search and commands",

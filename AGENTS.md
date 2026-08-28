@@ -139,7 +139,8 @@ A module never reaches into another module's `_components`; anything two of them
 `shared/`.
 
 `apps/desktop` is a Tauri shell around `apps/web/out`. No business logic in Rust — the domain runs
-in the web app on every host.
+in the web app on every host, including the tools its MCP server offers to an assistant. Its rules
+live in `apps/desktop/AGENTS.md`.
 
 `apps/www` is the marketing site: its own Next app, its own tokens, no `@echo/*` dependency, and its
 own deploy. Its rules live in `apps/www/AGENTS.md`.
@@ -155,6 +156,8 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
 
 ## Child DOX Index
 
+- `apps/desktop/AGENTS.md` — the Tauri shell: what may live in Rust, and the MCP server that lets an
+  assistant reach echo without either half learning the other's job.
 - `apps/www/AGENTS.md` — the marketing site: its sections, its generated imagery, and the rules that
   keep it separate from the application.
 - Root-owned files: `README.md`, `docs/**`, and root-level tooling config (`package.json`,
