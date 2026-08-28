@@ -41,6 +41,16 @@ const PostitPage = () => {
    * content the moment it arrives, which is the first thing there is to take back to.
    */
   const history = useRef<History | null>(null);
+  /**
+   * Whether this window is holding the words it was opened with.
+   *
+   * The window is hidden rather than closed when a note goes back to the app, so the same window
+   * is shown again the next time the same note is pinned — and this is what tells a fresh opening
+   * from a second answer to an ask already answered. A fresh opening takes the words, because the
+   * app has had the note in the meantime and they may have changed. A late answer is ignored,
+   * because taking it would drag the caret back to where the words were when the window opened.
+   */
+  const holding = useRef(false);
 
   // Its own document, so it runs the same two lines the main window runs: the head script in
   // `layout.tsx` decided the language before anything painted, and this reads it back.
@@ -64,9 +74,17 @@ const PostitPage = () => {
       const { emit, listen } = await import("@tauri-apps/api/event");
       const unlisten = await listen<PostitNote>(POSTIT_NOTE, (event) => {
         if (event.payload.noteId !== target) return;
-        // Once, and only once: after this the sticky note is the thing editing this note, and a
-        // later answer would take the caret back to where the words were when it opened.
-        setText((current) => current ?? event.payload.content);
+        // Once per opening: after this the sticky note is the thing editing this note.
+        if (holding.current) return;
+        holding.current = true;
+        // Where this opening's undo begins, set before the words rather than after them, so there
+        // is never a moment with the note on screen and nothing to take back to.
+        history.current = startHistory(event.payload.content, event.payload.content.length);
+        setText(event.payload.content);
+        // The window opened for this one box and there is nothing else in it to take focus from.
+        // On a window being shown again the textarea is already mounted and the caret is wherever
+        // it was left — on the button that sent the note back.
+        requestAnimationFrame(() => area.current?.focus());
       });
       if (!alive) return unlisten();
       stop = unlisten;
@@ -78,12 +96,6 @@ const PostitPage = () => {
       stop();
     };
   }, []);
-
-  // The words arrive once, over the event bus, and that is where this note's history begins.
-  useEffect(() => {
-    if (text === null || history.current !== null) return;
-    history.current = startHistory(text, text.length);
-  }, [text]);
 
   const write = useCallback(
     (content: string) => {
@@ -126,18 +138,18 @@ const PostitPage = () => {
   );
 
   /**
-   * Back where it came from: the words are handed over first, then the window goes.
+   * Back where it came from: the words are handed over first, then the window goes away.
    *
-   * It is hidden before it is destroyed, and that ordering is deliberate. GNOME draws the shadow
-   * around a window itself rather than leaving it to the window, so a window actor the compositor
-   * fails to let go of is seen as a transparent card with a shadow and nothing inside it — and it
-   * outlives the application, because by then there is nothing of ours left behind it. Unmapping
-   * first hands the compositor an ordinary disappearance to deal with, instead of a window being
-   * destroyed out of the always-on-top layer at the same moment the main window is raised into
-   * focus by the event below.
+   * Hidden, never closed. GNOME draws the shadow around a window itself rather than leaving it to
+   * the window, so an undecorated always-on-top window the compositor fails to let go of on destroy
+   * is left on screen as a transparent card with a shadow and nothing inside it — one per note,
+   * outliving the application, because by then there is nothing of ours left behind it. Unmapping
+   * before destroying does not help; it is the destroy the compositor mishandles. A window that is
+   * never destroyed cannot be destroyed wrongly, so this one is put away instead and shown again
+   * the next time the same note is pinned.
    *
-   * The close is in a `finally` because a window that hid and never closed is worse than the mark
-   * on the screen: it is a note nobody can see and nothing can open again.
+   * What that costs is one webview held open per note that has been out on the desktop this
+   * session, which is the cheaper half of the trade against a desktop nothing can clear.
    */
   const back = useCallback(async () => {
     if (noteId === null) return;
@@ -146,15 +158,13 @@ const PostitPage = () => {
       import("@tauri-apps/api/event"),
       import("@tauri-apps/api/window"),
     ]);
-    const held = getCurrentWindow();
-    try {
-      // The words go first: they are the one thing here that cannot be made again.
-      await emit(POSTIT_WRITE, { noteId, content: text ?? "" });
-      await held.hide();
-      await emit(POSTIT_OPEN, { noteId });
-    } finally {
-      await held.close();
-    }
+    // The words go first: they are the one thing here that cannot be made again.
+    await emit(POSTIT_WRITE, { noteId, content: text ?? "" });
+    // Let go of them before the window does: what is on screen belongs to the app again, and the
+    // next time this window is shown it is being opened afresh rather than uncovered.
+    holding.current = false;
+    await getCurrentWindow().hide();
+    await emit(POSTIT_OPEN, { noteId });
   }, [noteId, text]);
 
   /** No window chrome to grab, so the corner is the grip a title bar would otherwise give. */
@@ -196,8 +206,6 @@ const PostitPage = () => {
       ) : (
         <textarea
           ref={area}
-          // biome-ignore lint/a11y/noAutofocus: the window opened for this one box, and there is nothing else in it to take focus from
-          autoFocus
           value={text}
           onChange={(event) => edit(event.target.value, event.target.selectionStart)}
           // Always taken from the browser, even with nothing left to take back: its own stack and
