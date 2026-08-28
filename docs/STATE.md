@@ -885,9 +885,9 @@ and never prints the token, because a settings screen is a thing people show oth
 
 Verification: `bun run typecheck` (13/13) · `bun run lint` (clean) · `bun run test` (8 new tests
 covering the schemas, the two delete guards, and the absence of the observation tools) ·
-`cargo test` (3 new tests covering the token comparison and the annotation passthrough). The
-end-to-end path — turning it on in a running window and connecting a real client — has not been
-driven; see "Known gaps".
+`cargo test` (5 new tests covering the token comparison, the annotation passthrough and the shape
+of what reaches a caller). Connected to from a real client: the handshake, the instructions and all
+twenty-two tools arrived, and the reads answer — after the fix below.
 
 ## In progress
 - **E2's simpler-mode half is unverified.** Written, typechecked, and never driven — see above.
@@ -1234,6 +1234,17 @@ production app still opens its database, files a note from the Inbox and moves o
   note's text saved onto another, plus a reorder on every visit. The editor is now mounted per note
   (`key={note.id}`) and `save` is a stable `useCallback`, so a draft cannot outlive its note.
 
+- **Every MCP tool that answered with a list was unusable.** `structuredContent` may only be a JSON
+  object and half the tools return an array — the notes, the folders, the tasks, the week, the
+  rules. Clients refuse the whole message rather than the field, so five tools failed identically
+  and `list_categories` looked fine only because it happened to return `{ categories, assignments }`.
+  `read_note` on an id that does not exist was the same bug wearing a different hat: `null` is not
+  an object either. The transport now wraps anything that is not one as `{ "result": … }`, which is
+  where the rule belongs — it is a fact about MCP, not about notes, and a tool written next year
+  should not have to know it. No `outputSchema` was added: an object schema per tool would say
+  nothing the wrap does not already guarantee, and twenty-two hand-written output schemas are
+  exactly the drift the generated input schemas exist to avoid.
+
 ## Known gaps / debt
 - **The manifest is English only.** `app/manifest.ts` is one file in a static export and browsers do
   not negotiate a localised one, so an installed app's name stays English whatever the interface is
@@ -1281,11 +1292,10 @@ production app still opens its database, files a note from the Inbox and moves o
   turned into one from the editor yet — the note editor has no signal chips.
 - The desktop window has never been *looked at* — it builds, launches and stays up, but WebKitGTK is
   a different engine from the one every other check ran against.
-- **The MCP server has never been connected to.** Both halves are typechecked and unit-tested, and
-  the bridge between them — emit into the webview, answer back through `mcp_reply` — has not run
-  once against a live window, because it needs the desktop app open and the toggle pressed. The
-  first thing to do is turn it on in settings, point any MCP client at the address and token, and
-  watch `tools/list` come back with twenty-two entries.
+- The MCP server has been connected to once, from a real client, and every tool that answers with a
+  list was broken until the transport started wrapping them (see Fixed). What has *not* been
+  exercised is the writing half — `create_note` through `delete_note`, and the two delete guards —
+  against a live database rather than a fake one.
 - The MCP server only answers while echo is open; a client started first gets a refused connection.
   Fixing that means a tray icon and autostart, or moving the database to disk — both their own
   piece of work, neither one this needed.

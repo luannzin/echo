@@ -188,10 +188,26 @@ impl ServerHandler for EchoMcp {
         // A tool that refused is a tool that ran and said no — the caller needs to read the reason,
         // and a JSON-RPC error would be rendered as an opaque internal failure instead.
         let result = match self.bridge.call(&request.name, arguments).await {
-            Ok(value) => CallToolResult::structured(value),
+            Ok(value) => CallToolResult::structured(structured(value)),
             Err(reason) => CallToolResult::structured_error(json!({ "error": reason })),
         };
         Ok(result.into())
+    }
+}
+
+/// What a tool returned, in the shape `structuredContent` is allowed to take.
+///
+/// MCP requires that field to be a JSON object, and half of what a note taker has to say is a list:
+/// every note, every folder, every task. A bare array on the wire is refused by the client before
+/// the caller ever sees it, and so is the `null` a lookup that found nothing returns.
+///
+/// Wrapping happens here rather than in the tools because it is a fact about the protocol, not
+/// about notes — a tool written next year returning a list should not have to know this rule to be
+/// allowed to say so. The text content block carries the same JSON either way.
+fn structured(value: Value) -> Value {
+    match value {
+        Value::Object(_) => value,
+        other => json!({ "result": other }),
     }
 }
 
@@ -473,6 +489,29 @@ mod tests {
         assert!(!permitted(Some("Basic a1b2c3"), token));
         // Before the web app has ever run there is nothing to match; nothing may match it either.
         assert!(!permitted(Some("Bearer "), ""));
+    }
+
+    /// Every list-shaped answer this server has — the notes, the folders, the tasks, the week —
+    /// arrives from the web app as a bare array, and `structuredContent` may only be an object.
+    /// A client refuses the rest of the message when it is not, so this is the difference between
+    /// a tool working and a tool being unusable.
+    #[test]
+    fn a_list_reaches_the_caller_as_something_the_protocol_allows() {
+        let notes = json!([{ "id": "a" }, { "id": "b" }]);
+        assert_eq!(structured(notes.clone()), json!({ "result": notes }));
+
+        // A lookup that found nothing is the same problem wearing a different hat.
+        assert_eq!(structured(Value::Null), json!({ "result": null }));
+        assert_eq!(structured(json!(3)), json!({ "result": 3 }));
+        assert_eq!(structured(json!("done")), json!({ "result": "done" }));
+    }
+
+    /// An answer already shaped the way the protocol wants is passed through untouched — wrapping
+    /// it again would rename every field a caller was told to expect.
+    #[test]
+    fn an_object_is_left_exactly_as_the_tool_wrote_it() {
+        let categories = json!({ "categories": [], "assignments": [] });
+        assert_eq!(structured(categories.clone()), categories);
     }
 
     /// The web app describes its tools and this crate passes them through. What it must not do is
