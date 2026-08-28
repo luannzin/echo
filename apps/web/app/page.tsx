@@ -44,7 +44,7 @@ import { Stream } from "@/modules/notes/_components/stream";
 import { Arrival } from "@/modules/onboarding/_components/arrival";
 import { Checklist } from "@/modules/onboarding/_components/checklist";
 import { Tour } from "@/modules/onboarding/_components/tour";
-import { reached, rememberFound } from "@/modules/onboarding/progress";
+import { type Milestone, reached, rememberFound } from "@/modules/onboarding/progress";
 import { CommandPalette } from "@/modules/search/_components/command-palette";
 import type { SearchPass } from "@/modules/search/model";
 import { Settings } from "@/modules/settings/_components/settings";
@@ -184,6 +184,8 @@ const Page = () => {
    */
   const [greeting, setGreeting] = useState(false);
   const [touring, setTouring] = useState(false);
+  /** One step of the tour, asked for by name from the checklist. Outside the tour's own progress. */
+  const [replay, setReplay] = useState<Milestone | null>(null);
   const [checklistShown, setChecklistShown] = useState(false);
 
   /** Which folder the note list is showing. `undefined` is every note, whatever folder it is in. */
@@ -1816,7 +1818,9 @@ const Page = () => {
           />
         }
         navigationFooter={
-          checklistShown ? <Checklist done={milestones} onDismiss={hideChecklist} /> : null
+          checklistShown ? (
+            <Checklist done={milestones} onReplay={setReplay} onDismiss={hideChecklist} />
+          ) : null
         }
         workspace={workspace()}
         intelligence={
@@ -1859,8 +1863,17 @@ const Page = () => {
         onOpenNote={(noteId) => openSuggested(noteId)}
         model={model}
       />
-      {/* Over the whole shell, and never over the greeting: they are two answers to one question. */}
-      {touring && !greeting ? <Tour done={milestones} onFinish={finishTour} /> : null}
+      {/*
+        Over the whole shell. The gate is `loading` rather than `greeting`: the greeting is a
+        separate view that returns above this, so reaching here already means it is not on screen —
+        and a returning reader never answers it, so `greeting` stays true for them forever. That is
+        what kept the tour off the desktop app entirely, where the notebook is never empty.
+      */}
+      {replay ? (
+        <Tour key={replay} done={milestones} only={replay} onFinish={() => setReplay(null)} />
+      ) : touring && !loading ? (
+        <Tour done={milestones} onFinish={finishTour} />
+      ) : null}
     </Fragment>
   );
 };

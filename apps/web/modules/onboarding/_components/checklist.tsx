@@ -21,9 +21,12 @@ const labelOf = (milestone: Milestone): string => copy().arrival.checklist[miles
  */
 export const Checklist = ({
   done,
+  onReplay,
   onDismiss,
 }: {
   done: ReadonlySet<Milestone>;
+  /** Show me this one: the tour's step for that line, on its own, done or not. */
+  onReplay: (milestone: Milestone) => void;
   onDismiss: () => void;
 }) => {
   const words = copy().arrival.checklist;
@@ -51,15 +54,25 @@ export const Checklist = ({
         {MILESTONES.map((milestone) => {
           const ticked = done.has(milestone);
           return (
-            <li key={milestone} className="flex items-center gap-2 text-xs leading-5">
-              <Tick ticked={ticked} />
-              <span
-                className={
-                  ticked ? "text-muted-foreground/60 line-through" : "text-muted-foreground"
-                }
+            <li key={milestone}>
+              {/* The line is the control. A checklist that only reports is a checklist that cannot
+                  answer the one question it provokes — what did that mean? — so pressing it lights
+                  the thing up in the interface, whether or not it has already been done. */}
+              <button
+                type="button"
+                onClick={() => onReplay(milestone)}
+                aria-label={words.showMe(labelOf(milestone))}
+                className="-mx-1.5 flex w-[calc(100%+0.75rem)] items-center gap-2 rounded-md px-1.5 py-0.5 text-start text-xs leading-5 transition-colors hover:bg-accent/60"
               >
-                {labelOf(milestone)}
-              </span>
+                <Tick ticked={ticked} />
+                <span
+                  className={
+                    ticked ? "text-muted-foreground/60 line-through" : "text-muted-foreground"
+                  }
+                >
+                  {labelOf(milestone)}
+                </span>
+              </button>
             </li>
           );
         })}

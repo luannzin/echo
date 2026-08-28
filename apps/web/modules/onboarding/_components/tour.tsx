@@ -57,10 +57,16 @@ const bodyOf = (milestone: Milestone): string => {
  */
 export const Tour = ({
   done,
+  only,
   onFinish,
 }: {
   /** Which milestones this notebook has already reached. */
   done: ReadonlySet<Milestone>;
+  /**
+   * One step, on its own, whether or not it is already done: the reader asked for it by name from
+   * the checklist. Nothing about the tour's own progress moves while this is showing.
+   */
+  only?: Milestone;
   onFinish: () => void;
 }) => {
   const words = copy().arrival.tour;
@@ -77,19 +83,22 @@ export const Tour = ({
    * The step being shown: the first milestone from here on that is not already reached and whose
    * anchor is actually on screen.
    */
-  const remaining = MILESTONES.slice(at).filter((milestone) => !done.has(milestone));
+  const remaining = only
+    ? [only]
+    : MILESTONES.slice(at).filter((milestone) => !done.has(milestone));
   const step = remaining[0] ?? null;
   const finished = step === null;
 
   // Walking past what the reader has already done, so `at` is where the tour is rather than a
   // number that has to agree with the list.
   useEffect(() => {
+    if (only) return;
     const reachedHere = MILESTONES.findIndex(
       (milestone, index) => index >= at && !done.has(milestone),
     );
     if (reachedHere > at) setAt(reachedHere);
     if (reachedHere === -1) setAt(MILESTONES.length);
-  }, [done, at]);
+  }, [done, at, only]);
 
   // Where the light goes. Measured after layout, and again whenever anything could have moved it:
   // the panels animate, the window resizes, and a phone scrolls the whole document.
@@ -174,9 +183,10 @@ export const Tour = ({
             size="sm"
             variant="ghost"
             onClick={onFinish}
+            aria-label={only ? words.close : undefined}
             className="-me-2 -mt-1 h-7 gap-1 text-muted-foreground text-xs"
           >
-            {words.skip}
+            {only ? null : words.skip}
             <X aria-hidden="true" className="size-3" />
           </Button>
         </div>
@@ -190,11 +200,11 @@ export const Tour = ({
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setAt(MILESTONES.indexOf(step) + 1)}
+          onClick={only ? onFinish : () => setAt(MILESTONES.indexOf(step) + 1)}
           className="-ms-2 mt-2 h-7 gap-1 text-muted-foreground text-xs"
         >
-          {words.next}
-          <ArrowRight aria-hidden="true" className="size-3" />
+          {only ? words.got : words.next}
+          {only ? null : <ArrowRight aria-hidden="true" className="size-3" />}
         </Button>
       </div>
 
