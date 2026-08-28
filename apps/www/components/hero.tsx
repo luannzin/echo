@@ -1,8 +1,19 @@
 import { Engraving } from "@/components/engraving";
 import { REPO } from "@/components/links";
+import { WordReveal } from "@/components/word-reveal";
 import type { Content } from "@/content/en";
 
 const beat = (ms: number) => ({ "--beat": `${ms}ms` }) as React.CSSProperties;
+
+/**
+ * The hero's clock, in one place.
+ *
+ * The headline is no longer one beat but seven, and the lines under it have to wait for the last of
+ * them rather than for the first: at the old 190ms the lede was arriving while the headline was
+ * still assembling, which read as two things interrupting each other. Both titles run seven words,
+ * so the last one leaves at 90 + 6 × 55 = 420ms and everything below is placed after that.
+ */
+const TITLE = { delay: 90, stagger: 55 } as const;
 
 export const Hero = ({ content }: { content: Content }) => (
   <section id="top" className="relative overflow-hidden">
@@ -21,15 +32,15 @@ export const Hero = ({ content }: { content: Content }) => (
           {content.hero.eyebrow}
         </p>
 
-        <h1 className="beat display mt-5 text-[clamp(2.9rem,6.6vw,5.5rem)]" style={beat(90)}>
-          {content.hero.title}
+        <h1 className="display mt-5 text-[clamp(2.9rem,6.6vw,5.5rem)]">
+          <WordReveal text={content.hero.title} delay={TITLE.delay} stagger={TITLE.stagger} />
         </h1>
 
-        <p className="beat prose-lede mt-7 text-ink/85" style={beat(190)}>
+        <p className="beat prose-lede mt-7 text-ink/85" style={beat(480)}>
           {content.hero.lede}
         </p>
 
-        <div className="beat mt-9 flex flex-wrap items-center gap-3" style={beat(290)}>
+        <div className="beat mt-9 flex flex-wrap items-center gap-3" style={beat(600)}>
           <a
             href="#reel"
             className="press label border rule-ink bg-ink px-5 py-3 text-brand transition-colors hover:bg-brand-deep hover:text-ink"

@@ -491,6 +491,21 @@
     outline-offset: 3px;
   }
 
+  /*
+   * The shape of a split headline, and it is not motion: these three declarations are what makes
+   * the line a row of boxes that can be moved independently, and they hold whether or not anything
+   * ever moves. `white-space: pre` is load-bearing — a unit's trailing space is inside an
+   * inline-block, and without it the space collapses to nothing and the words run together.
+   */
+  .word-reveal {
+    display: block;
+  }
+
+  .word-reveal > span {
+    display: inline-block;
+    white-space: pre;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     /*
      * Scroll-driven, so there is no listener, no observer and no hydration cost: the compositor
@@ -580,6 +595,34 @@
         transform: translate3d(0, 14px, 0);
       }
     }
+
+    /*
+     * The same beat, one word at a time. `--beat` starts the line and `--word` walks each unit off
+     * it, so a headline of any length keeps a single declared start and a single declared gap.
+     *
+     * Travel and blur are in `em` rather than pixels because the display line is a clamp between
+     * 46px and 88px: a fixed 12px blur that reads as depth on the desktop headline is a smear on
+     * the phone. Tied to the type size, the words arrive out of the same distance at both ends.
+     */
+    .word-reveal > span {
+      --word-beat: calc(var(--beat, 0ms) + var(--word, 0) * var(--stagger, 55ms));
+
+      opacity: 1;
+      transform: none;
+      filter: blur(0);
+      transition:
+        opacity 760ms var(--ease-out-quart) var(--word-beat),
+        transform 760ms var(--ease-out-quart) var(--word-beat),
+        filter 620ms var(--ease-out-quart) var(--word-beat);
+    }
+
+    @starting-style {
+      .word-reveal > span {
+        opacity: 0;
+        transform: translate3d(0, 0.36em, 0);
+        filter: blur(0.11em);
+      }
+    }
   }
 
   /*
@@ -589,11 +632,13 @@
    */
   @media print {
     .beat,
+    .word-reveal > span,
     .reveal,
     .parallax,
     .drift {
       opacity: 1;
       transform: none;
+      filter: none;
       clip-path: none;
       animation: none;
       transition: none;
