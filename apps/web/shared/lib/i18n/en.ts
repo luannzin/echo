@@ -528,7 +528,8 @@ export const en = {
     assistantsOn: "Listening, on this machine only",
     assistantsStart: "Turn it on",
     assistantsStop: "Turn it off",
-    assistantsFailed: "That could not be started",
+    assistantsFailed: (address: string) =>
+      `Nothing could listen on ${address}. Another program is holding it, or echo is already open in a second window.`,
     assistantsCare:
       "Whatever you give these two to can read, change and delete every note. Give them only to software you trust.",
     assistantsAddress: "Address",

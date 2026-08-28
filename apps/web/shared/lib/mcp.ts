@@ -366,10 +366,25 @@ const describe = (): ToolSpec[] =>
 export type McpEndpoint = { url: string; token: string };
 
 /**
- * Open the door, or close it. The port is chosen by the operating system each time it opens, so the
- * address is only true while the server is up — which is why it is returned rather than stored.
+ * The port echo listens on, and the same one every time.
+ *
+ * An assistant is configured once — the address goes in a config file, or into a command typed
+ * months ago — so a port chosen freshly at each launch is an address that is wrong by the next
+ * morning. The cost is that echo cannot start its server while something else holds this number,
+ * which is a failure the reader can see and act on rather than a silent move to somewhere nobody
+ * is looking.
+ *
+ * Declared here rather than in Rust because this is the one number both halves must agree on, and
+ * the settings screen has to be able to say it out loud when the port is taken.
  */
-export const startMcp = (): Promise<McpEndpoint> => invoke<McpEndpoint>("mcp_start");
+export const MCP_PORT = 4319;
+
+/** Where a client points, once the server is up. */
+export const MCP_ADDRESS = `127.0.0.1:${MCP_PORT}`;
+
+/** Open the door, or close it. */
+export const startMcp = (): Promise<McpEndpoint> =>
+  invoke<McpEndpoint>("mcp_start", { port: MCP_PORT });
 export const stopMcp = (): Promise<void> => invoke("mcp_stop");
 
 /** Exported for the test, which is the only thing that reads the registry without a Tauri window. */

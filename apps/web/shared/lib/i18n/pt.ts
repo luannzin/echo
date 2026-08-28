@@ -516,7 +516,8 @@ export const pt: Dictionary = {
     assistantsOn: "Escutando, só neste aparelho",
     assistantsStart: "Ligar",
     assistantsStop: "Desligar",
-    assistantsFailed: "Não foi possível ligar",
+    assistantsFailed: (address: string) =>
+      `Nada conseguiu escutar em ${address}. Outro programa está ocupando, ou echo já está aberto em outra janela.`,
     assistantsCare:
       "O que receber estes dois pode ler, mudar e apagar todas as suas notas. Entregue só a programas em que você confia.",
     assistantsAddress: "Endereço",

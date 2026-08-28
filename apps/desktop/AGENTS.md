@@ -24,6 +24,11 @@ an assistant on this machine reach echo.
   `mcp_reply`; `src/mcp.rs` forwards and rewraps. Adding, changing or removing a tool is a change to
   `apps/web/shared/lib/mcp.ts` and to no file here. What the tools are, and which of them are
   deliberately absent, is `docs/ARCHITECTURE.md` rule 12.
+- **The port is the web app's to name, and it never changes.** `mcp_start` binds what it is given
+  and falls back to nothing: an address a client was configured with months ago has to keep working,
+  and a server quietly listening somewhere the reader was never told about is worse than one that
+  says it could not start. The number lives in `apps/web/shared/lib/mcp.ts` because the settings
+  screen has to say it out loud when something else is holding it.
 - **The registry is pushed up, never pulled down.** MCP's `initialize` carries the server's
   instructions and `get_info` is synchronous, so it cannot wait on a webview. The web app sends the
   instructions and tool list at startup and again after every reload, and the Rust side holds the
@@ -31,8 +36,7 @@ an assistant on this machine reach echo.
 - **Three guards on the port, none of them optional.** Loopback bind, `Host` and `Origin`
   validation, and a bearer token in the reader's config directory at `0600`. A local port is not an
   authentication boundary — every other process on the machine can reach it. The server is off until
-  the reader turns it on in settings, and the port is chosen by the operating system each time it
-  opens.
+  the reader turns it on in settings.
 - **Every Tauri plugin arrives with the feature that asked for it.** `Cargo.toml` says which feature
   that was, on the line above the dependency. A plugin added speculatively is a permission the
   reader granted for nothing.

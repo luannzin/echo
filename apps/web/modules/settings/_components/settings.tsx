@@ -22,7 +22,7 @@ import {
 } from "@/shared/lib/appearance";
 import { eraseEverything } from "@/shared/lib/erase";
 import { copy, LOCALE_SPECS, LOCALES, type Locale } from "@/shared/lib/i18n";
-import type { McpEndpoint } from "@/shared/lib/mcp";
+import { MCP_ADDRESS, type McpEndpoint } from "@/shared/lib/mcp";
 import { readChoice, STORAGE, writeChoice } from "@/shared/lib/preferences";
 import { saveCopy } from "@/shared/lib/save-copy";
 import { type Shortcut, shortcutLabel } from "@/shared/lib/shortcuts";
@@ -304,7 +304,7 @@ export const Settings = ({
           <div className="flex flex-col gap-2">
             <Row
               label={assistants ? words.assistantsOn : words.assistantsOff}
-              note={assistantsFailed ? words.assistantsFailed : words.assistantsCare}
+              note={assistantsFailed ? words.assistantsFailed(MCP_ADDRESS) : words.assistantsCare}
             >
               <Button
                 size="sm"

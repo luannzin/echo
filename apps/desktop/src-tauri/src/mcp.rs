@@ -321,8 +321,14 @@ impl McpState {
     }
 }
 
+/// Start listening on the port the web app asked for.
+///
+/// The number is the web app's to choose and it is the same one every launch — see `MCP_PORT` in
+/// `apps/web/shared/lib/mcp.ts` for why an address a client was configured with once has to keep
+/// working. Nothing here falls back to another port: a server quietly listening somewhere the
+/// reader was never told about is worse than one that says it could not start.
 #[tauri::command]
-pub async fn mcp_start(state: Managed<'_, McpState>) -> Result<Endpoint, String> {
+pub async fn mcp_start(state: Managed<'_, McpState>, port: u16) -> Result<Endpoint, String> {
     if let Some(running) = state
         .running
         .lock()
@@ -356,15 +362,12 @@ pub async fn mcp_start(state: Managed<'_, McpState>) -> Result<Endpoint, String>
         },
     );
 
-    // Port zero: the operating system picks one that is free, so a second copy of echo — or
-    // anything else already holding a number we liked — cannot stop the server from starting.
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+    // Loopback only. A restart lands on the same number rather than waiting out `TIME_WAIT`,
+    // because Rust sets `SO_REUSEADDR` on Unix for a listener — which is the one thing that would
+    // otherwise make a fixed port worse than a chosen one.
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
         .await
-        .map_err(|cause| format!("the port could not be opened: {cause}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|cause| cause.to_string())?
-        .port();
+        .map_err(|cause| format!("127.0.0.1:{port} could not be opened: {cause}"))?;
 
     let router = Router::new()
         .route("/mcp", any(forward))

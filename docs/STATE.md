@@ -879,9 +879,12 @@ empty — because MCP's annotations are hints a client is free to ignore. `docs/
 **Three guards on the port.** Loopback bind, `Host` and `Origin` validation, and a bearer token kept
 at `0600` in the reader's config directory. A local port is not an authentication boundary: every
 other process on the machine can reach it. Off until the reader turns it on in settings, remembered
-across launches, and the port is chosen by the operating system each time it opens so a second copy
-of echo cannot fail to start. The settings screen copies the address and the token to the clipboard
-and never prints the token, because a settings screen is a thing people show other people.
+across launches, and always on the same port — `127.0.0.1:4319`, declared in
+`apps/web/shared/lib/mcp.ts`. An assistant is configured once, so an address that moved between
+launches was an address that was wrong by the next morning; the cost is that a held port is a
+failure the reader is shown by name rather than a silent move to somewhere nobody is looking. The
+settings screen copies the address and the token to the clipboard and never prints the token,
+because a settings screen is a thing people show other people.
 
 Verification: `bun run typecheck` (13/13) · `bun run lint` (clean) · `bun run test` (8 new tests
 covering the schemas, the two delete guards, and the absence of the observation tools) ·
