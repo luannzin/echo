@@ -19,6 +19,9 @@ tauri = { version = "2", features = [] }
 # plugin arrives with the feature that asked for it — these two arrived with "Save a copy".
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+# Where the window was left: its size, its position, whether it was maximised. Restoring that is
+# not something a webview can do for itself — the frame belongs to the operating system.
+tauri-plugin-window-state = "2"
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [profile.release]

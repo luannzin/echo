@@ -18,7 +18,8 @@
 //!
 //! Notifications, a tray and a global shortcut are the things Tauri is otherwise for, and each one
 //! arrives when a feature actually asks for it — the dialog and filesystem plugins below are here
-//! because "Save a copy" asked, and for nothing else.
+//! because "Save a copy" asked, and the window-state one because the size you drag a window to is
+//! the size it should open at.
 
 use std::fs;
 use std::io;
@@ -30,6 +31,7 @@ use fastembed::{
     UserDefinedEmbeddingModel,
 };
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_window_state::StateFlags;
 
 /// How much of a note reaches the tokenizer, in tokens. The browser runtime truncates to the same
 /// 512 the model reads; the two must agree, or the same note means two different things.
@@ -263,6 +265,19 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        // How big the window was and where it sat, put back on the next launch. Only the frame:
+        // decorations and visibility are decided by what a window *is* — the sticky notes below
+        // are undecorated and out of the taskbar on purpose, and a restored flag would argue.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    StateFlags::SIZE
+                        | StateFlags::POSITION
+                        | StateFlags::MAXIMIZED
+                        | StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
         .manage(Model(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![embed])
         .run(tauri::generate_context!())

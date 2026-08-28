@@ -2,7 +2,7 @@
 
 import type { Note } from "@echo/types";
 import { Pin, X } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   ContextMenu,
   ContextMenuItem,
@@ -11,6 +11,14 @@ import {
 } from "@/components/ui/context-menu";
 import { MenuNote } from "@/shared/_components/menu-note";
 import { copy } from "@/shared/lib/i18n";
+
+/**
+ * How close to an end of the strip a dragged tab has to be held before the strip starts moving under
+ * it, and how fast it then moves, in pixels a frame. Wide enough to hit without aiming, narrow
+ * enough that dropping onto the first or last tab is still a thing you can do.
+ */
+const EDGE = 48;
+const DRIFT = 12;
 
 /**
  * The notes you have open, in the order you opened them or the order you dragged them into. Nothing
@@ -40,12 +48,72 @@ export const TabStrip = ({
 }) => {
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
+  const strip = useRef<HTMLElement>(null);
+  /** Which way the strip is drifting under a held tab: -1 left, 1 right, 0 not at an edge. */
+  const edge = useRef(0);
+  const drifting = useRef<number | null>(null);
+
+  const stopDrift = useCallback(() => {
+    edge.current = 0;
+    if (drifting.current !== null) cancelAnimationFrame(drifting.current);
+    drifting.current = null;
+  }, []);
+
+  /**
+   * With more tabs open than fit, the one you want to drop next to is off the side of the window —
+   * and a drag cannot scroll the strip the way a wheel can, because the pointer is holding a tab.
+   * So holding the tab near either end scrolls the strip under it, the way a file manager does.
+   *
+   * A frame loop rather than the `dragover` event: that event only fires while the pointer moves,
+   * and the gesture this is for is a pointer held still against the edge.
+   */
+  const drift = useCallback(() => {
+    const element = strip.current;
+    if (element !== null && edge.current !== 0) element.scrollLeft += edge.current * DRIFT;
+    drifting.current = requestAnimationFrame(drift);
+  }, []);
+
+  // Nothing is left running when the strip goes: a loop outliving its component would scroll a node
+  // that is no longer on the page, forever.
+  useEffect(() => stopDrift, [stopDrift]);
 
   return (
     // The scrollbar is hidden rather than styled: it is drawn over the tabs on the platforms that
     // overlay it, so the strip grew a bar under the pointer exactly when the pointer was aiming at
-    // a tab. The strip still scrolls — the wheel and the tab that scrolls itself into view do it.
-    <div className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    // a tab. The strip still scrolls — the wheel, the tab that scrolls itself into view, and a tab
+    // dragged to either end do it.
+    <nav
+      ref={strip}
+      // A landmark, and named: moving between the notes you have open is navigation, and it is now
+      // a drop target too — one a screen reader could not otherwise name.
+      aria-label={copy().editor.openNotes}
+      onDragOver={(event) => {
+        // Answered on the strip and not only on the tabs, so the gap past the last tab and the
+        // space above them still count as being at the edge.
+        event.preventDefault();
+        const box = event.currentTarget.getBoundingClientRect();
+        edge.current =
+          event.clientX < box.left + EDGE ? -1 : event.clientX > box.right - EDGE ? 1 : 0;
+        if (edge.current !== 0 && drifting.current === null)
+          drifting.current = requestAnimationFrame(drift);
+      }}
+      // `dragleave` fires on the strip when the pointer crosses onto a tab inside it, so leaving is
+      // asked about rather than assumed — otherwise the drift stops every time the tab under the
+      // pointer changes, which is constantly.
+      onDragLeave={(event) => {
+        const to = event.relatedTarget;
+        if (to instanceof Node && event.currentTarget.contains(to)) return;
+        stopDrift();
+      }}
+      onDragEnd={stopDrift}
+      onDrop={(event) => {
+        // Dropped on the strip itself rather than on a tab: nothing moves, and the browser is told
+        // so, because accepting the drag above made this a drop target.
+        event.preventDefault();
+        stopDrift();
+      }}
+      className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {session.map((noteId) => (
         <Tab
           key={noteId}
@@ -60,18 +128,20 @@ export const TabStrip = ({
           onPin={onPin}
           onDragStart={() => setDragging(noteId)}
           onDragEnd={() => {
+            stopDrift();
             setDragging(null);
             setOver(null);
           }}
           onDragOver={() => setOver(noteId)}
           onDrop={() => {
+            stopDrift();
             if (dragging) onMove(dragging, noteId);
             setDragging(null);
             setOver(null);
           }}
         />
       ))}
-    </div>
+    </nav>
   );
 };
 

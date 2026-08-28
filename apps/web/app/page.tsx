@@ -1586,12 +1586,16 @@ const Page = () => {
         <NoteEditor
           key={editing.id}
           note={editing}
+          task={tasks.find((task) => task.noteId === editing.id)}
           location={folderPath(folders, editing.folderId)}
           categories={categories}
           labels={labelsOf(labels, categories, editing.id)}
           onDelete={(note) => void deleteNote(note)}
           concepts={concepts}
           complete={complete}
+          undoableAt={undoStack.at(-1)?.at}
+          onUndo={undo}
+          onFile={fileCommand}
           onSave={save}
           onClose={closeNote}
           onAddCategory={(noteId, categoryId) => void categorize(noteId, categoryId)}

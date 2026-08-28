@@ -41,6 +41,18 @@ export const isUndoChord = (event: KeyboardEvent): boolean =>
   !event.altKey &&
   event.key.toLowerCase() === "z";
 
+/**
+ * Ctrl F — find inside the note being written. Ctrl **Shift** F is the app's own search across every
+ * note, which is a different question: one asks where a word is on this page, the other asks which
+ * pages have it. In a browser the plain chord is the browser's, which is why this only reaches the
+ * editor mode; inside Tauri there is no browser find to take it.
+ */
+export const isFindChord = (event: KeyboardEvent): boolean =>
+  (onMac() ? event.metaKey : event.ctrlKey) &&
+  !event.shiftKey &&
+  !event.altKey &&
+  event.key.toLowerCase() === "f";
+
 /** The way back from a Ctrl Z. Both spellings, because desktop editors answer both. */
 export const isRedoChord = (event: KeyboardEvent): boolean => {
   if (!(onMac() ? event.metaKey : event.ctrlKey) || event.altKey) return false;
