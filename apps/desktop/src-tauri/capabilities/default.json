@@ -1,13 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the windows are allowed to ask the Rust side for. Tauri's own core, the zoom the ctrl +/- polyfill calls into, writing one file to a path the writer picked in a save dialog, and the second window a note pinned to the desktop opens in.",
+  "description": "What the windows are allowed to ask the Rust side for. Tauri's own core, the zoom the ctrl +/- polyfill calls into, writing one file to a path the writer picked in a save dialog, and the second window a note pinned to the desktop opens in — which is hidden before it is closed, so the compositor is handed an unmap rather than a window destroyed out from under it.",
   "windows": ["main", "postit-*"],
   "permissions": [
     "core:default",
     "core:webview:allow-set-webview-zoom",
     "core:webview:allow-create-webview-window",
     "core:window:allow-close",
+    "core:window:allow-hide",
     "core:window:allow-set-focus",
     "core:window:allow-start-dragging",
     "core:window:allow-start-resize-dragging",

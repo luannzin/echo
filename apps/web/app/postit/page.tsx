@@ -3,6 +3,7 @@
 import { deriveTitle } from "@echo/core";
 import { CornerDownLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { type History, record, redo, startHistory, undo } from "@/modules/editor/history";
 import { adoptLocale, copy, currentLocale, readLocale } from "@/shared/lib/i18n";
 import {
   POSTIT_NOTE,
@@ -12,6 +13,7 @@ import {
   type PostitNote,
   postitTarget,
 } from "@/shared/lib/postit";
+import { isRedoChord, isUndoChord } from "@/shared/lib/shortcuts";
 
 /** Long enough that a sentence is one save rather than forty, short enough to survive a crash. */
 const SAVE_MS = 500;
@@ -29,6 +31,16 @@ const PostitPage = () => {
   /** Only to re-render once the language is known: the dictionary itself is a module. */
   const [, setLanguage] = useState(currentLocale);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const area = useRef<HTMLTextAreaElement>(null);
+  /**
+   * What Ctrl Z takes back on the sticky note.
+   *
+   * A controlled textarea has no working undo of its own — the browser reverses its value and React
+   * renders the state straight back over it — and this window is the one place a note is being
+   * edited while it is out here, so there is nowhere else to reach for the words. Started from the
+   * content the moment it arrives, which is the first thing there is to take back to.
+   */
+  const history = useRef<History | null>(null);
 
   // Its own document, so it runs the same two lines the main window runs: the head script in
   // `layout.tsx` decided the language before anything painted, and this reads it back.
@@ -67,6 +79,12 @@ const PostitPage = () => {
     };
   }, []);
 
+  // The words arrive once, over the event bus, and that is where this note's history begins.
+  useEffect(() => {
+    if (text === null || history.current !== null) return;
+    history.current = startHistory(text, text.length);
+  }, [text]);
+
   const write = useCallback(
     (content: string) => {
       setText(content);
@@ -81,7 +99,46 @@ const PostitPage = () => {
     [noteId],
   );
 
-  /** Back where it came from: the words are handed over first, then the window goes. */
+  /** Every change a person made, which is the only kind worth being able to take back. */
+  const edit = useCallback(
+    (content: string, caret: number) => {
+      if (history.current !== null) {
+        history.current = record(history.current, { text: content, caret }, Date.now());
+      }
+      write(content);
+    },
+    [write],
+  );
+
+  /** Puts a step on screen, caret and all. */
+  const walk = useCallback(
+    (next: History | null) => {
+      if (next === null) return;
+      history.current = next;
+      write(next.present.text);
+      // After the state has landed: setting the range against the old value drops the caret in the
+      // middle of words that are no longer there.
+      requestAnimationFrame(() =>
+        area.current?.setSelectionRange(next.present.caret, next.present.caret),
+      );
+    },
+    [write],
+  );
+
+  /**
+   * Back where it came from: the words are handed over first, then the window goes.
+   *
+   * It is hidden before it is destroyed, and that ordering is deliberate. GNOME draws the shadow
+   * around a window itself rather than leaving it to the window, so a window actor the compositor
+   * fails to let go of is seen as a transparent card with a shadow and nothing inside it — and it
+   * outlives the application, because by then there is nothing of ours left behind it. Unmapping
+   * first hands the compositor an ordinary disappearance to deal with, instead of a window being
+   * destroyed out of the always-on-top layer at the same moment the main window is raised into
+   * focus by the event below.
+   *
+   * The close is in a `finally` because a window that hid and never closed is worse than the mark
+   * on the screen: it is a note nobody can see and nothing can open again.
+   */
   const back = useCallback(async () => {
     if (noteId === null) return;
     if (pending.current) clearTimeout(pending.current);
@@ -89,9 +146,15 @@ const PostitPage = () => {
       import("@tauri-apps/api/event"),
       import("@tauri-apps/api/window"),
     ]);
-    await emit(POSTIT_WRITE, { noteId, content: text ?? "" });
-    await emit(POSTIT_OPEN, { noteId });
-    await getCurrentWindow().close();
+    const held = getCurrentWindow();
+    try {
+      // The words go first: they are the one thing here that cannot be made again.
+      await emit(POSTIT_WRITE, { noteId, content: text ?? "" });
+      await held.hide();
+      await emit(POSTIT_OPEN, { noteId });
+    } finally {
+      await held.close();
+    }
   }, [noteId, text]);
 
   /** No window chrome to grab, so the corner is the grip a title bar would otherwise give. */
@@ -132,10 +195,20 @@ const PostitPage = () => {
         <p className="px-3 py-2 text-[#3a2c05]/60 text-sm">{copy().postit.waiting}</p>
       ) : (
         <textarea
+          ref={area}
           // biome-ignore lint/a11y/noAutofocus: the window opened for this one box, and there is nothing else in it to take focus from
           autoFocus
           value={text}
-          onChange={(event) => write(event.target.value)}
+          onChange={(event) => edit(event.target.value, event.target.selectionStart)}
+          // Always taken from the browser, even with nothing left to take back: its own stack and
+          // this one would otherwise disagree about what the note said.
+          onKeyDown={(event) => {
+            const undoing = isUndoChord(event.nativeEvent);
+            if (!undoing && !isRedoChord(event.nativeEvent)) return;
+            event.preventDefault();
+            if (history.current === null) return;
+            walk(undoing ? undo(history.current) : redo(history.current));
+          }}
           spellCheck={false}
           placeholder={copy().postit.write}
           aria-label={title}
