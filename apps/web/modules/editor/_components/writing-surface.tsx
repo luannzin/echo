@@ -3,6 +3,7 @@
 import { parse } from "@echo/parser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FindBar } from "@/modules/editor/_components/find-bar";
+import { FindMark } from "@/modules/editor/_components/find-mark";
 import {
   type History,
   historyOf,
@@ -88,6 +89,14 @@ export const WritingSurface = ({
    * rather than leaving a stale word sitting in a field that has just taken focus.
    */
   const [finding, setFinding] = useState<{ initial: string; at: number } | null>(null);
+  /** Which stretch of the note the find box is on, drawn behind the words. Null when nothing is. */
+  const [found, setFound] = useState<{ start: number; end: number } | null>(null);
+
+  /** Puts the find box away, and the highlight with it. */
+  const stopFinding = useCallback(() => {
+    setFinding(null);
+    setFound(null);
+  }, []);
 
   /**
    * This note's own undo history, taken from outside the component so that walking away and coming
@@ -248,27 +257,19 @@ export const WritingSurface = ({
   }, [focused]);
 
   /**
-   * Puts the writing surface on a match, and scrolls it there.
+   * Puts the writing surface on a match.
    *
-   * A browser will not scroll a textarea to a *range* set from script — only to a caret the element
-   * is regaining focus on. So the match is reached as a caret first and only then opened out into
-   * the selection that shows it. Which is also what gets soft-wrapped lines right, where arithmetic
-   * over the line height would not: the browser knows where a wrapped line ended up, and we do not.
-   *
-   * Focus goes back where it came from at the end, so the reader never leaves the field they are
-   * typing the word into.
+   * The selection is moved but never relied on to *show* anything: a textarea paints its selection
+   * only while it has focus, and the focus is in the find box the word is being typed into. So the
+   * match is drawn behind the words instead (`FindMark`, which scrolls to it too), and the selection
+   * is set for the moment the box closes and the caret is handed back.
    */
   const goTo = useCallback(
-    (start: number, end: number) => {
+    (at: { start: number; end: number } | null) => {
+      setFound(at);
       const element = textarea.current;
-      if (!element) return;
-      const held = document.activeElement;
-      element.focus();
-      element.setSelectionRange(start, start);
-      element.blur();
-      element.focus();
-      element.setSelectionRange(start, end);
-      if (held instanceof HTMLElement && held !== element) held.focus();
+      if (!element || at === null) return;
+      element.setSelectionRange(at.start, at.end);
       // Said rather than left to be noticed: a selection moved from script does not always reach
       // React's own `onSelect`, and finding a word is exactly as much "where I am in this note" as
       // clicking on it is.
@@ -304,12 +305,21 @@ export const WritingSurface = ({
           initial={finding.initial}
           onGo={goTo}
           onClose={() => {
-            setFinding(null);
+            stopFinding();
             // The caret is already on the match, so closing leaves the reader where they looked.
             textarea.current?.focus();
           }}
         />
       )}
+      {finding !== null && found !== null ? (
+        <FindMark
+          text={draft}
+          start={found.start}
+          end={found.end}
+          className={className}
+          from={textarea}
+        />
+      ) : null}
       <GhostText
         text={draft}
         suggestion={slash.open ? "" : completion.ghost}
@@ -339,7 +349,7 @@ export const WritingSurface = ({
             // The find box goes before the surface around it does: one Escape, one thing closed.
             if (finding !== null) {
               event.preventDefault();
-              setFinding(null);
+              stopFinding();
               return;
             }
             if (onEscape === undefined) return;

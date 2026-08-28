@@ -11,8 +11,8 @@ import { numeric } from "@/shared/lib/styles";
  * Find in the note, the way a text editor does it: a box in the corner, a count beside it, Enter
  * for the next one and Escape to put it away.
  *
- * It moves the selection in the writing surface rather than drawing highlights of its own — the
- * caret ends up on the match, so closing the box leaves the reader exactly where they were looking.
+ * It says which match is the one being looked at and leaves the showing of it to the surface — the
+ * caret ends up there too, so closing the box leaves the reader exactly where they were looking.
  */
 export const FindBar = ({
   text,
@@ -24,8 +24,12 @@ export const FindBar = ({
   text: string;
   /** What the box opens with — whatever was selected when Ctrl F was pressed, usually nothing. */
   initial: string;
-  /** Puts the surface on a match. Must be stable: it is called whenever the active match changes. */
-  onGo: (start: number, end: number) => void;
+  /**
+   * Puts the surface on a match, or on nothing when the word is not in the note — a highlight left
+   * behind on the last word that did match is a lie about what the box says. Must be stable: it is
+   * called whenever the active match changes.
+   */
+  onGo: (at: { start: number; end: number } | null) => void;
   onClose: () => void;
 }) => {
   const words = copy().editor;
@@ -44,7 +48,7 @@ export const FindBar = ({
 
   useEffect(() => {
     const start = matches[active];
-    if (start !== undefined) onGo(start, start + query.length);
+    onGo(start === undefined ? null : { start, end: start + query.length });
   }, [matches, active, query.length, onGo]);
 
   const step = useCallback(
