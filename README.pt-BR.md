@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/Funciona-offline-1A1AFF?style=for-the-badge" alt="Funciona offline">
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3+-1A1AFF?style=for-the-badge&logo=bun&logoColor=white" alt="Bun 1.3+"></a>
   <a href="https://buymeacoffee.com/luannzin"><img src="https://img.shields.io/badge/Me%20pague%20um%20caf%C3%A9-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Me pague um café"></a>
-  <img src="https://img.shields.io/badge/Licen%C3%A7a-a%20definir-8A8A8A?style=for-the-badge" alt="Licença: a definir">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-1A1AFF?style=for-the-badge" alt="Licença: MIT"></a>
 </p>
 
 **O bloco de notas que aprende com você.** Escreva uma linha e aperte Enter. echo acha o prazo, a tarefa e as palavras que você repete, e devolve isso quando você precisa. Nada sai da sua máquina.
@@ -219,4 +219,4 @@ Se ele te poupou uma tarde, [me pague um café](https://buymeacoffee.com/luannzi
 
 ## Licença
 
-A definir, com código aberto permissivo como intenção. Veja [docs/STATE.md](docs/STATE.md#open-decisions).
+[MIT](LICENSE). Use, altere, publique, venda. Mantenha a linha de copyright e ele é seu para o que quiser.

@@ -980,7 +980,6 @@ twenty-two tools arrived, and the reads answer — after the fix below.
 ## Open decisions
 - Rich editor engine for the post-MVP upgrade (Tiptap/ProseMirror vs BlockNote vs Lexical). Not
   needed until after Phase 2.
-- License. README says TBD; permissive is the intent.
 
 ### Phase 3 — Intelligence
 - `@echo/parser`: deterministic, offline content analysis with no model and no API key.
@@ -1309,8 +1308,13 @@ production app still opens its database, files a note from the Inbox and moves o
   generates. The repo carries the PNGs and the `.ico` because those are what Linux and Windows want.
 - No offline indicator, deliberately: there is nothing to say. If the model has not been downloaded
   before the first offline session, search falls back to words and says so already.
-- The landing site names no licence: the repository has not chosen one yet. When it does, the footer
-  and the hero eyebrow are where it goes.
+- MIT, decided 2026-08-29 and recorded in `LICENSE` and in every `package.json`. Permissive was
+  always the intent; the alternative considered and rejected was a source-available licence (FSL,
+  PolyForm Shield) that would have forbidden reselling. It was rejected because it costs the words
+  "open source", which the hero eyebrow, both meta descriptions, the PWA manifest and the banner all
+  claim, and because nobody resells a local-first app that clones in three commands. The site does
+  not print the licence anywhere: the footer links the repository, and the README badge is where a
+  reader looks for it.
 - Scroll-driven animation needs `animation-timeline: view()`. Browsers without it show the finished
   state — nothing is hidden, but the page loses its parallax rather than falling back to a listener.
 - Product copy carries no roadmap/phase references any more; empty states describe the product,

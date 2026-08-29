@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/Works-offline-1A1AFF?style=for-the-badge" alt="Works offline">
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3+-1A1AFF?style=for-the-badge&logo=bun&logoColor=white" alt="Bun 1.3+"></a>
   <a href="https://buymeacoffee.com/luannzin"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy me a coffee"></a>
-  <img src="https://img.shields.io/badge/License-TBD-8A8A8A?style=for-the-badge" alt="License: TBD">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1A1AFF?style=for-the-badge" alt="License: MIT"></a>
 </p>
 
 **The note taker that learns with you.** Write one line and press Enter. echo finds the deadline, the task and the words you keep using, then hands them back when you need them. Nothing leaves your machine.
@@ -217,4 +217,4 @@ If it saved you an afternoon, [buy me a coffee](https://buymeacoffee.com/luannzi
 
 ## License
 
-TBD, with permissive open source as the intent. See [docs/STATE.md](docs/STATE.md#open-decisions).
+[MIT](LICENSE). Use it, change it, ship it, sell it. Keep the copyright line and it is yours to do anything with.

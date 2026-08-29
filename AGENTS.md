@@ -160,7 +160,7 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   assistant reach echo without either half learning the other's job.
 - `apps/www/AGENTS.md` — the marketing site: its sections, its generated imagery, and the rules that
   keep it separate from the application.
-- Root-owned files: `README.md` and `README.pt-BR.md`, `assets/**` (the README's banner,
+- Root-owned files: `LICENSE`, `README.md` and `README.pt-BR.md`, `assets/**` (the README's banner,
   hand-written SVG with no filters because GitHub strips them), `docs/**`, and root-level tooling
   config (`package.json`, `turbo.json`, `biome.json`, `tooling/**`).
 - **The two READMEs are one document in two languages**, and each one links to the other on its
@@ -174,6 +174,10 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   ordinary `<img>`: it plays inline, it degrades to its own first frame rather than to nothing, and
   at 1280px it is a tenth of the equivalent GIF. Re-encode it from `apps/www/public/reel/echo.mp4`
   whenever the reel is re-captured; it links to the blob view, which does play the full 2560x1440.
+- **MIT, and every package says so.** `LICENSE` at the root is the text; `"license": "MIT"` is set in
+  all sixteen `package.json` files and in `src-tauri/Cargo.toml`, because a workspace where only the
+  root declares it is a workspace whose published metadata disagrees with itself. A new package
+  copies the field along with the rest of its manifest.
 - The prose docs (`docs/**`, every `AGENTS.md`) stay English-only: they describe code and contracts,
   and a translated contract is a second contract to keep true. The READMEs are the exception because
   they are the front door.
