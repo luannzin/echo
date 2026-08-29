@@ -157,5 +157,6 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
 
 - `apps/www/AGENTS.md` — the marketing site: its sections, its generated imagery, and the rules that
   keep it separate from the application.
-- Root-owned files: `README.md`, `docs/**`, and root-level tooling config (`package.json`,
+- Root-owned files: `README.md`, `assets/**` (the README's banner, hand-written SVG with no filters
+  because GitHub strips them), `docs/**`, and root-level tooling config (`package.json`,
   `turbo.json`, `biome.json`, `tooling/**`).
