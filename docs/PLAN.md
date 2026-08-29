@@ -147,8 +147,9 @@ Landing page (§48) is built — `apps/www`. The rest runs in five parts; the sp
 | P8d | Arrival | first run (§49's storage choice), a tour anchored to the real interface, a checklist derived from the notes | ✅ |
 | P8e | Identity | the engraving and its motion, inside the app | ✅ |
 
-Still open in this phase: a perf pass against a 10k-note seeded corpus, and the docs (local /
-self-host / Postgres / desktop / deploy).
+The perf pass against a 10k-note seeded corpus is done — `apps/web/scripts/bench.ts` is the harness
+and `docs/STATE.md` records what it found. Still open in this phase: the docs (local / self-host /
+Postgres / desktop / deploy).
 
 ---
 

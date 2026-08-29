@@ -19,6 +19,7 @@ export type NoteListOptions = {
   /** `undefined` lists every folder, `null` lists the Inbox. */
   folderId?: string | null;
   includeArchived?: boolean;
+  /** Absent lists every note. A caller that wants a page has to say how big it is. */
   limit?: number;
 };
 

@@ -330,14 +330,22 @@ export const createRetrieval = ({
     /**
      * Where this note probably belongs, decided by where the notes nearest it already live. A note
      * that has already been read is its own query, so a whole Inbox costs one lookup each.
+     *
+     * `folderOf` rather than the notes themselves: the Inbox asks this once per unfiled note, and
+     * building a map of the whole corpus inside each of those calls made triage quadratic in a
+     * corpus it only ever needed to read one way round. The caller arranges it once.
      */
     destinations: async (
       text: string,
       {
-        notes,
+        folderOf,
         excludeNoteId,
         weightOf,
-      }: { notes: Note[]; excludeNoteId?: string; weightOf?: (folderId: string) => number },
+      }: {
+        folderOf: (noteId: string) => string | null;
+        excludeNoteId?: string;
+        weightOf?: (folderId: string) => number;
+      },
     ): Promise<Destination[]> => {
       if (index.size === 0) return [];
       const embedding =
@@ -345,12 +353,11 @@ export const createRetrieval = ({
         (await queryVector(text));
       if (!embedding) return [];
 
-      const byId = new Map(notes.map((note) => [note.id, note]));
       const neighbours = index
         .nearest(embedding, { excludeNoteId, limit: VOTERS, minimumSimilarity: VOTER_SIMILARITY })
         .map((match) => ({
           noteId: match.noteId,
-          folderId: byId.get(match.noteId)?.folderId ?? null,
+          folderId: folderOf(match.noteId),
           similarity: match.similarity,
         }));
 

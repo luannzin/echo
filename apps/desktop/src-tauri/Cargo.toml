@@ -1,5 +1,8 @@
 [package]
 name = "echo-notes"
+# Not echo's version. `tauri.conf.json` declares that, and Tauri's own is what the bundler stamps on
+# every installer — this crate is never published, so a second number here would only be one more
+# place to leave out of date.
 version = "0.0.0"
 edition = "2021"
 description = "echo — the note taker that learns with you"

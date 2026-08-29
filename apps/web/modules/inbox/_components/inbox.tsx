@@ -3,7 +3,7 @@
 import type { Destination } from "@echo/search";
 import type { Folder, Note } from "@echo/types";
 import { Inbox as InboxIcon, Wand2 } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { InboxRow } from "@/modules/inbox/_components/inbox-row";
 import type { InboxReason } from "@/modules/inbox/plan";
@@ -63,6 +63,16 @@ export const Inbox = ({
     actions[Math.min(at, actions.length - 1)]?.focus();
   }, [notes]);
 
+  // One function for every row rather than one per row: a closure built during render is a new
+  // prop each time, and the rows redraw many times over while the suggestions arrive.
+  const accept = useCallback(
+    (index: number, noteId: string, destination: Destination) => {
+      resume.current = index;
+      onAccept(noteId, destination);
+    },
+    [onAccept],
+  );
+
   if (notes.length === 0) {
     return (
       <EmptyState icon={InboxIcon} title={words.empty}>
@@ -70,11 +80,6 @@ export const Inbox = ({
       </EmptyState>
     );
   }
-
-  const accept = (index: number) => (noteId: string, destination: Destination) => {
-    resume.current = index;
-    onAccept(noteId, destination);
-  };
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-6">
@@ -109,7 +114,8 @@ export const Inbox = ({
               places={places}
               suggestion={suggestionOf(note.id)}
               reasonsFor={reasonsFor}
-              onAccept={accept(index)}
+              index={index}
+              onAccept={accept}
               onMove={onMove}
               onOpen={onOpen}
               onNewFolder={onNewFolder}

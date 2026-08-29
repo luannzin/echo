@@ -40,11 +40,17 @@ export const createNoteRepository = (db: Database): NoteRepository => ({
       options.includeArchived ? undefined : isNull(notes.archivedAt),
     ].filter((filter) => filter !== undefined);
 
-    return db
+    const query = db
       .select(noteColumns)
       .from(notes)
       .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(notes.updatedAt))
-      .limit(options.limit ?? 200);
+      .orderBy(desc(notes.updatedAt));
+
+    // Every other list here returns everything it has, and notes were the one exception: a default
+    // limit meant a caller who asked for "the notes" was handed the most recent few and told
+    // nothing about the rest. The app holds the whole corpus in memory by design — the vector index
+    // does, search scans it, the stream renders it — so a page it never asked for was a silent
+    // truncation of the only list that matters. A caller that wants a page says how big.
+    return options.limit === undefined ? query : query.limit(options.limit);
   },
 });

@@ -192,6 +192,32 @@ const buildIco = (names, target) => {
   writeFileSync(target, Buffer.concat([header, entries, ...images.map((i) => i.data)]));
 };
 
+/**
+ * An `.icns` is a four-byte magic, a big-endian total length, and then one chunk per size: a
+ * four-character type, the chunk's own length, and the payload. macOS has read PNG payloads for
+ * fifteen years, so the same files the `.ico` is built from are the whole content here too.
+ *
+ * Built rather than fetched from `iconutil`, for the same reason the `.ico` is: this script is the
+ * one place an echo icon comes from, and a format that only one of three operating systems can
+ * produce would leave the macOS build depending on which machine happened to run it. The types are
+ * the modern set — `ic07` up — because the older ones carry a separate mask this drawing has no
+ * use for.
+ */
+const buildIcns = (entries, target) => {
+  const chunks = entries.map(([type, name]) => {
+    const data = readFileSync(join(WORK, name));
+    const header = Buffer.alloc(8);
+    header.write(type, 0, "ascii");
+    header.writeUInt32BE(data.length + 8, 4);
+    return Buffer.concat([header, data]);
+  });
+  const length = chunks.reduce((total, chunk) => total + chunk.length, 8);
+  const header = Buffer.alloc(8);
+  header.write("icns", 0, "ascii");
+  header.writeUInt32BE(length, 4);
+  writeFileSync(target, Buffer.concat([header, ...chunks]));
+};
+
 const put = (from, to) => {
   const target = join(REPO, to);
   mkdirSync(dirname(target), { recursive: true });
@@ -216,6 +242,20 @@ buildIco(
   join(REPO, "apps/desktop/src-tauri/icons/icon.ico"),
 );
 console.log("  apps/desktop/src-tauri/icons/icon.ico (16, 32, 48, 64, 128, 256)");
+buildIcns(
+  [
+    ["ic07", "128.png"],
+    ["ic08", "256.png"],
+    ["ic09", "512.png"],
+    ["ic10", "1024.png"],
+    ["ic11", "32.png"],
+    ["ic12", "64.png"],
+    ["ic13", "512.png"],
+    ["ic14", "1024.png"],
+  ],
+  join(REPO, "apps/desktop/src-tauri/icons/icon.icns"),
+);
+console.log("  apps/desktop/src-tauri/icons/icon.icns (32, 64, 128, 256, 512, 1024)");
 
 console.log("\napps/www:");
 // Scalable, so it gets the flat drawing: a browser paints a favicon between 16 and 32 pixels, where

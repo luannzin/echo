@@ -22,7 +22,8 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "dev:desktop": "bun run --cwd apps/desktop dev",
-    "build:desktop": "bun run --cwd apps/desktop package"
+    "build:desktop": "bun run --cwd apps/desktop package",
+    "bump": "bun scripts/version.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",

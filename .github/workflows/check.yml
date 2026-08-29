@@ -1,0 +1,87 @@
+# The four commands the working protocol in `docs/PLAN.md` ends every phase with, plus the crate's
+# own, run on every push and every pull request — so a branch cannot be green on one machine and
+# broken on the one that builds the release.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workspace:
+    name: typecheck · lint · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - run: bun install --frozen-lockfile
+
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: lint
+        run: bun run lint
+
+      - name: test
+        run: bun run test
+
+      # A static export, so this is also the deploy artifact being proved buildable.
+      - name: build
+        run: bun run build
+
+  rust:
+    name: desktop shell
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # webkit2gtk is the webview and libsoup its HTTP stack, both pulled in by the -dev package.
+      # The crate links against them, so even `cargo check` needs them present.
+      - name: system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - run: bun install --frozen-lockfile
+
+      # `tauri.conf.json` points `frontendDist` at the web app's export, and `tauri-build` reads that
+      # path while the crate compiles. Checking the Rust side means the folder has to be there.
+      - name: build the web app
+        run: bun run --cwd apps/web build
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      # The crate's own verification, from the crate, as `apps/desktop/AGENTS.md` says. Biome does
+      # not reach here and neither does `bun run lint`.
+      - name: fmt
+        working-directory: apps/desktop/src-tauri
+        run: cargo fmt --check
+
+      - name: check
+        working-directory: apps/desktop/src-tauri
+        run: cargo check
+
+      # The two `#[ignore]` tests in `src/lib.rs` download ~135MB of weights and stay ignored here.
+      - name: test
+        working-directory: apps/desktop/src-tauri
+        run: cargo test

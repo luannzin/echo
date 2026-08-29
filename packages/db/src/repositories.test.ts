@@ -33,6 +33,25 @@ test("listing is newest-first and hides archived notes unless asked", async () =
   expect(all).toHaveLength(2);
 });
 
+test("listing without a limit lists every note, and a limit is a page the caller asked for", async () => {
+  const { db, repositories } = await openRepositories();
+  const echo = createEcho({ repositories });
+  // Past the 200 this used to default to. A caller that asked for "the notes" and was handed the
+  // most recent few, with nothing to say the rest existed, is the bug this stands against: the app
+  // holds the whole corpus in memory, so a silent page truncated the only list that matters.
+  const rows = Array.from(
+    { length: 260 },
+    (_, n) =>
+      `('${crypto.randomUUID()}','00000000-0000-0000-0000-000000000001','n${n}','note ${n}')`,
+  );
+  await db.execute(
+    `insert into notes (id, workspace_id, title, content) values ${rows.join(",")}` as never,
+  );
+
+  expect(await echo.notes.list()).toHaveLength(260);
+  expect(await echo.notes.list({ limit: 10 })).toHaveLength(10);
+});
+
 test("notes filter by folder, and null means Inbox", async () => {
   const echo = await testEcho();
   const folder = await echo.folders.create({ name: "Work" });

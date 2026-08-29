@@ -8,7 +8,18 @@
  * extra bandwidth, where a precache list would download thirteen megabytes before the first note
  * was written.
  */
-const CACHE = "echo-v1";
+/**
+ * One cache per build, named by the version the page registered this worker with.
+ *
+ * Next's own chunks are content-addressed, so a new build asks for new URLs and the old ones simply
+ * go unread. The runtime is not: `/pglite/pglite.wasm` and `/ort/*.wasm` keep their names for ever,
+ * and `asset` below answers from the cache before it asks the network. Under one fixed cache name a
+ * reader who installed echo once would run that build's WebAssembly against every build after it.
+ *
+ * The name changing is what makes `activate` below delete the last one — it already removes every
+ * cache that is not this one, which was a no-op while there was only ever the one name.
+ */
+const CACHE = `echo-${new URL(self.location.href).searchParams.get("v") ?? "dev"}`;
 
 self.addEventListener("install", () => self.skipWaiting());
 

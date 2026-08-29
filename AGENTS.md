@@ -131,7 +131,14 @@ shared/
   _components/*.tsx      anything two modules render
   lib/*.ts               anything two modules import
 components/ui, hooks, lib/utils.ts, lib/segmented-control.ts   coss registry, CLI-owned
+scripts/                 build-time and measurement tools, not shipped
 ```
+
+`scripts/bench.ts` is the perf harness: it seeds a corpus straight through SQL and times every
+operation the interface performs against it, with no browser in the way. It lives here because this
+is the only workspace that depends on every `@echo/*` package at once, which is also what the app
+does. Run it with `bun --cwd apps/web scripts/bench.ts 10000`, and against a number before claiming
+one — `docs/STATE.md` records what it found.
 
 Modules today: `capture`, `editor`, `explorer`, `inbox`, `intelligence`, `notes`, `onboarding`,
 `search`, `settings`, `shell`, `tasks`, `timeline`.
@@ -161,8 +168,18 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
 - `apps/www/AGENTS.md` — the marketing site: its sections, its generated imagery, and the rules that
   keep it separate from the application.
 - Root-owned files: `LICENSE`, `README.md` and `README.pt-BR.md`, `assets/**` (the README's banner,
-  hand-written SVG with no filters because GitHub strips them), `docs/**`, and root-level tooling
-  config (`package.json`, `turbo.json`, `biome.json`, `tooling/**`).
+  hand-written SVG with no filters because GitHub strips them), `docs/**`, `scripts/**`,
+  `.github/workflows/**`, and root-level tooling config (`package.json`, `turbo.json`, `biome.json`,
+  `tooling/**`).
+- **One number, and a tag that agrees with it.** `apps/desktop/src-tauri/tauri.conf.json` declares
+  echo's version: `next.config.ts` reads it there, the bundler stamps it on every installer, the
+  service worker names its cache after it, and `tauri-action` reads it to name the release. The
+  crate's own `version` in `Cargo.toml` is not it and says so. `bun run bump <version>` writes the
+  one place and prints the tag to push; `.github/workflows/release.yml` is what the tag starts.
+- **CI is `.github/workflows/check.yml` and it runs what the working protocol runs**: `typecheck`,
+  `lint`, `test`, `build`, plus `cargo fmt --check`, `cargo check` and `cargo test` from the crate.
+  The Rust job builds the web app first, because `tauri.conf.json` points `frontendDist` at the
+  export and `tauri-build` reads that path while the crate compiles.
 - **The two READMEs are one document in two languages**, and each one links to the other on its
   first lines. A change to either has to land in both in the same commit — a Portuguese README that
   is three features behind is worse than no Portuguese README. The screenshots are the ones
@@ -177,10 +194,15 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
 - **The application icon is generated, not drawn by hand.** `scripts/icons.mjs` prints the `orb`
   plate from `apps/www/components/engraving.tsx` on the brand field through the site's own Bayer
   dither, and writes every size both applications ship: `apps/web/app/icon.png` and `apple-icon.png`,
-  the three in `apps/web/public`, the four PNGs and the `.ico` in `apps/desktop/src-tauri/icons`,
-  and `apps/www/app/icon.svg`. Re-run it after changing the plate, the brand colour or the set;
-  never edit an icon by hand, because the next run overwrites it. It needs `bunx playwright install
-  chromium` and is deliberately not a workspace dependency.
+  the three in `apps/web/public`, the four PNGs plus the `.ico` and the `.icns` in
+  `apps/desktop/src-tauri/icons`, and `apps/www/app/icon.svg`. Re-run it after changing the plate,
+  the brand colour or the set; never edit an icon by hand, because the next run overwrites it. It
+  needs `bunx playwright install chromium` and is deliberately not a workspace dependency.
+- **The `.ico` and the `.icns` are built here, not fetched from a platform tool.** Both are
+  containers of PNG payloads and both are written by `scripts/icons.mjs` in a few lines. `iconutil`
+  would produce the `.icns` too, and only on macOS — which would leave the macOS build depending on
+  which machine happened to run the generator, on a set whose whole point is that one command
+  produces every icon echo ships.
 - Sizes at or over 128px are dithered and sizes at or under 64px are flat. That split is arithmetic,
   not taste: the screen is an 8x8 tile and one Bayer cell cannot be smaller than one pixel, so a
   32px dithered orb is noise. Small sizes get the silhouette instead.

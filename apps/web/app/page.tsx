@@ -124,6 +124,54 @@ const UNDO_DEPTH = 25;
 const conceptKey = (noteId: string, concept: string): string =>
   `${noteId}:${concept.toLowerCase()}`;
 
+/**
+ * How many unfiled notes are worked out before the Inbox gets the screen back. Each one is a scan
+ * of every vector the reader has — about 7ms at ten thousand notes — so a slice of sixteen is
+ * roughly a tenth of a second of work between frames.
+ */
+const DESTINATION_SLICE = 16;
+
+/**
+ * What a kept destination is an answer to. The note as it was read, and the only rules that can
+ * change the answer — filing a note records a correction, so a pass invalidated by any rule at all
+ * would be thrown away by the gesture it exists to speed up. These are the ones `weightOf` reads.
+ */
+const destinationKey = (note: Note, rules: readonly LearnedRule[]): string =>
+  `${note.id}:${note.updatedAt.getTime()}:${rules
+    .filter((rule) => rule.kind === "destination")
+    .map((rule) => `${rule.subject}${rule.outcome}${rule.confidence.toFixed(3)}`)
+    .sort()
+    .join(",")}`;
+
+/** The kept answers, narrowed to the notes actually on the screen and in the order they are in. */
+const destinationsFrom = (
+  unfiled: readonly Note[],
+  rules: readonly LearnedRule[],
+  answered: ReadonlyMap<string, Destination | undefined>,
+): Map<string, Destination> => {
+  const found = new Map<string, Destination>();
+  for (const note of unfiled) {
+    const best = answered.get(destinationKey(note, rules));
+    if (best) found.set(note.id, best);
+  }
+  return found;
+};
+
+/**
+ * Hands the screen back mid-pass. A macrotask rather than a microtask: awaiting a resolved promise
+ * yields to the queue and not to the browser, so the frame it was meant to make room for never
+ * happens. `MessageChannel` is the one post-task that no timer clamp slows down.
+ */
+const yieldToScreen = (): Promise<void> =>
+  new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(undefined);
+  });
+
 const Page = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -195,6 +243,8 @@ const Page = () => {
 
   /** Read by retrieval and search so a keystroke never re-subscribes anything. */
   const notesRef = useRef<Note[]>([]);
+  /** The same corpus by id, for the lookups that happen once per note rather than once per action. */
+  const notesByIdRef = useRef<Map<string, Note>>(new Map());
   const rulesRef = useRef<LearnedRule[]>([]);
   const labelsRef = useRef<NoteLabels>(new Map());
   const editingRef = useRef<string | null>(null);
@@ -209,6 +259,12 @@ const Page = () => {
   const movedTo = useRef<Map<string, string | null>>(new Map());
   /** Concepts read out of a note's own words, kept until the note changes. */
   const conceptCache = useRef<Map<string, { at: number; concepts: string[] }>>(new Map());
+  /**
+   * Where each unfiled note was worked out to belong, kept across the restarts that filing one
+   * causes. `undefined` is an answered question with no answer: the neighbours did not agree, and
+   * asking them again would cost the same scan to be told the same nothing.
+   */
+  const destinationCache = useRef<Map<string, Destination | undefined>>(new Map());
   /** The opened runtime, for the one lookup that is answered from memory on a keystroke. */
   const runtime = useRef<Awaited<ReturnType<typeof getEcho>> | null>(null);
   const conceptsRef = useRef<(noteId: string) => readonly string[]>(() => []);
@@ -441,6 +497,22 @@ const Page = () => {
 
   const editing = notes.find((note) => note.id === editingId) ?? null;
   const unfiled = useMemo(() => notes.filter((note) => note.folderId === null), [notes]);
+  /**
+   * The corpus by id, and by the folder each note is in. Arranged once for the whole screen: the
+   * Inbox asks both questions once per row, and answering either with a scan made a screen showing
+   * a thousand unfiled notes quadratic in a corpus that is only ever read one way round.
+   */
+  const notesById = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes]);
+  const notesByFolder = useMemo(() => {
+    const held = new Map<string, Note[]>();
+    for (const note of notes) {
+      if (note.folderId === null) continue;
+      const inside = held.get(note.folderId);
+      if (inside) inside.push(note);
+      else held.set(note.folderId, [note]);
+    }
+    return held;
+  }, [notes]);
   /** Every note's labels, arranged once for the whole screen rather than once per row. */
   const labels = useMemo(() => byNote(assignments), [assignments]);
   const labelCounts = useMemo(() => countByCategory(assignments), [assignments]);
@@ -459,8 +531,8 @@ const Page = () => {
     [labels, categories],
   );
   const countOf = useCallback(
-    (folderId: string) => notes.filter((note) => note.folderId === folderId).length,
-    [notes],
+    (folderId: string) => notesByFolder.get(folderId)?.length ?? 0,
+    [notesByFolder],
   );
 
   /**
@@ -546,6 +618,7 @@ const Page = () => {
 
   // Read inside callbacks and effects, so none of them re-subscribes when any of this changes.
   listedRef.current = listed;
+  notesByIdRef.current = notesById;
   tasksRef.current = tasks;
   foldersRef.current = folders;
   labelsRef.current = labels;
@@ -614,6 +687,18 @@ const Page = () => {
    * Where the unfiled notes probably belong, worked out only while the Inbox is open. Every note
    * that has been read already has a vector, so this is a scan of memory rather than a hundred trips
    * through the model.
+   *
+   * One note's vote is a scan of every vector, which is cheap once and ten seconds of a frozen tab
+   * across two thousand of them. So the pass runs in slices with a yield between them and publishes
+   * what it has as it goes: rule 8 says inference never blocks the editor, and a screen the reader
+   * cannot scroll is the same broken promise as one they cannot type into. Rows fill in behind the
+   * reader rather than all at once at the end, which is also the honest picture of work still
+   * happening.
+   *
+   * And it resumes. Filing a note changes the pile, which restarts this effect — so a pass that
+   * began again from the top would be undone by the very gesture it exists to make cheap, and on a
+   * large Inbox would never reach the end at all. Answers are kept against the note they were
+   * worked out for, so what comes back is only ever the notes nobody has answered for yet.
    */
   useEffect(() => {
     if (view !== "inbox" || folders.length === 0) {
@@ -624,18 +709,36 @@ const Page = () => {
     let alive = true;
     void (async () => {
       const echo = await getEcho();
-      const found = new Map<string, Destination>();
-      for (const note of unfiled) {
-        const [best] = await echo.retrieval.destinations(note.content, {
-          notes: notesRef.current,
-          excludeNoteId: note.id,
-          // A folder the reader keeps rejecting goes quiet. Nothing here can invent a suggestion the
-          // notes did not already make: history is a second opinion, never the evidence.
-          weightOf: (folderId) => adjust(1, ruleFor(rulesRef.current, "destination", folderId)),
-        });
-        if (best) found.set(note.id, best);
+      // Where every note lives, read from the index the screen already keeps. Inside the vote this
+      // was a map of the whole corpus, rebuilt once per unfiled note.
+      const held = notesByIdRef.current;
+      const answered = destinationCache.current;
+      let published = false;
+
+      for (let start = 0; start < unfiled.length; start += DESTINATION_SLICE) {
+        let worked = false;
+        for (const note of unfiled.slice(start, start + DESTINATION_SLICE)) {
+          const key = destinationKey(note, rules);
+          if (answered.has(key)) continue;
+          worked = true;
+          const [best] = await echo.retrieval.destinations(note.content, {
+            folderOf: (noteId) => held.get(noteId)?.folderId ?? null,
+            excludeNoteId: note.id,
+            // A folder the reader keeps rejecting goes quiet. Nothing here can invent a suggestion
+            // the notes did not already make: history is a second opinion, never the evidence.
+            weightOf: (folderId) => adjust(1, ruleFor(rulesRef.current, "destination", folderId)),
+          });
+          answered.set(key, best);
+        }
+        if (!alive) return;
+        // A slice that answered nothing changes nothing on screen, and publishing it would hand
+        // every row a new map to re-render against for no reason.
+        if (worked || !published) {
+          published = true;
+          setDestinations(destinationsFrom(unfiled, rules, answered));
+        }
+        if (worked) await yieldToScreen();
       }
-      if (alive) setDestinations(found);
     })();
 
     return () => {
@@ -1236,7 +1339,7 @@ const Page = () => {
    */
   const readConceptsOf = useCallback(
     (noteId: string): readonly string[] => {
-      const note = notesRef.current.find((held) => held.id === noteId);
+      const note = notesByIdRef.current.get(noteId);
       if (!note) return [];
       const at = note.updatedAt.getTime();
       const held = conceptCache.current.get(noteId);
@@ -1268,20 +1371,20 @@ const Page = () => {
    */
   const explainDestination = useCallback(
     (noteId: string, suggestion: Destination): InboxReason[] => {
-      const note = notes.find((held) => held.id === noteId);
+      const note = notesById.get(noteId);
       if (!note) return [];
       return reasonsForNote({
         note,
         destination: suggestion,
-        notesIn: notes.filter((held) => held.folderId === suggestion.folderId),
+        notesIn: notesByFolder.get(suggestion.folderId) ?? [],
         // The reader's stated labels *and* what their words are distinctive for. Categories alone
         // would leave this silent on a corpus nobody has tagged — which is the corpus concepts
         // were built for.
         conceptsOf: readConceptsOf,
-        titleOf: (id) => notes.find((held) => held.id === id)?.title,
+        titleOf: (id) => notesById.get(id)?.title,
       });
     },
-    [notes, readConceptsOf],
+    [notesById, notesByFolder, readConceptsOf],
   );
 
   /** The whole pile worked out at once, grouped by where it is bound. Nothing has moved yet. */

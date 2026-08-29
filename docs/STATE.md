@@ -1,7 +1,7 @@
 # STATE
 
-Last updated: 2026-08-28 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
-rebuild, E1, E2, desktop fixes pass, P8a–P8e (language and arrival), MCP**
+Last updated: 2026-08-29 · Phase: **6 complete, two fixes passes, editor mode, S1–S4, landing
+rebuild, E1, E2, desktop fixes pass, P8a–P8e (language and arrival), MCP, release pass**
 
 Product: **echo** — open source, no-AI note taker that learns with you.
 
@@ -895,6 +895,68 @@ covering the schemas, the two delete guards, and the absence of the observation 
 of what reaches a caller). Connected to from a real client: the handshake, the instructions and all
 twenty-two tools arrived, and the reads answer — after the fix below.
 
+### Release pass — the corpus it will actually meet, and the builds it ships as
+
+A perf and issues pass against a seeded ten-thousand-note corpus, plus the release engineering the
+READMEs already promise. `apps/web/scripts/bench.ts` is the measurement: it seeds a corpus straight
+through SQL, times every operation the interface performs against it, and is the perf pass Phase 8
+held open. Run it with `bun --cwd apps/web scripts/bench.ts 10000`.
+
+**Fixed — the note list was capped at two hundred.** `NoteRepository.list()` defaulted to
+`limit: 200` and `app/page.tsx` never passed one, so an install past two hundred notes silently held
+the most recent two hundred: search scanned a truncated corpus, the Inbox counted a truncated pile,
+the stream drew a truncated history, and nothing on screen said so. Every other repository here
+already listed everything it had. Now so does this one, and a caller that wants a page says how big
+— `mcp.ts` and the phrase model already did. 239ms for ten thousand notes against 22ms for two
+hundred, which is the whole price of the fix. `repositories.test.ts` stands against it coming back.
+
+**Fixed — triage froze the tab.** The Inbox worked out a destination for every unfiled note in one
+uninterrupted loop, and one destination is a scan of every vector the reader has. At ten thousand
+notes with nineteen hundred unfiled that was 17.5 seconds during which nothing on screen moved —
+rule 8 says inference never blocks the editor, and a screen that cannot be scrolled is the same
+broken promise. Three things were wrong and all three are fixed:
+
+- `retrieval.destinations` built a map of the whole corpus **inside each call**, so the Inbox was
+  quadratic in a corpus it only ever read one way round. It takes a `folderOf` lookup now and the
+  caller arranges it once: 17.5s → 13.0s before anything else changed.
+- The pass now runs in slices of sixteen with a real yield between them (`MessageChannel`, because
+  awaiting a resolved promise yields to the microtask queue and not to the browser), publishing what
+  it has as it goes. The same total work, none of it in one frame, and rows fill in behind the
+  reader instead of all at once at the end.
+- It resumes. Filing a note changes the pile, which restarts the effect — so the pass was being
+  undone by the gesture it exists to make cheap, and on a large Inbox would never have reached the
+  end. Answers are kept against the note and the destination rules they were worked out for.
+
+**Fixed — every Inbox row answered "why?" before anyone asked.** `details` hides its children rather
+than leaving them out, so the reasons were computed for every row on every render, and each one read
+every note in the suggested folder through two linear scans of the corpus. The reasons are worked
+out on the press now, and the two scans are a `notesById` and a `notesByFolder` index the screen
+keeps anyway. `InboxRow` is memoized to go with it — the suggestions arrive a slice at a time, so
+the pile is re-rendered many times over while the pass runs, and a row whose own answer has not
+changed has nothing to redraw. It takes its position as a prop rather than a closure over it,
+because a closure built during render is a new prop every time and the memo would never hold.
+
+**Fixed — the service worker pinned its runtime for ever.** The cache was named `echo-v1` and never
+changed, and `activate` deletes every cache that is not the current name — which was a no-op while
+there was only one name. Next's chunks are content-addressed and update themselves, but
+`/pglite/pglite.wasm` and `/ort/*.wasm` keep their names, and `asset` answers from the cache before
+the network. A reader who installed echo once would have run that build's WebAssembly against every
+build after it. The page registers `/sw.js?v=<version>` now and the worker names its cache after
+what it was registered with, so a release replaces both itself and what the last one kept.
+
+**Releases.** `.github/workflows/check.yml` runs `typecheck`, `lint`, `test` and `build` plus
+`cargo fmt --check`, `cargo check` and `cargo test` on every push and pull request. `release.yml`
+builds the desktop app on a tag: NSIS `.exe` and `.msi` on Windows, a `.dmg` per architecture on
+macOS, `.deb`/`.rpm`/AppImage on Linux, all onto one draft release. `bun run bump <version>` writes
+the number where it is declared and prints the tag to push.
+
+`icon.icns` is generated now, and was the thing that would have failed the macOS build first: it was
+missing, and the macOS bundler is the only one that wants it. `scripts/icons.mjs` writes it the same
+way it already wrote the `.ico` — a container of PNG payloads, built rather than fetched from
+`iconutil`, so a format only one of three operating systems can produce does not leave the macOS
+build depending on which machine ran the generator. Regenerating produced byte-identical PNGs, which
+is the check that the change is additive.
+
 ## In progress
 - **E2's simpler-mode half is unverified.** Written, typechecked, and never driven — see above.
   Still open from Phase 5: whether projects should be their
@@ -1267,20 +1329,45 @@ production app still opens its database, files a note from the Inbox and moves o
   variants a target browser actually loads is a deployment-time optimisation, not a correctness one.
 - Model weights come from Hugging Face on first use and are then cached by the browser. Self-hosting
   the weights is the obvious follow-up for a fully offline install.
-- No CI workflow yet, and this pass is the argument for one: the production build was broken and
-  everything green — `typecheck`, `lint`, `test`, even `build` — said otherwise, because nothing ever
-  loaded the built output. A CI step that serves `out/` and asserts the database opens would have
-  caught it.
+- CI runs the four commands and the crate's own on every push (`.github/workflows/check.yml`), and a
+  tag builds every desktop installer (`.github/workflows/release.yml`). What it still does not do is
+  load the built output: the production build was once broken while `typecheck`, `lint`, `test` and
+  `build` were all green, because nothing ever opened `out/` in a browser. A step that serves it and
+  asserts the database opens is the one that would have caught that.
 - `sync`, `config`, `ui` and `test-utils` are still `export {}` stubs.
+- **A destination is still a scan of every vector.** The Inbox no longer blocks on it, but nineteen
+  hundred unfiled notes against ten thousand filed ones is thirteen seconds of background CPU, spread
+  across frames. It is bandwidth-bound rather than badly written — fifteen megabytes read per vote —
+  so the fix is an approximate index, not a tighter loop. Nothing under a few hundred unfiled notes
+  notices, which is why this is debt rather than a bug.
+- **The static export ships its WebAssembly twice.** `out/` is 139MB, and about 38MB of it is
+  webpack's own copies under `_next/static/media` of the PGlite and ONNX runtimes already served
+  from `/pglite/` and `/ort/`. Nothing fetches them — the app passes the modules it compiled from
+  those paths — but they are referenced from the chunks as fallbacks, so deleting them is a
+  deployment-time decision rather than a safe one. Worth knowing before choosing a host: the largest
+  single file is `ort-wasm-simd-threaded.jsep.wasm` at 26.5MB, over Cloudflare Pages' 25MB per-file
+  limit.
+- **The desktop build has never run on this machine and neither has the release workflow.** No Rust
+  toolchain here, so `.github/workflows/release.yml` is written and its YAML parses, and that is the
+  whole of what has been verified. The first tag is the first real test of it.
+- `next-env.d.ts` is committed and rewritten by Next itself — `next dev` points it at `.next/dev/`
+  and `next build` at `.next/` — so it flips in `git status` depending on which ran last. Harmless:
+  `typecheck` passes either way, with or without `.next` present.
 - **PGlite still runs on the main thread.** Moving it to `@electric-sql/pglite/worker` was built and
   reverted: PGlite's bundled data loader reads `window.location` to find its own files, so the worker
   build throws `window is not defined` before `fsBundle` is ever consulted. The `ponytail:` note in
   `packages/db/src/browser.ts` records it. Worth revisiting — it would also make a second tab safe
   through leader election, which today is genuinely unhandled: two tabs open two databases over one
   IndexedDB.
-- The note list is capped at 200 rows by the repository. Beyond that the stream needs real
-  virtualization; `content-visibility` buys the paint cost back but every note is still a React
-  element and a DOM node.
+- ~~The note list is capped at 200 rows by the repository.~~ **Fixed.** `list()` defaulted to 200
+  and `page.tsx` never passed a limit, so an install past two hundred notes silently held the most
+  recent two hundred and nothing on screen said the rest existed — search scanned a truncated
+  corpus, the Inbox counted a truncated pile, the stream drew a truncated history. Listing without a
+  limit now lists everything, as every other repository here already did, and a caller that wants a
+  page says how big. Measured at ten thousand notes: 239ms against 22ms for the two hundred.
+- The stream still has no virtualization. `content-visibility` buys the paint cost back — that is
+  what makes ten thousand rows scroll — but every note is still a React element and a DOM node, and
+  the note list's rows each carry a context menu on top of that.
 - The composer's grow-to-fit uses a measure-and-set effect. `field-sizing: content` would delete it,
   but Firefox lacks support — revisit when it lands.
 - The composer's metadata row carries three things (word count, `Local · private`, and the undo
