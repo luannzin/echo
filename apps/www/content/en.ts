@@ -8,7 +8,7 @@
  * This file is the *shape* every language is checked against, but it is no longer where the words
  * are decided: `pt.ts` is written first and this follows it, so English cannot quietly grow a
  * paragraph Portuguese would have to carry twenty percent longer. Every claim is two sentences at
- * most. What was cut was never untrue — it was a third sentence defending a point the first two had
+ * most. What was cut was never untrue. It was a third sentence defending a point the first two had
  * already made, and readers were leaving before it.
  *
  * The demo corpus is not in here on purpose. `AGENTS.md` draws the line: chips, counts and reason
@@ -33,16 +33,16 @@ export const en = {
       { label: "How it runs", href: "#facts" },
       { label: "GitHub", href: null },
     ],
-    run: "Run it locally",
+    open: "Open echo",
   },
 
   hero: {
     eyebrow: "No AI · Open source · Runs on your machine · No account",
     title: "The note taker that learns with you",
-    lede: "Write one line and press Enter. echo finds the deadline, the task and the words you keep using — and hands them back when you need them. Nothing leaves your machine.",
+    lede: "Write one line and press Enter. echo finds the deadline, the task and the words you keep using, then hands them back when you need them. Nothing leaves your machine.",
+    open: "Open echo",
     watch: "Watch it working ↓",
     run: "Run it locally",
-    source: "Read the source on GitHub",
   },
 
   reel: {
@@ -60,13 +60,13 @@ export const en = {
       {
         label: "Search",
         title: "Ask it the way you would ask a person",
-        body: "“notes about caching in payments” is two questions in one. echo pulls the subject away from the project and shows each filter as a chip that is one press from gone — and says how many notes it set aside.",
+        body: "“notes about caching in payments” is two questions in one. echo pulls the subject away from the project, shows each filter as a chip that is one press from gone, and says how many notes it set aside.",
         alt: "The command palette holding “notes about caching in payments”: a removable Payments chip lifted out of the query, the subject left beside it, a count of what was set aside, and the payments notes listed underneath.",
       },
       {
         label: "Filing",
         title: "Every guess shows its reasons",
-        body: "echo suggests where a note belongs and shows the notes that led there — ones you can open and disagree with. The Inbox works the whole pile out first and moves nothing until you press it.",
+        body: "echo suggests where a note belongs and shows the notes that led there, ones you can open and disagree with. The Inbox works the whole pile out first and moves nothing until you press it.",
         alt: "The Inbox with ten notes to place. Each row offers one folder and, underneath, the reason: the notes already filed there, and the habit echo read out of them.",
       },
       {
@@ -115,7 +115,7 @@ export const en = {
 
   runIt: {
     title: "Three commands and it is yours",
-    body: "Real Postgres, compiled to WebAssembly, running in your tab. There is no server to point it at and no account behind it — which is why setup is a clone, an install and a dev server.",
+    body: "Real Postgres, compiled to WebAssembly, running in your tab. There is no server to point it at and no account behind it, which is why setup is a clone, an install and a dev server.",
     requirements: [
       ["Bun 1.3 or newer", "That is the entire list for the web app."],
       ["No .env, no key, no server", "Nothing to provision and nothing to sign into."],
@@ -133,7 +133,7 @@ export const en = {
        * Finished strings rather than one function of the target.
        *
        * This object is handed to `install-box.tsx`, which is a client component, and a function
-       * cannot cross that boundary — the build says so outright. The application's dictionary is
+       * cannot cross that boundary, and the build says so outright. The application's dictionary is
        * full of functions because everything reading it is already on the client; here the content
        * is serialised into the page, so every value has to be data.
        */
@@ -168,12 +168,21 @@ export const en = {
     ],
   },
 
+  support: {
+    label: "Support",
+    title: "Made by one person",
+    body: "echo is free, has no account and no paid tier. It stays that way. If it saved you an afternoon, buy me a coffee.",
+    cta: "Buy me a coffee",
+    note: "One off · no subscription",
+  },
+
   footer: {
     title: "Take it with you",
     lede: "Clone it, run it, keep it. No account to create, no trial to start, and nothing to switch off later.",
+    open: "Open echo",
     run: "Run it locally",
-    source: "Read the source on GitHub",
     tagline: "echo · local-first notes",
+    coffee: "Buy me a coffee",
     docs: "Read the docs",
   },
 };

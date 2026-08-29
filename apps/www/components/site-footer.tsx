@@ -1,7 +1,7 @@
 import { Cta } from "@/components/cta";
 import { Engraving } from "@/components/engraving";
 import { LanguageLink } from "@/components/language-link";
-import { REPO } from "@/components/links";
+import { APP, COFFEE, REPO } from "@/components/links";
 import type { Content } from "@/content/en";
 
 export const SiteFooter = ({ content }: { content: Content }) => (
@@ -28,11 +28,11 @@ export const SiteFooter = ({ content }: { content: Content }) => (
         <p className="prose-lede mx-auto mt-6 text-ink/85">{content.footer.lede}</p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Cta href="#install" tone="solid" size="lg">
-            {content.footer.run}
+          <Cta href={APP} tone="solid" size="lg">
+            {content.footer.open}
           </Cta>
-          <Cta href={REPO} tone="outline" size="lg">
-            {content.footer.source}
+          <Cta href="#install" tone="outline" size="lg">
+            {content.footer.run}
           </Cta>
         </div>
       </div>
@@ -47,6 +47,11 @@ export const SiteFooter = ({ content }: { content: Content }) => (
         <div className="flex items-center gap-5">
           {/* The switcher again at the foot, so the choice is reachable at both ends of a long page. */}
           <LanguageLink other={content.other} />
+          {/* Reachable at the foot as well as in its own section: a reader who scrolled past the
+              ask and then changed their mind should not have to scroll back up to act on it. */}
+          <a href={COFFEE} className="label text-ink/85 transition-colors hover:text-ink">
+            {content.footer.coffee}
+          </a>
           <a
             href={`${REPO}/tree/main/docs`}
             className="label text-ink/85 transition-colors hover:text-ink"

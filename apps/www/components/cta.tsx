@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /**
  * The page's call to action, in the three tones it actually speaks in.
  *
- * The hero and the footer make the same offer twice — run it, or read the source — and were two
+ * The hero and the footer make the same offer twice (run it, or read the source) and were two
  * copies of the same three class attributes, differing only in a step of horizontal padding. A
  * change of hover state had already been made in one of them and not the other.
  *

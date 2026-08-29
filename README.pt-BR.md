@@ -8,25 +8,22 @@
 
 # echo
 
-<!-- TODO: o app ainda não está hospedado (docs/STATE.md, "Deliberately not done: a hosted demo").
-     Troque https://echo.example.com pelo deploy real em QUATRO lugares: a linha de links e a linha
-     de badges abaixo, e os mesmos dois no README.md. -->
-
 <p align="center">
-  <a href="https://echo.example.com">Demo ao vivo</a> | <a href="https://github.com/luannzin/echo/releases/latest">echo para Desktop</a>
+  <a href="https://app.useecho.dev"><b>Testar o echo</b></a> · <a href="https://github.com/luannzin/echo/releases/latest">App desktop</a> · <a href="https://useecho.dev">Site</a>
 </p>
 
 <p align="center">
-  <a href="https://echo.example.com"><img src="https://img.shields.io/badge/Demo%20ao%20vivo-echo-1A1AFF?style=for-the-badge" alt="Demo ao vivo"></a>
+  <a href="https://app.useecho.dev"><img src="https://img.shields.io/badge/Testar-app.useecho.dev-1A1AFF?style=for-the-badge" alt="Testar o echo no navegador"></a>
   <a href="https://github.com/luannzin/echo/releases/latest"><img src="https://img.shields.io/badge/Desktop-macOS%2C%20Windows%2C%20Linux-1A1AFF?style=for-the-badge" alt="Versões desktop"></a>
   <a href="docs/"><img src="https://img.shields.io/badge/Docs-neste%20reposit%C3%B3rio-1A1AFF?style=for-the-badge" alt="Documentação"></a>
   <img src="https://img.shields.io/badge/Chave%20de%20IA-n%C3%A3o%20precisa-F2F4FF?style=for-the-badge&labelColor=1A1AFF" alt="Não precisa de chave de API de IA">
   <img src="https://img.shields.io/badge/Funciona-offline-1A1AFF?style=for-the-badge" alt="Funciona offline">
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3+-1A1AFF?style=for-the-badge&logo=bun&logoColor=white" alt="Bun 1.3+"></a>
+  <a href="https://buymeacoffee.com/luannzin"><img src="https://img.shields.io/badge/Me%20pague%20um%20caf%C3%A9-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Me pague um café"></a>
   <img src="https://img.shields.io/badge/Licen%C3%A7a-a%20definir-8A8A8A?style=for-the-badge" alt="Licença: a definir">
 </p>
 
-**O bloco de notas que aprende com você.** Escreva uma linha e aperte Enter. echo acha o prazo, a tarefa e as palavras que você repete — e devolve isso quando você precisa. Nada sai da sua máquina.
+**O bloco de notas que aprende com você.** Escreva uma linha e aperte Enter. echo acha o prazo, a tarefa e as palavras que você repete, e devolve isso quando você precisa. Nada sai da sua máquina.
 
 Não há provedor de modelo por trás disso. Busca, arquivamento e aprendizado são código comum rodando sobre as suas próprias notas, então **nenhum recurso essencial precisa de chave de API de IA**. Postgres de verdade, compilado para WebAssembly, roda no seu navegador e guarda as notas ali.
 
@@ -50,12 +47,12 @@ Não há provedor de modelo por trás disso. Busca, arquivamento e aprendizado s
 | | |
 | --- | --- |
 | **Nada para assinar** | Sem conta, sem chave, sem servidor, sem telemetria. Uma única coisa cruza a rede: um modelo de 120 MB, baixado uma vez, na primeira busca por sentido. |
-| **A busca separa a pergunta** | "notas sobre cache em pagamentos" são duas perguntas em uma. echo separa o assunto do projeto e mostra cada filtro como uma etiqueta que sai com um toque — e diz quantas notas ficaram de fora. |
+| **A busca separa a pergunta** | "notas sobre cache em pagamentos" são duas perguntas em uma. echo separa o assunto do projeto e mostra cada filtro como uma etiqueta que sai com um toque, e diz quantas notas ficaram de fora. |
 | **Todo palpite mostra o porquê** | A pasta sugerida vem acompanhada das notas que levaram até ela, que você pode abrir e contestar. A Entrada resolve a pilha inteira antes e só move quando você manda. |
 | **Ele aprende as suas palavras** | Você digita `k8s`. Metade das suas notas diz *kubernetes* e o resto diz *o cluster*. echo descobre isso só pelas suas notas, e buscar uma encontra a outra. |
 | **Uma pilha, quatro leituras** | Fluxo, lista de tarefas, linha do tempo e uma página para escrever. As tarefas e as datas saem de frases comuns, e a tarefa só existe onde você concordou com a etiqueta. |
 | **Feito para escrever** | Um campo que nunca sai da tela, Enter para salvar, `Ctrl/Cmd Z` para desfazer, comandos com barra, uma paleta de comandos, e um atalho de teclado para tudo que o mouse faz. |
-| **Seu em qualquer máquina** | Um PWA instalável que abre sem rede, e a mesma build numa janela Tauri no macOS, Windows e Linux — com um modo editor que o site nunca oferece. |
+| **Seu em qualquer máquina** | Um PWA instalável que abre sem rede, e a mesma build numa janela Tauri no macOS, Windows e Linux, com um modo editor que o site nunca oferece. |
 | **Seu assistente pode usar** | A versão desktop pode servir MCP no loopback, então um assistente na sua máquina lê e escreve notas pelas ferramentas do próprio echo. Desligado por padrão, ativo só enquanto o echo está aberto, e nada vai para um servidor. |
 | **Fala português e inglês** | Cada palavra da interface vem de um dicionário lido na renderização, e `bun run typecheck` é a checagem de tradução completa. |
 
@@ -63,7 +60,7 @@ Não há provedor de modelo por trás disso. Busca, arquivamento e aprendizado s
 
 ## Instalação
 
-Você precisa do [Bun](https://bun.sh) 1.3 ou mais novo. É a lista inteira para o app web.
+**[Abra o echo no navegador](https://app.useecho.dev).** Nada para instalar, sem conta. Para rodar por conta própria você precisa do [Bun](https://bun.sh) 1.3 ou mais novo, e é a lista inteira para o app web.
 
 ```bash
 git clone https://github.com/luannzin/echo.git
@@ -123,10 +120,10 @@ Duas palavras são a mesma palavra quando você escreve uma *no lugar* da outra,
 | **A busca acompanha a digitação** | Um índice GIN sobre um `tsvector` guardado, não uma varredura. Dez mil notas respondem em 21 ms, e as relacionadas em 8 ms. O sentido chega um instante depois e reordena as respostas, sem segurar nada. |
 | **Offline é o caso normal** | O service worker não faz precache: o documento vem da rede primeiro, então uma interface velha nunca prende você a uma build antiga, e o resto vem do cache primeiro porque é endereçado por conteúdo. |
 | **Esquecer é de verdade** | As regras aprendidas são refeitas na leitura e nunca ficam guardadas, então "esquecer isso" é apagar e não marcar uma bandeira que alguma outra parte ainda consulta. |
-| **A versão desktop é o mesmo código** | Tauri v2 em volta do mesmo export estático. O lado Rust é uma janela e nada mais — o banco, a busca e o aprendizado rodam no app web em qualquer host. |
+| **A versão desktop é o mesmo código** | Tauri v2 em volta do mesmo export estático. O lado Rust é uma janela e nada mais: o banco, a busca e o aprendizado rodam no app web em qualquer host. |
 | **O banco é Postgres de verdade** | PGlite no navegador agora, as mesmas migrations num servidor depois. Nada fora do `@echo/db` escreve SQL. |
 
-O desenvolvimento roda no Turbopack e a produção no webpack (`next build --webpack`): o Turbopack compila errado o módulo de runtime do PGlite, e o resultado é um app que carrega e não consegue abrir o próprio banco — visível só num export buildado. O `apps/web/next.config.ts` registra os detalhes.
+O desenvolvimento roda no Turbopack e a produção no webpack (`next build --webpack`): o Turbopack compila errado o módulo de runtime do PGlite, e o resultado é um app que carrega e não consegue abrir o próprio banco, visível só num export buildado. O `apps/web/next.config.ts` registra os detalhes.
 
 ---
 
@@ -176,11 +173,11 @@ Um pacote de domínio nunca guarda uma frase: o `@echo/search` devolve códigos 
 
 ## Situação
 
-**Funciona hoje.** Captura, busca, notas relacionadas, pastas aninhadas, triagem na Entrada, tarefas, linha do tempo, configurações, modo editor, a superfície de escrita e os comandos com barra, dois idiomas, o PWA e a casca desktop — tudo local, na sua máquina.
+**Funciona hoje.** Captura, busca, notas relacionadas, pastas aninhadas, triagem na Entrada, tarefas, linha do tempo, configurações, modo editor, a superfície de escrita e os comandos com barra, dois idiomas, o PWA e a casca desktop. Tudo local, na sua máquina.
 
 **A seguir: sync.** Um protocolo de log de mudanças, um servidor Postgres rodando as mesmas migrations, tratamento explícito de conflito e autenticação. Não entrega nada até estar pronto, então fica por último.
 
-**Ainda não construído.** Projetos como entidade própria, uma demo hospedada, e CI. O [docs/STATE.md](docs/STATE.md) mantém a lista honesta de lacunas e dívidas, e é a primeira coisa a ler antes de mexer em qualquer coisa.
+**Ainda não construído.** Projetos como entidade própria, e CI. O [docs/STATE.md](docs/STATE.md) mantém a lista honesta de lacunas e dívidas, e é a primeira coisa a ler antes de mexer em qualquer coisa.
 
 ---
 
@@ -206,7 +203,17 @@ cd echo && bun install
 bun run typecheck && bun run lint && bun run test
 ```
 
-Leia o [AGENTS.md](AGENTS.md) primeiro — é o contrato de trabalho, e toda pasta que tem um próprio está indexada no fim dele. A versão curta: só TypeScript, arrow functions, um componente por arquivo, o Biome decide a formatação, mudança de schema passa por `bun run --cwd packages/db db:generate`, e cada palavra da interface vem de `apps/web/shared/lib/i18n`.
+Leia o [AGENTS.md](AGENTS.md) primeiro. É o contrato de trabalho, e toda pasta que tem um próprio está indexada no fim dele. A versão curta: só TypeScript, arrow functions, um componente por arquivo, o Biome decide a formatação, mudança de schema passa por `bun run --cwd packages/db db:generate`, e cada palavra da interface vem de `apps/web/shared/lib/i18n`.
+
+---
+
+## Apoie
+
+echo é gratuito, sem conta e sem plano pago. Vai continuar assim, e é feito por uma pessoa só, em aberto.
+
+Se ele te poupou uma tarde, [me pague um café](https://buymeacoffee.com/luannzin). Uma vez só, sem assinatura.
+
+<a href="https://buymeacoffee.com/luannzin"><img src="https://img.shields.io/badge/Me%20pague%20um%20caf%C3%A9-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Me pague um café"></a>
 
 ---
 

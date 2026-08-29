@@ -5,6 +5,7 @@ import { Reel } from "@/components/reel";
 import { RunIt } from "@/components/run-it";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
+import { Support } from "@/components/support";
 import { Tour } from "@/components/tour";
 import type { Content } from "@/content/en";
 
@@ -26,6 +27,7 @@ export const Page = ({ content }: { content: Content }) => (
     <Tour content={content} />
     <RunIt content={content} />
     <Facts content={content} />
+    <Support content={content} />
     <SiteFooter content={content} />
   </main>
 );

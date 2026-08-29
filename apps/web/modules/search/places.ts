@@ -3,7 +3,7 @@ import type { Category, Folder, Note } from "@echo/types";
 import type { NoteLabels } from "@/shared/lib/categories";
 
 /**
- * Everywhere the reader has made, so a question can name one — "notes about auth in my Work
+ * Everywhere the reader has made, so a question can name one: "notes about auth in my Work
  * projects". Folders and categories go in one list because a question does not distinguish them:
  * whoever asked was naming a place, not choosing a mechanism.
  */
@@ -21,7 +21,7 @@ export const placesOf = (folders: Folder[], categories: Category[]): Place[] => 
 ];
 
 /**
- * When each project started, for a question anchored to one — "desde que comecei HEREZE". A project
+ * When each project started, for a question anchored to one: "desde que comecei HEREZE". A project
  * began when its first note was written, so this is the earliest note carrying its name.
  *
  * The names are read into maps first rather than looked up per note: the notes are the list that

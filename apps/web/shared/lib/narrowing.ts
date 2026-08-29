@@ -4,8 +4,8 @@ import type { Category, Folder, Note, NoteCategory } from "@echo/types";
 /**
  * What the reader has narrowed to, and what that narrowing is called.
  *
- * One selection answers three surfaces — the note list, the timeline's heading, and the project
- * brief — so both halves of it live together rather than being worked out again wherever they are
+ * One selection answers three surfaces (the note list, the timeline's heading, and the project
+ * brief), so both halves of it live together rather than being worked out again wherever they are
  * needed. A folder and a category are alternatives, not a pair: choosing one clears the other, and
  * the category wins here only because the caller cannot hold both.
  */

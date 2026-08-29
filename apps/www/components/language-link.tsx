@@ -5,7 +5,7 @@ import type { Content } from "@/content/en";
  *
  * A link, not a redirect. Sending a visitor whose browser says `pt` to the Portuguese document would
  * break the back button, split the crawl, and take the choice away from the many Brazilians who read
- * documentation in English on purpose — so the site says which languages it has and lets them pick.
+ * documentation in English on purpose, so the site says which languages it has and lets them pick.
  * The label is written in the language it leads to, which is the one word a reader of that language
  * is certain to recognise.
  *

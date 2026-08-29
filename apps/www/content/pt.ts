@@ -5,12 +5,12 @@ import type { Content } from "@/content/en";
  *
  * Written to fit rather than translated and then patched. `.label` is mono, uppercase and tracked at
  * `0.18em`, which is the least forgiving specification on either surface, and Portuguese runs twenty
- * to thirty percent longer than English — so a shorter true sentence beats a faithful one that wraps
+ * to thirty percent longer than English, so a shorter true sentence beats a faithful one that wraps
  * into three lines of tracked capitals.
  *
  * This is the document the copy is written in first, and `en.ts` follows it. Everything here answers
  * one question in one breath: what does echo do with the line I just typed? The long paragraphs this
- * replaces were accurate and nobody finished them — every claim now runs to two sentences, the
+ * replaces were accurate and nobody finished them. Every claim now runs to two sentences, the
  * metaphors that only ever worked in English are gone ("duas perguntas vestindo um casaco só"), and
  * the jargon that proved nothing to a reader who was not already convinced went with them.
  *
@@ -32,16 +32,16 @@ export const pt: Content = {
       { label: "Como roda", href: "#facts" },
       { label: "GitHub", href: null },
     ],
-    run: "Rodar localmente",
+    open: "Abrir o echo",
   },
 
   hero: {
     eyebrow: "Sem IA · Código aberto · Roda na sua máquina · Sem conta",
     title: "O bloco de notas que aprende com você",
-    lede: "Escreva uma linha e aperte Enter. echo acha o prazo, a tarefa e as palavras que você repete — e devolve isso quando você precisa. Nada sai da sua máquina.",
+    lede: "Escreva uma linha e aperte Enter. echo acha o prazo, a tarefa e as palavras que você repete, e devolve isso quando você precisa. Nada sai da sua máquina.",
+    open: "Abrir o echo",
     watch: "Ver funcionando ↓",
     run: "Rodar localmente",
-    source: "Ler o código no GitHub",
   },
 
   reel: {
@@ -59,20 +59,20 @@ export const pt: Content = {
       {
         label: "Busca",
         title: "Pergunte como você perguntaria a uma pessoa",
-        body: "“notas sobre cache em pagamentos” são duas perguntas em uma. echo separa o assunto do projeto e mostra cada filtro como uma etiqueta que sai com um toque — e diz quantas notas ficaram de fora.",
+        body: "“notas sobre cache em pagamentos” são duas perguntas em uma. echo separa o assunto do projeto, mostra cada filtro como uma etiqueta que sai com um toque, e diz quantas notas ficaram de fora.",
         alt: "A paleta de comandos com “notas sobre cache em pagamentos”: uma etiqueta de Pagamentos tirada da pergunta, o assunto ao lado, a contagem do que ficou de fora, e as notas de pagamentos listadas abaixo.",
       },
       {
         label: "Arquivar",
         title: "Todo palpite mostra o porquê",
-        body: "echo sugere onde a nota se encaixa e mostra as notas que levaram até ali — dá para abrir e discordar. A Entrada resolve a pilha inteira antes e só move quando você manda.",
+        body: "echo sugere onde a nota se encaixa e mostra as notas que levaram até ali, que você pode abrir e contestar. A Entrada resolve a pilha inteira antes e só move quando você manda.",
         alt: "A Entrada com dez notas para guardar. Cada linha oferece uma pasta e, abaixo, o motivo: as notas já guardadas ali e o hábito que echo leu nelas.",
       },
       {
         label: "Relacionadas",
         title: "Abra uma nota e as parecidas vêm junto",
         body: "O painel ao lado diz o motivo em palavras, não em porcentagem: mesmo projeto, mesma época, você costuma abrir as duas juntas. Os conceitos no alto saíram da própria nota.",
-        alt: "Uma nota sobre novas tentativas de pagamento aberta no echo, com os conceitos no alto e, ao lado, as notas relacionadas — cada uma dizendo por que está ali.",
+        alt: "Uma nota sobre novas tentativas de pagamento aberta no echo, com os conceitos no alto e, ao lado, as notas relacionadas, cada uma dizendo por que está ali.",
       },
       {
         label: "Vocabulário",
@@ -113,7 +113,7 @@ export const pt: Content = {
 
   runIt: {
     title: "Três comandos e ele é seu",
-    body: "Postgres de verdade, compilado para WebAssembly, rodando na sua aba. Não há servidor para apontar nem conta por trás — por isso a instalação é um clone, um install e um dev server.",
+    body: "Postgres de verdade, compilado para WebAssembly, rodando na sua aba. Não há servidor para apontar nem conta por trás, e por isso a instalação é um clone, um install e um dev server.",
     requirements: [
       ["Bun 1.3 ou mais novo", "É a lista inteira para o app web."],
       ["Sem .env, sem chave, sem servidor", "Nada para provisionar nem para assinar."],
@@ -158,12 +158,21 @@ export const pt: Content = {
     ],
   },
 
+  support: {
+    label: "Apoie",
+    title: "Feito por uma pessoa só",
+    body: "echo é gratuito, sem conta e sem plano pago. Vai continuar assim. Se ele te poupou uma tarde, me pague um café.",
+    cta: "Me pague um café",
+    note: "Uma vez só · sem assinatura",
+  },
+
   footer: {
     title: "Leve com você",
     lede: "Clone, rode, guarde. Sem conta para criar, sem teste para começar, sem nada para desligar depois.",
+    open: "Abrir o echo",
     run: "Rodar localmente",
-    source: "Ler o código no GitHub",
     tagline: "echo · notas local-first",
+    coffee: "Me pague um café",
     docs: "Ler a documentação",
   },
 };

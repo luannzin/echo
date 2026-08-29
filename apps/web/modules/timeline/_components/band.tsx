@@ -7,7 +7,7 @@ import { Label } from "@/shared/_components/label";
 /**
  * One of the blocks that sits above the days: the brief, what changed, what this week holds.
  *
- * They are the same object — a soft-ruled card carrying a labelled heading — and were three copies
+ * They are the same object, a soft-ruled card carrying a labelled heading, and were three copies
  * of the same class attribute, one of which had quietly drifted to a different vertical padding.
  *
  * `lit` is the one variation that means something: what changed while you were away is the only

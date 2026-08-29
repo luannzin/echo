@@ -37,7 +37,32 @@ const SCANLINES = Array.from({ length: 46 }, (_, index) => ({
 
 const MESH = Array.from({ length: 26 }, (_, index) => index / 25);
 
-export type Plate = "burst" | "orb" | "spiral" | "field" | "mesh" | "wave";
+/**
+ * The cup, ruled like the orb's latitudes so it reads as engraved rather than drawn: the body is a
+ * stack of ellipses that narrow towards the base, which is what gives a flat taper its volume.
+ */
+const CUP_RULES = Array.from({ length: 13 }, (_, index) => {
+  const t = (index + 1) / 14;
+  return { y: 154 + t * 62, rx: 58 - t * 20, ry: 4 + (1 - t) * 6 };
+});
+
+/**
+ * Three curls of steam, widening as they rise and thinning as they go. The amplitude is multiplied
+ * by `t` so each one leaves the surface straight and only starts to wander further up, which is the
+ * difference between steam and a decorative squiggle.
+ */
+const STEAM = [-38, 2, 38].map((offset, index) => ({
+  key: `steam-${offset}`,
+  width: 2.2 - index * 0.3,
+  d: Array.from({ length: 30 }, (_, step) => {
+    const t = step / 29;
+    const y = 132 - t * (132 - (38 + (index % 2) * 16));
+    const x = 160 + offset + Math.sin(t * Math.PI * 2.1 + index * 1.7) * (11 + index * 4) * t;
+    return `${step === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(""),
+}));
+
+export type Plate = "burst" | "orb" | "spiral" | "field" | "mesh" | "wave" | "cup";
 
 const plates: Record<Plate, React.ReactNode> = {
   burst: (
@@ -114,6 +139,68 @@ const plates: Record<Plate, React.ReactNode> = {
       </g>
       <circle cx="160" cy="160" r="54" fill="white" />
       <circle cx="160" cy="160" r="54" fill="url(#sphere)" />
+    </>
+  ),
+  /**
+   * The only plate that is a thing rather than a pattern, and it is still a plate: greyscale line
+   * work over a gradient, printed through the same dither as the rays and the spiral. Drawn rather
+   * than fetched as an icon so it holds at any size and takes its two colours from the theme.
+   */
+  cup: (
+    <>
+      <circle cx="160" cy="150" r="152" fill="url(#glow)" opacity="0.5" />
+
+      <g fill="none" stroke="white" strokeLinecap="round" opacity="0.8">
+        {STEAM.map((curl) => (
+          <path key={curl.key} d={curl.d} strokeWidth={curl.width} />
+        ))}
+      </g>
+
+      {/* The saucer, under everything, so the cup sits on it rather than in front of it. */}
+      <ellipse cx="160" cy="242" rx="108" ry="22" fill="none" stroke="white" strokeWidth="2.4" />
+      <ellipse
+        cx="160"
+        cy="238"
+        rx="80"
+        ry="15"
+        fill="none"
+        stroke="white"
+        strokeWidth="1"
+        opacity="0.75"
+      />
+
+      {/* The handle is drawn twice: a wide white stroke, then a narrower black one down its middle,
+          which is how a loop reads as a ring rather than as a solid ear. */}
+      <path d="M212 174 C 262 170 264 214 203 210" fill="none" stroke="white" strokeWidth="7" />
+      <path d="M212 174 C 262 170 264 214 203 210" fill="none" stroke="black" strokeWidth="2.4" />
+
+      <path d="M102 154 L120 220 Q160 236 200 220 L218 154 Z" fill="url(#sphere)" />
+      <g fill="none" stroke="white" strokeWidth="1" opacity="0.62">
+        {CUP_RULES.map((rule) => (
+          <ellipse key={rule.y} cx="160" cy={rule.y} rx={rule.rx} ry={rule.ry} />
+        ))}
+      </g>
+      <path
+        d="M102 154 L120 220 Q160 236 200 220 L218 154"
+        fill="none"
+        stroke="white"
+        strokeWidth="2.4"
+      />
+
+      {/* The rim last, and the coffee inside it lit from the same corner as every other plate. */}
+      <ellipse cx="160" cy="154" rx="58" ry="16" fill="black" />
+      <ellipse cx="160" cy="154" rx="58" ry="16" fill="url(#glow)" />
+      <ellipse cx="160" cy="154" rx="58" ry="16" fill="none" stroke="white" strokeWidth="2.6" />
+      <ellipse
+        cx="160"
+        cy="154"
+        rx="42"
+        ry="10"
+        fill="none"
+        stroke="white"
+        strokeWidth="1"
+        opacity="0.55"
+      />
     </>
   ),
 };

@@ -595,9 +595,12 @@ discipline stayed; the structure did not.
   pooler note bound for Prod) rather than the author's own project names. The counts, chips and
   reason sentences keep the exact shape the app produced in the S1–S4 verifications; only the note
   titles changed.
-- Deliberately not done: a hosted demo. Everything still converts to `git clone`, which is the
-  largest remaining conversion loss on the page and a deploy rather than a design. `apps/web` is a
-  static export with no server and no account, so it is a folder of files away from having a URL.
+- Done since: the hosted demo. `apps/web` is a static export with no server and no account, so it
+  was a folder of files away from having a URL, and it now has one — `app.useecho.dev`, with the
+  site itself on `useecho.dev`. That closes the largest conversion loss on the page: the primary
+  call to action in the nav, the hero and the footer is **Open echo** rather than `git clone`, and
+  running it yourself is offered one step quieter. Both URLs are written down once, in
+  `apps/www/components/links.tsx`.
 
 Verified: `bun run lint` clean, `bun run --cwd apps/www typecheck` clean, `bun run --cwd apps/www
 build` exports the same three static routes. Read at 1440, 1280, 768 and 375 with no horizontal

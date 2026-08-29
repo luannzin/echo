@@ -14,9 +14,9 @@ import { copy } from "@/shared/lib/i18n";
 /**
  * The third column: what echo thinks this is next to, and what it has learned from being corrected.
  *
- * Two panes that always appear together and always in this order — the notes first, because they are
- * about what is on screen now, and the learned rules underneath, because they are about the reader's
- * habits and are read once a week rather than once a minute.
+ * Two panes that always appear together and always in this order. The notes come first, because
+ * they are about what is on screen now, and the learned rules go underneath, because they are about
+ * the reader's habits and are read once a week rather than once a minute.
  */
 export const IntelligencePanel = ({
   related,

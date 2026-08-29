@@ -1,6 +1,6 @@
 import { Cta } from "@/components/cta";
 import { Engraving } from "@/components/engraving";
-import { REPO } from "@/components/links";
+import { APP } from "@/components/links";
 import { WordReveal } from "@/components/word-reveal";
 import type { Content } from "@/content/en";
 
@@ -46,14 +46,20 @@ export const Hero = ({ content }: { content: Content }) => (
         </p>
 
         <div className="beat mt-9 flex flex-wrap items-center gap-3" style={beat(660)}>
-          <Cta href="#reel" tone="solid">
+          {/*
+           * The order is the conversion, not the design. Until the app was hosted every path here
+           * ended at `git clone`, which is an ask only a reader who is already sold will complete;
+           * the thing that turns a visitor into a user is a URL that opens the product. Running it
+           * yourself stays offered, one step quieter, because it is the promise the page makes.
+           */}
+          <Cta href={APP} tone="solid">
+            {content.hero.open}
+          </Cta>
+          <Cta href="#reel" tone="outline">
             {content.hero.watch}
           </Cta>
-          <Cta href="#install" tone="outline">
+          <Cta href="#install" tone="quiet">
             {content.hero.run}
-          </Cta>
-          <Cta href={REPO} tone="quiet">
-            {content.hero.source}
           </Cta>
         </div>
       </div>

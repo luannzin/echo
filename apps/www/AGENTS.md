@@ -61,6 +61,10 @@ section.
   rule has one: the Inbox arguing for a folder is worth more as the thing itself than as a drawing
   of it, and a drawing is where a claim quietly stops being true. `public/shots/*.webp` and
   `public/reel/*` are captures of `apps/web` running against a real corpus, never mockups.
+- The `cup` plate is the one engraving that draws an object rather than a pattern, and it is still a
+  plate: greyscale line work over a gradient, printed through the same dither. It is drawn rather
+  than imported as a coffee glyph so it holds at any density and takes its two colours from the
+  theme. An icon set would have broken both rules at once.
 - **Every capture is of the app as it actually is.** Re-take them when the interface moves; a
   screenshot of a build that no longer exists is a lie with a timestamp. The reel is 2560x1440 so it
   is sharp on the monitors this page is read on, 16:9 so `.reel-video` crops nothing, and about
@@ -73,7 +77,20 @@ section.
   than someone else's. `alt` text describes what is in the file and inherits that honesty: if it
   names a count, the count has to be on screen.
 - Filters take their colours from CSS custom properties through `flood-color`, so no filter, plate or
-  component carries a hex value. `components/links.tsx` is the only place a URL is written down.
+  component carries a hex value. `components/links.tsx` is the only place a URL is written down:
+  `SITE` (`useecho.dev`, what the canonical tags resolve against), `APP` (`app.useecho.dev`, the
+  hosted build), `REPO` and `COFFEE`.
+- **The primary action is opening the app, everywhere it appears.** The nav button, the hero's first
+  button and the footer's first button all go to `APP`; running it yourself is offered one step
+  quieter, and reading the source lives in the nav and the footer rather than in the hero. Before
+  the app was hosted every path on this page ended at `git clone`, which only a reader who is
+  already sold will complete — that was the largest conversion loss on the site and it was a deploy,
+  not a design.
+- **The support section asks once, and late.** `components/support.tsx` sits after the facts band and
+  before the closing line, because a reader who has not yet seen the product work has nothing to
+  thank anyone for. It names the exchange rather than appealing — there is no paid tier, so this is
+  the only way to give anything back — and it asks for one coffee rather than an open-ended amount.
+  No banner, no sticky bar, no second ask: the footer carries a quiet repeat and that is all.
 - Motion is CSS, not JavaScript. There is no scroll listener, no observer and no motion library on
   this page, and all of it sits inside `@media (prefers-reduced-motion: no-preference)`. Two kinds:
   - **Below the fold, scroll-driven** (`animation-timeline: view()`): `.parallax`, `.reveal`,

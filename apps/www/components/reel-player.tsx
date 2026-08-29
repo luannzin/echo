@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
  *
  * On the page it is ambient: a silent loop that runs behind the fold's light, faded out at the foot
  * so it becomes the spectrum rather than ending on a line. That fade is the reason this needs a
- * second control at all — the bottom third of the recording is deliberately dissolving into the
+ * second control at all. The bottom third of the recording is deliberately dissolving into the
  * background, so anything that happens down there is unreadable by design.
  *
  * So the ambient loop keeps its motion switch, and **Play demo** opens the same file in a dialog at

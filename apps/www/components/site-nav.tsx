@@ -1,5 +1,5 @@
 import { LanguageLink } from "@/components/language-link";
-import { REPO } from "@/components/links";
+import { APP, REPO } from "@/components/links";
 import type { Content } from "@/content/en";
 
 /**
@@ -31,10 +31,10 @@ export const SiteNav = ({ content }: { content: Content }) => (
           className="underline decoration-ink/30 underline-offset-4"
         />
         <a
-          href="#install"
+          href={APP}
           className="press label border rule-ink px-3.5 py-2 text-ink/85 transition-colors hover:bg-ink hover:text-brand"
         >
-          {content.nav.run}
+          {content.nav.open}
         </a>
       </div>
     </nav>

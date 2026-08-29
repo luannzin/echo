@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import type { ReactNode } from "react";
 import { Filters } from "@/components/filters";
+import { SITE } from "@/components/links";
 import { en } from "@/content/en";
 import "../globals.css";
 
@@ -16,6 +17,12 @@ const display = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
+  /**
+   * The site has a domain now, so `canonical`, `alternates` and the social card resolve against it
+   * rather than against whatever host happens to be serving the export. Without a base, Next leaves
+   * these relative and a crawler reading the page from a preview URL canonicalises to the preview.
+   */
+  metadataBase: new URL(SITE),
   title: en.meta.title,
   description: en.meta.description,
   /**

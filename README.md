@@ -8,25 +8,22 @@
 
 # echo
 
-<!-- TODO: the app is not hosted yet (docs/STATE.md, "Deliberately not done: a hosted demo").
-     Swap https://echo.example.com for the real deploy in FOUR places: the link row and the badge
-     row below, and the same two in README.pt-BR.md. -->
-
 <p align="center">
-  <a href="https://echo.example.com">Live Demo</a> | <a href="https://github.com/luannzin/echo/releases/latest">echo for Desktop</a>
+  <a href="https://app.useecho.dev"><b>Try echo</b></a> · <a href="https://github.com/luannzin/echo/releases/latest">Desktop app</a> · <a href="https://useecho.dev">Website</a>
 </p>
 
 <p align="center">
-  <a href="https://echo.example.com"><img src="https://img.shields.io/badge/Live%20demo-echo-1A1AFF?style=for-the-badge" alt="Live demo"></a>
+  <a href="https://app.useecho.dev"><img src="https://img.shields.io/badge/Try%20it-app.useecho.dev-1A1AFF?style=for-the-badge" alt="Try echo in your browser"></a>
   <a href="https://github.com/luannzin/echo/releases/latest"><img src="https://img.shields.io/badge/Desktop-macOS%2C%20Windows%2C%20Linux-1A1AFF?style=for-the-badge" alt="Desktop builds"></a>
   <a href="docs/"><img src="https://img.shields.io/badge/Docs-in%20this%20repo-1A1AFF?style=for-the-badge" alt="Documentation"></a>
   <img src="https://img.shields.io/badge/AI%20API%20key-not%20required-F2F4FF?style=for-the-badge&labelColor=1A1AFF" alt="No AI API key required">
   <img src="https://img.shields.io/badge/Works-offline-1A1AFF?style=for-the-badge" alt="Works offline">
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-1.3+-1A1AFF?style=for-the-badge&logo=bun&logoColor=white" alt="Bun 1.3+"></a>
+  <a href="https://buymeacoffee.com/luannzin"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy me a coffee"></a>
   <img src="https://img.shields.io/badge/License-TBD-8A8A8A?style=for-the-badge" alt="License: TBD">
 </p>
 
-**The note taker that learns with you.** Write one line and press Enter. echo finds the deadline, the task and the words you keep using — and hands them back when you need them. Nothing leaves your machine.
+**The note taker that learns with you.** Write one line and press Enter. echo finds the deadline, the task and the words you keep using, then hands them back when you need them. Nothing leaves your machine.
 
 No model provider is involved. Search, filing and learning are ordinary code running over your own notes, so **no core feature ever needs an AI API key**. Real Postgres, compiled to WebAssembly, runs in your browser and keeps your notes there.
 
@@ -50,12 +47,12 @@ No model provider is involved. Search, filing and learning are ordinary code run
 | | |
 | --- | --- |
 | **Nothing to sign into** | No account, no key, no server, no telemetry. One thing crosses the network: a 120 MB embedding model, fetched once when you first search by meaning. |
-| **Search takes the question apart** | "notes about caching in payments" is two questions in one. echo separates the subject from the project and shows each filter as a chip that is one press from gone — and says how many notes it set aside. |
+| **Search takes the question apart** | "notes about caching in payments" is two questions in one. echo separates the subject from the project and shows each filter as a chip that is one press from gone, and says how many notes it set aside. |
 | **Every guess shows its reasons** | A suggested folder arrives with the notes that argued for it, which you can open and disagree with. The Inbox works the whole pile out first and moves nothing until you press it. |
 | **It learns your words** | You type `k8s`. Half your notes say *kubernetes* and the rest say *the cluster*. echo works that out from your notes alone, so searching one finds the other. |
 | **One pile, read four ways** | A stream, a task list, a timeline, and a page you write on. Tasks and dates are lifted out of ordinary sentences, and a task exists only where you agreed to the chip. |
 | **Made to be written in** | A composer that never leaves the screen, Enter to commit, `Ctrl/Cmd Z` to undo, slash commands, a command palette, and a keyboard twin for every pointer affordance. |
-| **Yours on every machine** | An installable PWA that opens with no network, and the same build in a Tauri window on macOS, Windows and Linux — with an editor mode the website never offers. |
+| **Yours on every machine** | An installable PWA that opens with no network, and the same build in a Tauri window on macOS, Windows and Linux, with an editor mode the website never offers. |
 | **Your assistant can use it** | The desktop build can serve MCP over loopback, so an assistant on your machine reads and writes notes through echo's own tools. Off by default, alive only while echo is open, and nothing goes to a server. |
 | **English and Portuguese** | Every word the interface says is read from a dictionary at render, and `bun run typecheck` is the translation completeness check. |
 
@@ -63,7 +60,7 @@ No model provider is involved. Search, filing and learning are ordinary code run
 
 ## Install
 
-You need [Bun](https://bun.sh) 1.3 or newer. That is the entire list for the web app.
+**[Open echo in your browser](https://app.useecho.dev).** Nothing to install, no account. To run it yourself you need [Bun](https://bun.sh) 1.3 or newer, and that is the entire list for the web app.
 
 ```bash
 git clone https://github.com/luannzin/echo.git
@@ -123,10 +120,10 @@ Two words are the same word when you write one *instead* of the other, so aliase
 | **Search keeps up with typing** | A GIN index over a stored `tsvector`, not a scan. Ten thousand notes answer in 21 ms, related notes in 8 ms. Meaning arrives a moment later and re-orders the answers rather than holding them up. |
 | **Offline is the normal case** | The service worker precaches nothing: the document is network-first so a stale shell can never pin you to an old build, and everything else is cache-first because it is content-addressed. |
 | **Forgetting is real** | Learned rules are derived on read and never written down, so "forget this" is a delete rather than a flag something else might still consult. |
-| **The desktop build is the same code** | Tauri v2 around the same static export. The Rust side is a window and nothing else — the database, the search and the learning run in the web app on every host. |
+| **The desktop build is the same code** | Tauri v2 around the same static export. The Rust side is a window and nothing else: the database, the search and the learning run in the web app on every host. |
 | **The database is real Postgres** | PGlite in the browser now, the same migrations on a server later. Nothing outside `@echo/db` writes SQL. |
 
-Development runs on Turbopack and production on webpack (`next build --webpack`): Turbopack miscompiles PGlite's runtime module, and the result is an app that loads and then cannot open its database — visible only in a built export. `apps/web/next.config.ts` records the details.
+Development runs on Turbopack and production on webpack (`next build --webpack`): Turbopack miscompiles PGlite's runtime module, and the result is an app that loads and then cannot open its database, visible only in a built export. `apps/web/next.config.ts` records the details.
 
 ---
 
@@ -176,11 +173,11 @@ A domain package never holds a sentence: `@echo/search` returns reason codes, an
 
 ## Status
 
-**Works today.** Capture, search, related notes, nested folders, Inbox triage, tasks, the timeline, settings, editor mode, the writing surface and slash commands, two languages, the PWA and the desktop shell — all locally, on your machine.
+**Works today.** Capture, search, related notes, nested folders, Inbox triage, tasks, the timeline, settings, editor mode, the writing surface and slash commands, two languages, the PWA and the desktop shell. All of it locally, on your machine.
 
 **Next: sync.** A change-log protocol, a Postgres server running the same migrations, explicit conflict handling and auth. It delivers nothing until it is finished, so it goes last.
 
-**Not built yet.** Projects as an entity of their own, a hosted demo, and CI. [docs/STATE.md](docs/STATE.md) keeps the honest list of gaps and debt, and it is the first thing to read before touching anything.
+**Not built yet.** Projects as an entity of their own, and CI. [docs/STATE.md](docs/STATE.md) keeps the honest list of gaps and debt, and it is the first thing to read before touching anything.
 
 ---
 
@@ -204,7 +201,17 @@ cd echo && bun install
 bun run typecheck && bun run lint && bun run test
 ```
 
-Read [AGENTS.md](AGENTS.md) first — it is the working contract, and every folder with one of its own is indexed at the bottom. The short version: TypeScript only, arrow functions, one component per file, Biome decides formatting, schema changes go through `bun run --cwd packages/db db:generate`, and every word the interface says comes from `apps/web/shared/lib/i18n`.
+Read [AGENTS.md](AGENTS.md) first. It is the working contract, and every folder with one of its own is indexed at the bottom. The short version: TypeScript only, arrow functions, one component per file, Biome decides formatting, schema changes go through `bun run --cwd packages/db db:generate`, and every word the interface says comes from `apps/web/shared/lib/i18n`.
+
+---
+
+## Support
+
+echo is free, has no account and no paid tier. It stays that way, and it is made by one person in the open.
+
+If it saved you an afternoon, [buy me a coffee](https://buymeacoffee.com/luannzin). One off, no subscription.
+
+<a href="https://buymeacoffee.com/luannzin"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy me a coffee"></a>
 
 ---
 
