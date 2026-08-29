@@ -9,6 +9,11 @@ import { isDesktopApp } from "@/shared/lib/tauri";
  * bus and the main window stays the only thing that writes. Which is also why pinning a tab closes
  * it: while a note is on the desktop, the sticky note is the one place it is being edited.
  *
+ * Sending a note back hides its window rather than closing it, and pinning the note again shows the
+ * same window. Destroying an always-on-top undecorated window is what leaves a dead card on the
+ * desktop under GNOME; see `app/postit/page.tsx`. So nothing here is ever destroyed, and a note
+ * that has been out on the desktop once keeps its webview for the rest of the session.
+ *
  * ponytail: last write wins if the same note is somehow opened in both at once. A tab that pins
  * closes, so getting there means going looking for it.
  */
@@ -44,7 +49,14 @@ export const openPostit = async (noteId: string): Promise<boolean> => {
 
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
+    // A window that was hidden rather than closed, being opened again. It is already running, so it
+    // will not ask for the words the way a window that has just loaded does — the ask is made here
+    // on its behalf, and answered by the same listener in the main window that answers the other.
+    // Which matters: the note may well have been edited in the app since this window last held it.
+    const { emit } = await import("@tauri-apps/api/event");
+    await existing.show();
     await existing.setFocus();
+    await emit(POSTIT_READY, { noteId });
     return true;
   }
 

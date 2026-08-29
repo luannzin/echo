@@ -3,7 +3,7 @@
 import type { EmbedderStatus } from "@echo/embeddings";
 import type { LearnedRule } from "@echo/learning";
 import type { Folder, Note } from "@echo/types";
-import { Download, ExternalLink, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
@@ -22,6 +22,7 @@ import {
 } from "@/shared/lib/appearance";
 import { eraseEverything } from "@/shared/lib/erase";
 import { copy, LOCALE_SPECS, LOCALES, type Locale } from "@/shared/lib/i18n";
+import { MCP_ADDRESS, type McpEndpoint } from "@/shared/lib/mcp";
 import { readChoice, STORAGE, writeChoice } from "@/shared/lib/preferences";
 import { saveCopy } from "@/shared/lib/save-copy";
 import { type Shortcut, shortcutLabel } from "@/shared/lib/shortcuts";
@@ -62,6 +63,8 @@ export const Settings = ({
   version,
   onReplayTour,
   onRestoreChecklist,
+  assistants,
+  onAssistantsChange,
 }: {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
@@ -77,6 +80,9 @@ export const Settings = ({
   /** Absent until the tour exists to be replayed. */
   onReplayTour?: () => void;
   onRestoreChecklist?: () => void;
+  /** Where an assistant may reach echo, or `null` while nothing may. Absent off the desktop app. */
+  assistants?: McpEndpoint | null;
+  onAssistantsChange?: (on: boolean) => Promise<void>;
 }) => {
   const words = copy().settings;
   const [theme, setThemeState] = useState<Theme>(currentTheme);
@@ -101,6 +107,25 @@ export const Settings = ({
   const chooseStorage = (next: "local" | "synced") => {
     writeChoice(STORAGE, next);
     setStorage(next);
+  };
+
+  /** Which of the two facts was last copied, so the button can say so where it was pressed. */
+  const [copied, setCopied] = useState<"url" | "token" | null>(null);
+  const [assistantsFailed, setAssistantsFailed] = useState(false);
+
+  const chooseAssistants = async (on: boolean) => {
+    if (!onAssistantsChange) return;
+    setAssistantsFailed(false);
+    try {
+      await onAssistantsChange(on);
+    } catch {
+      setAssistantsFailed(true);
+    }
+  };
+
+  const copyOut = async (what: "url" | "token", value: string) => {
+    await navigator.clipboard.writeText(value);
+    setCopied(what);
   };
 
   const exportAll = async () => {
@@ -273,6 +298,58 @@ export const Settings = ({
           ) : null}
         </div>
       </Section>
+
+      {onAssistantsChange ? (
+        <Section title={words.assistants} note={words.assistantsNote}>
+          <div className="flex flex-col gap-2">
+            <Row
+              label={assistants ? words.assistantsOn : words.assistantsOff}
+              note={assistantsFailed ? words.assistantsFailed(MCP_ADDRESS) : words.assistantsCare}
+            >
+              <Button
+                size="sm"
+                variant={assistants ? "ghost" : "secondary"}
+                onClick={() => void chooseAssistants(!assistants)}
+              >
+                {assistants ? words.assistantsStop : words.assistantsStart}
+              </Button>
+            </Row>
+
+            {/* The address and the token, each one press from the clipboard. The token is never
+                printed: a settings screen is a thing people show other people. */}
+            {assistants ? (
+              <>
+                <Row label={words.assistantsAddress} note={assistants.url}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void copyOut("url", assistants.url)}
+                    className="gap-2"
+                  >
+                    {copied === "url" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                    {copied === "url" ? words.assistantsCopied : words.assistantsCopy}
+                  </Button>
+                </Row>
+                <Row label={words.assistantsToken} note={words.assistantsTokenHidden}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void copyOut("token", assistants.token)}
+                    className="gap-2"
+                  >
+                    {copied === "token" ? (
+                      <Check aria-hidden="true" />
+                    ) : (
+                      <Copy aria-hidden="true" />
+                    )}
+                    {copied === "token" ? words.assistantsCopied : words.assistantsCopy}
+                  </Button>
+                </Row>
+              </>
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
 
       <Section title={words.keyboard}>
         <ul className="flex flex-col">

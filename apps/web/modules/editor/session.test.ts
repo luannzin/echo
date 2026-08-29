@@ -6,9 +6,11 @@ import {
   openTab,
   readActive,
   readClosed,
+  readPlace,
   rememberClosed,
   takeClosed,
   writeActive,
+  writePlace,
 } from "./session";
 
 test("opening appends, and opening twice lands on the tab that is there", () => {
@@ -34,8 +36,9 @@ test("closing hands focus to the right, then to the left, then to nothing", () =
   expect(closeTab(["a", "b"], "a")).toEqual(["b"]);
 });
 
-// The closed stack is the only part of this module that touches storage, so the smallest possible
-// stand-in for it is what the tests run against — the real thing is a browser's, not bun's.
+// The parts of this module that touch storage — the closed stack, the active tab, and where the
+// caret was in each note — run against the smallest possible stand-in for it: the real thing is a
+// browser's, not bun's.
 const stored = new Map<string, string>();
 // biome-ignore lint/suspicious/noExplicitAny: a two-method double is not a Window
 (globalThis as any).window = {
@@ -81,4 +84,31 @@ test("where you were is remembered apart from the order the tabs are in", () => 
   // Dragging reorders the session; it must not move where the window reopens.
   expect(moveTab(["a", "b", "c"], "b", "c")).toEqual(["a", "c", "b"]);
   expect(readActive()).toBe("b");
+});
+
+test("where you were inside a note is the line and the scroll, not just the note", () => {
+  expect(readPlace("never-opened")).toBeNull();
+
+  writePlace("a", { caret: 412, scroll: 300 });
+  expect(readPlace("a")).toEqual({ caret: 412, scroll: 300 });
+
+  // The last place wins: this is where the caret is, not a history of where it has been.
+  writePlace("a", { caret: 9, scroll: 0 });
+  expect(readPlace("a")).toEqual({ caret: 9, scroll: 0 });
+});
+
+test("only the last hundred notes keep a place, and being written in is what keeps one", () => {
+  for (let at = 0; at < 120; at += 1) writePlace(`note-${at}`, { caret: at, scroll: 0 });
+
+  // The twenty oldest were dropped to make room.
+  expect(readPlace("note-0")).toBeNull();
+  expect(readPlace("note-19")).toBeNull();
+  expect(readPlace("note-20")).toEqual({ caret: 20, scroll: 0 });
+
+  // Being written in again moves a note to the back of the queue rather than leaving it where the
+  // trim will reach it next.
+  writePlace("note-20", { caret: 1, scroll: 0 });
+  for (let at = 120; at < 140; at += 1) writePlace(`note-${at}`, { caret: at, scroll: 0 });
+  expect(readPlace("note-20")).toEqual({ caret: 1, scroll: 0 });
+  expect(readPlace("note-39")).toBeNull();
 });

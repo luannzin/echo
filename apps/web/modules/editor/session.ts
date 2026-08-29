@@ -1,6 +1,7 @@
 const KEY = "echo:editor-tabs";
 const CLOSED_KEY = "echo:editor-closed";
 const ACTIVE_KEY = "echo:editor-active";
+const PLACES_KEY = "echo:editor-places";
 
 /** How far Ctrl Shift T reaches back. Ten is what a browser gives you and nobody asks for eleven. */
 const CLOSED_LIMIT = 10;
@@ -49,6 +50,66 @@ export const readActive = (): string | null => {
 
 export const writeActive = (noteId: string): void => {
   window.localStorage.setItem(ACTIVE_KEY, noteId);
+};
+
+/**
+ * Where you were inside a note: the caret, and how far the page was scrolled under it.
+ *
+ * Which note you had open was only ever half of "put me back where I was" — a note is a page, and
+ * reopening a thousand-word page at the top of it is reopening it in the wrong place. Both are kept
+ * because neither implies the other: a caret restored without the scroll jumps the page, and a
+ * scroll restored without the caret puts the next keystroke somewhere you are not looking.
+ */
+export type Place = { caret: number; scroll: number };
+
+/**
+ * How many notes are remembered this way. A place is worth about forty bytes and only the notes you
+ * have actually been inside get one, so this is a ceiling rather than a budget.
+ */
+const PLACES_LIMIT = 100;
+
+/**
+ * Note id to place, oldest first — which is the order the limit below trims from. Read from storage
+ * once and then held, because a caret moves on every keystroke and re-parsing a hundred entries to
+ * answer where one note was would be paying for the other ninety-nine.
+ */
+let places: Map<string, Place> | null = null;
+
+const allPlaces = (): Map<string, Place> => {
+  if (places !== null) return places;
+  if (typeof window === "undefined") return new Map();
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(PLACES_KEY) ?? "[]");
+    places = new Map(
+      (Array.isArray(stored) ? stored : []).filter(
+        (entry: unknown): entry is [string, Place] =>
+          Array.isArray(entry) &&
+          typeof entry[0] === "string" &&
+          typeof entry[1]?.caret === "number" &&
+          typeof entry[1]?.scroll === "number",
+      ),
+    );
+  } catch {
+    places = new Map();
+  }
+  return places;
+};
+
+/** Where the caret was in a note the last time it was looked at, or null for one never opened. */
+export const readPlace = (noteId: string): Place | null => allPlaces().get(noteId) ?? null;
+
+/**
+ * Where the caret is now. Re-inserted rather than updated in place, so the note being written moves
+ * to the end and the trim below drops the notes nobody has been inside for longest.
+ */
+export const writePlace = (noteId: string, place: Place): void => {
+  const held = allPlaces();
+  held.delete(noteId);
+  held.set(noteId, place);
+  if (held.size > PLACES_LIMIT) {
+    for (const id of [...held.keys()].slice(0, held.size - PLACES_LIMIT)) held.delete(id);
+  }
+  window.localStorage.setItem(PLACES_KEY, JSON.stringify([...held]));
 };
 
 /**

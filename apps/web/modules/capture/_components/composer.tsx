@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
 import { type Answer, SignalChip } from "@/modules/capture/_components/signal-chip";
 import { believes, readSignals, type Signal, signalKey } from "@/modules/capture/signals";
+import { type History, record, redo, startHistory, undo } from "@/modules/editor/history";
 import { CategoryChip } from "@/shared/_components/category-chip";
 import { GhostText } from "@/shared/_components/ghost-text";
 import { Label } from "@/shared/_components/label";
@@ -25,6 +26,7 @@ import { SlashMenu } from "@/shared/_components/slash-menu";
 import { slashOptionId } from "@/shared/_components/slash-option";
 import { useCompletion } from "@/shared/lib/completion";
 import { copy } from "@/shared/lib/i18n";
+import { isRedoChord, isUndoChord } from "@/shared/lib/shortcuts";
 import type { SlashCommand } from "@/shared/lib/slash";
 import { numeric } from "@/shared/lib/styles";
 import { formatDue } from "@/shared/lib/time";
@@ -100,6 +102,17 @@ export const Composer = ({
 }) => {
   const words = copy().composer;
   const [draft, setDraft] = useState("");
+  /**
+   * What Ctrl Z takes back in this box.
+   *
+   * A controlled textarea has no working undo of its own: the browser reverses its value, React
+   * renders the state straight back over it, and the keystroke reads as broken. This is that stack,
+   * kept here rather than in the element — and it is a *draft's* history, so sending the note or
+   * having one handed back starts it over. Neither is a step you take back with Ctrl Z; the note
+   * that was sent comes back through the app's own undo, which this hands the keystroke to once
+   * there is nothing left in here.
+   */
+  const history = useRef<History>(startHistory("", 0));
   /** Signals answered in this draft. Cleared with the draft, because the next note is a new note. */
   const [settled, setSettled] = useState<Record<string, Answer>>({});
   /** Labels echo offered and the writer took off. Cleared with the draft, like every other answer. */
@@ -112,10 +125,31 @@ export const Composer = ({
   const textarea = useRef<HTMLTextAreaElement>(null);
   const completion = useCompletion(textarea, complete);
 
+  /** Every change a person made, which is the only kind worth being able to take back. */
+  const edit = (text: string, caret: number) => {
+    history.current = record(history.current, { text, caret }, Date.now());
+    setDraft(text);
+  };
+
+  /** Puts a step on screen, caret and all. False when there was no step to take. */
+  const walk = (next: History | null): boolean => {
+    if (next === null) return false;
+    history.current = next;
+    setDraft(next.present.text);
+    completion.reset();
+    // After the state has landed: setting the range against the old value drops the caret in the
+    // middle of words that are no longer there.
+    requestAnimationFrame(() =>
+      textarea.current?.setSelectionRange(next.present.caret, next.present.caret),
+    );
+    return true;
+  };
+
   const slash = useSlash({
     surface: textarea,
     apply: (text, caret) => {
-      setDraft(text);
+      // Through `edit`, not `setDraft`: a command is a change like any other.
+      edit(text, caret);
       completion.reset();
       requestAnimationFrame(() => textarea.current?.setSelectionRange(caret, caret));
     },
@@ -176,6 +210,7 @@ export const Composer = ({
     if (restoredAt === undefined) return;
     const text = restore?.text ?? "";
     setDraft(text);
+    history.current = startHistory(text, text.length);
     setSettled({});
     setDeclined(new Set());
     setCommanded(NOTHING_COMMANDED);
@@ -274,6 +309,7 @@ export const Composer = ({
       [...commanded.categories],
     );
     setDraft("");
+    history.current = startHistory("", 0);
     setSettled({});
     setDeclined(new Set());
     setCommanded(NOTHING_COMMANDED);
@@ -287,6 +323,19 @@ export const Composer = ({
     if (slash.onKeyDown(event)) return;
     // Tab takes the completion and Escape puts it away, both before anything else looks at the key.
     if (completion.onKeyDown(event, setDraft)) return;
+
+    const undoing = isUndoChord(event.nativeEvent);
+    if (undoing || isRedoChord(event.nativeEvent)) {
+      // Only claimed when there was something in here to take back. Once this box is back to where
+      // it started, the keystroke goes on to the window, where it means the note that was *sent* —
+      // which is what a writer reaching for Ctrl Z in an empty composer is asking for.
+      if (walk(undoing ? undo(history.current) : redo(history.current))) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
+
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
     commit();
@@ -339,7 +388,7 @@ export const Composer = ({
             ref={textarea}
             value={draft}
             onChange={(event) => {
-              setDraft(event.target.value);
+              edit(event.target.value, event.target.selectionStart);
               completion.refresh();
               slash.refresh();
             }}

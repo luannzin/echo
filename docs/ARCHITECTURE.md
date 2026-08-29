@@ -24,7 +24,10 @@ The same domain runs in the browser, in Tauri, and on a self-hosted server, beca
    imports from `@echo/db`, the boundary is broken.
 2. **The domain never imports React or DOM APIs.** `core`, `types`, `parser`, `search`, `learning`
    and `sync` are pure TypeScript and testable in isolation.
-3. **Tauri holds no business logic.** Filesystem paths, notifications, shortcuts, tray — nothing else.
+3. **Tauri holds no business logic.** Filesystem paths, notifications, shortcuts, tray, and the
+   MCP transport — nothing else. The MCP server forwards a tool name and a JSON object into the
+   web app and sends back what comes out; the tools themselves are declared in
+   `apps/web/shared/lib/mcp.ts`, because that is where the domain is.
 4. **Ranking lives in `@echo/search`.** Coefficients are configuration, not code buried in JSX.
    Five signals: meaning, words, context, recency and habit. Context is what a note's own words
    cannot say — the same project, the same concepts, the same fortnight, and the note this reader
@@ -43,6 +46,12 @@ The same domain runs in the browser, in Tauri, and on a self-hosted server, beca
     transport.
 11. **Observation is not correction.** What the reader looked at is recorded in `observations` and
     never reaches `@echo/learning`. A rule may only come from something the reader said.
+12. **An assistant is a caller, not the reader.** Anything reaching echo over MCP may read and
+    write notes, folders, categories and tasks, and may write nothing that claims to be the
+    reader's own behaviour: no observations, no learning events, and categories recorded as `auto`
+    so rule 9 still holds. Deleting is guarded in the tool rather than in the advice — a note must
+    be archived first and a folder must be empty — because MCP's annotations are hints a client is
+    free to ignore.
 
 ## Schema strategy
 

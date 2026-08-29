@@ -13,13 +13,27 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# The MCP server other programs connect to, and the loopback HTTP it answers on. `rmcp` is the
+# protocol; axum is the one route it is served from and the token check in front of it. Neither
+# knows what a note is — see `src/mcp.rs`.
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 fastembed = { version = "6", default-features = false, features = ["ort-download-binaries-rustls-tls", "hf-hub-rustls-tls"] }
+rmcp = { version = "3", default-features = false, features = ["server", "transport-streamable-http-server", "tower"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tauri = { version = "2", features = [] }
 # Saving a copy of a note to disk: the dialog asks where, the filesystem writes it. Each Tauri
 # plugin arrives with the feature that asked for it — these two arrived with "Save a copy".
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+# Where the window was left: its size, its position, whether it was maximised. Restoring that is
+# not something a webview can do for itself — the frame belongs to the operating system.
+tauri-plugin-window-state = "2"
+tokio = { version = "1", features = ["net", "rt", "sync", "time"] }
+tower-service = "0.3"
 ureq = { version = "3", default-features = false, features = ["rustls"] }
+# The MCP bearer token, which only has to be unguessable.
+uuid = { version = "1", features = ["v4"] }
 
 [profile.release]
 opt-level = "s"
