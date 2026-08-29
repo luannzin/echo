@@ -160,6 +160,13 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   assistant reach echo without either half learning the other's job.
 - `apps/www/AGENTS.md` — the marketing site: its sections, its generated imagery, and the rules that
   keep it separate from the application.
-- Root-owned files: `README.md`, `assets/**` (the README's banner, hand-written SVG with no filters
-  because GitHub strips them), `docs/**`, and root-level tooling config (`package.json`,
-  `turbo.json`, `biome.json`, `tooling/**`).
+- Root-owned files: `README.md` and `README.pt-BR.md`, `assets/**` (the README's banner,
+  hand-written SVG with no filters because GitHub strips them), `docs/**`, and root-level tooling
+  config (`package.json`, `turbo.json`, `biome.json`, `tooling/**`).
+- **The two READMEs are one document in two languages**, and each one links to the other on its
+  first lines. A change to either has to land in both in the same commit — a Portuguese README that
+  is three features behind is worse than no Portuguese README. Their screenshots and reel are the
+  ones `apps/www` owns, referenced in place rather than copied, so a re-capture updates both.
+- The prose docs (`docs/**`, every `AGENTS.md`) stay English-only: they describe code and contracts,
+  and a translated contract is a second contract to keep true. The READMEs are the exception because
+  they are the front door.
