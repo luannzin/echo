@@ -30,9 +30,18 @@
 
 No model provider is involved. Search, filing and learning are ordinary code running over your own notes, so **no core feature ever needs an AI API key**. Real Postgres, compiled to WebAssembly, runs in your browser and keeps your notes there.
 
-<video src="https://github.com/luannzin/echo/raw/main/apps/www/public/reel/echo.mp4" poster="https://github.com/luannzin/echo/raw/main/apps/www/public/reel/echo-poster.jpg" width="100%" controls muted loop playsinline>
-  <a href="https://github.com/luannzin/echo/raw/main/apps/www/public/reel/echo.mp4">Watch echo working (30s)</a>
-</video>
+<!-- An animated WebP, not the mp4: GitHub serves `raw` video as an attachment, so a <video> tag
+     downloads the file instead of playing it, and <video> fallback content never shows when it is
+     only the *source* that failed. This animates inline and, where it does not, degrades to its own
+     first frame. The link goes to GitHub's blob view, which does play the real 2560x1440 file. -->
+
+<p align="center">
+  <a href="https://github.com/luannzin/echo/blob/main/apps/www/public/reel/echo.mp4">
+    <img src="assets/reel.webp" alt="echo running: a line is typed into the composer and echo reads a word count, a Due friday chip and four related notes out of it; the palette takes the question notes about caching in payments apart into a Payments chip and a subject; the Inbox suggests a folder and names the notes that argued for it." width="100%">
+  </a>
+</p>
+
+<p align="center"><sub><a href="https://github.com/luannzin/echo/blob/main/apps/www/public/reel/echo.mp4">Watch it full size (2560&times;1440, 29s)</a></sub></p>
 
 ---
 

@@ -30,9 +30,18 @@
 
 Não há provedor de modelo por trás disso. Busca, arquivamento e aprendizado são código comum rodando sobre as suas próprias notas, então **nenhum recurso essencial precisa de chave de API de IA**. Postgres de verdade, compilado para WebAssembly, roda no seu navegador e guarda as notas ali.
 
-<video src="https://github.com/luannzin/echo/raw/main/apps/www/public/reel/echo.mp4" poster="https://github.com/luannzin/echo/raw/main/apps/www/public/reel/echo-poster.jpg" width="100%" controls muted loop playsinline>
-  <a href="https://github.com/luannzin/echo/raw/main/apps/www/public/reel/echo.mp4">Veja o echo funcionando (30s)</a>
-</video>
+<!-- Um WebP animado, e não o mp4: o GitHub serve vídeo em `raw` como anexo, então uma tag <video>
+     baixa o arquivo em vez de tocar, e o conteúdo alternativo de <video> nunca aparece quando é só
+     a *fonte* que falhou. Este anima na página e, onde não animar, vira o próprio primeiro quadro.
+     O link vai para a visualização de arquivo do GitHub, que toca o arquivo 2560x1440 de verdade. -->
+
+<p align="center">
+  <a href="https://github.com/luannzin/echo/blob/main/apps/www/public/reel/echo.mp4">
+    <img src="assets/reel.webp" alt="echo em uso: uma linha é digitada no campo e echo lê dali a contagem de palavras, uma etiqueta Vence sexta e quatro notas relacionadas; a paleta separa a pergunta notas sobre cache em pagamentos numa etiqueta de Pagamentos e um assunto; a Entrada sugere uma pasta e nomeia as notas que levaram até ela." width="100%">
+  </a>
+</p>
+
+<p align="center"><sub><a href="https://github.com/luannzin/echo/blob/main/apps/www/public/reel/echo.mp4">Ver em tamanho real (2560&times;1440, 29s)</a></sub></p>
 
 ---
 

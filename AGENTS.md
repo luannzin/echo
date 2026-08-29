@@ -165,8 +165,15 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   config (`package.json`, `turbo.json`, `biome.json`, `tooling/**`).
 - **The two READMEs are one document in two languages**, and each one links to the other on its
   first lines. A change to either has to land in both in the same commit — a Portuguese README that
-  is three features behind is worse than no Portuguese README. Their screenshots and reel are the
-  ones `apps/www` owns, referenced in place rather than copied, so a re-capture updates both.
+  is three features behind is worse than no Portuguese README. The screenshots are the ones
+  `apps/www` owns, referenced in place rather than copied, so a re-capture updates both.
+- **`assets/reel.webp` is the one derived asset, and GitHub is the reason.** GitHub serves `raw`
+  video with `Content-Disposition: attachment`, so a `<video>` tag pointing at the mp4 downloads the
+  file instead of playing it — and `<video>` fallback content never renders when it is only the
+  *source* that failed, so the reader gets an empty block and no link. An animated WebP is an
+  ordinary `<img>`: it plays inline, it degrades to its own first frame rather than to nothing, and
+  at 1280px it is a tenth of the equivalent GIF. Re-encode it from `apps/www/public/reel/echo.mp4`
+  whenever the reel is re-captured; it links to the blob view, which does play the full 2560x1440.
 - The prose docs (`docs/**`, every `AGENTS.md`) stay English-only: they describe code and contracts,
   and a translated contract is a second contract to keep true. The READMEs are the exception because
   they are the front door.
