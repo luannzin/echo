@@ -2,7 +2,8 @@
 
 import type { Change } from "@echo/core";
 import { Sparkles } from "lucide-react";
-import { Label } from "@/shared/_components/label";
+import { Band } from "@/modules/timeline/_components/band";
+import { NoteLink } from "@/modules/timeline/_components/note-link";
 import { copy } from "@/shared/lib/i18n";
 import { formatStamp } from "@/shared/lib/time";
 
@@ -26,22 +27,15 @@ export const ChangesBlock = ({
   if (!change) return null;
 
   return (
-    <section className="mb-6 rounded-lg border border-brand-bright/25 bg-brand-bright/[0.04] px-4 py-3">
-      <div className="flex items-center gap-2 pb-2">
-        <Sparkles aria-hidden="true" className="size-3 text-muted-foreground" />
-        <Label>{copy().timeline.changedSince(scope, formatStamp(change.since))}</Label>
-      </div>
-
+    <Band
+      lit
+      icon={Sparkles}
+      title={copy().timeline.changedSince(scope, formatStamp(change.since))}
+    >
       <ul className="flex flex-col gap-0.5">
         {change.notes.map((note) => (
           <li key={note.id}>
-            <button
-              type="button"
-              onClick={(event) => onOpen(note.id, event.currentTarget)}
-              className="-mx-2 flex w-[calc(100%+1rem)] items-center rounded-md px-2 py-1 text-start text-sm outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
-            >
-              <span className="truncate">{note.title || copy().common.untitled}</span>
-            </button>
+            <NoteLink note={note} onOpen={onOpen} />
           </li>
         ))}
       </ul>
@@ -51,6 +45,6 @@ export const ChangesBlock = ({
           {copy().timeline.newHere(change.concepts.join(" · "))}
         </p>
       ) : null}
-    </section>
+    </Band>
   );
 };

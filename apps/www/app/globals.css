@@ -228,14 +228,14 @@
    *
    * 16:9 because that is the proportion a reader already knows the size of before the first frame
    * arrives, and because the box has to be right at paint whatever the file behind it is. The
-   * capture is 1280x800, so `object-fit: cover` takes ten percent of its height rather than
-   * letterboxing the one moving picture on the page.
+   * capture is 2560x1440, so the ratio already matches and `object-fit: cover` crops nothing — it
+   * stays declared because the box, not the file, is what holds the space.
    *
-   * The crop is anchored at the head, so the whole of it comes off the foot: the top of the
-   * recording is the application's own header, which is where a reader looks first to work out what
-   * they are being shown, and a centred crop was shaving it. The bottom of a window that already
-   * fades out over its last half is the part with nothing to lose. Replace the file with a 16:9
-   * recording and the crop becomes a no-op; nothing here changes with it.
+   * The crop is anchored at the head so that if a future capture is ever taller than 16:9, the whole
+   * of the difference comes off the foot: the top of the recording is the application's own header,
+   * which is where a reader looks first to work out what they are being shown, and a centred crop
+   * shaves it. The bottom of a window that already fades out over its last half is the part with
+   * nothing to lose.
    */
   .reel-video {
     display: block;
@@ -257,6 +257,67 @@
   .reel-frame {
     box-shadow: none;
     mask-image: linear-gradient(to bottom, black 0%, black 54%, transparent 97%);
+  }
+
+  /*
+   * The demo, at very nearly the size of the window.
+   *
+   * A native `<dialog>` is not laid out by the flow, so it is centred against the viewport by
+   * `margin: auto` on a `position: fixed` box rather than by a flex parent it does not have. The
+   * width is capped in two directions at once: 92vw so it never touches the edges, and a height cap
+   * on the video itself so a tall window cannot push the close button off the bottom.
+   *
+   * None of the page's masks come with it. The reel on the page is deliberately dissolving into the
+   * spectrum, which is exactly what makes it unwatchable — in here the recording is opaque, square,
+   * and carries the browser's own controls.
+   */
+  .reel-dialog {
+    position: fixed;
+    inset: 0;
+    max-width: none;
+    max-height: none;
+    width: 92vw;
+    margin: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+  }
+
+  /* Centres the column of figure and button. `[open]` because a closed dialog must stay `none`. */
+  .reel-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reel-dialog::backdrop {
+    background-color: color-mix(in oklab, var(--color-carbon) 82%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  .reel-dialog-frame {
+    width: 100%;
+    max-width: 1600px;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in oklab, var(--color-quiet) 14%, transparent);
+    background-color: var(--color-carbon);
+    box-shadow: 0 60px 120px -50px rgb(0 0 0 / 0.9);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reel-dialog[open] {
+      animation: reel-dialog-in 220ms var(--ease-out-quart);
+    }
+  }
+
+  @keyframes reel-dialog-in {
+    from {
+      opacity: 0;
+      scale: 0.985;
+    }
   }
 
   /*

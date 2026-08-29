@@ -37,6 +37,8 @@ export const Reel = ({ content }: { content: Content }) => (
         label={content.reel.label}
         play={content.reel.play}
         pause={content.reel.pause}
+        demo={content.reel.demo}
+        close={content.reel.close}
       />
     </div>
   </section>

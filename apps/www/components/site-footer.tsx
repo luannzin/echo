@@ -1,4 +1,6 @@
+import { Cta } from "@/components/cta";
 import { Engraving } from "@/components/engraving";
+import { LanguageLink } from "@/components/language-link";
 import { REPO } from "@/components/links";
 import type { Content } from "@/content/en";
 
@@ -26,18 +28,12 @@ export const SiteFooter = ({ content }: { content: Content }) => (
         <p className="prose-lede mx-auto mt-6 text-ink/85">{content.footer.lede}</p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="#install"
-            className="press label border rule-ink bg-ink px-6 py-3 text-brand transition-colors hover:bg-brand-deep hover:text-ink"
-          >
+          <Cta href="#install" tone="solid" size="lg">
             {content.footer.run}
-          </a>
-          <a
-            href={REPO}
-            className="press label border rule-ink px-6 py-3 text-ink/85 transition-colors hover:bg-ink/10 hover:text-ink"
-          >
+          </Cta>
+          <Cta href={REPO} tone="outline" size="lg">
             {content.footer.source}
-          </a>
+          </Cta>
         </div>
       </div>
 
@@ -50,13 +46,7 @@ export const SiteFooter = ({ content }: { content: Content }) => (
         <p className="label text-ink/85">{content.footer.tagline}</p>
         <div className="flex items-center gap-5">
           {/* The switcher again at the foot, so the choice is reachable at both ends of a long page. */}
-          <a
-            href={content.other.href}
-            hrefLang={content.other.label === "English" ? "en" : "pt-BR"}
-            className="label text-ink/85 transition-colors hover:text-ink"
-          >
-            {content.other.label}
-          </a>
+          <LanguageLink other={content.other} />
           <a
             href={`${REPO}/tree/main/docs`}
             className="label text-ink/85 transition-colors hover:text-ink"

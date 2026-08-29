@@ -3,8 +3,8 @@
 import type { TimelineDay as Day } from "@echo/core";
 import type { Note } from "@echo/types";
 import { memo } from "react";
+import { NoteLink } from "@/modules/timeline/_components/note-link";
 import { dayLabel } from "@/modules/timeline/model";
-import { copy } from "@/shared/lib/i18n";
 import { numeric } from "@/shared/lib/styles";
 
 /**
@@ -53,14 +53,7 @@ export const TimelineDayRow = memo(
               if (!note) return null;
               return (
                 <li key={noteId}>
-                  <button
-                    type="button"
-                    data-note-id={noteId}
-                    onClick={(event) => onOpen(noteId, event.currentTarget)}
-                    className="-mx-2 flex w-[calc(100%+1rem)] items-center rounded-md px-2 py-1 text-start text-sm outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
-                  >
-                    <span className="truncate">{note.title || copy().common.untitled}</span>
-                  </button>
+                  <NoteLink note={note} onOpen={onOpen} />
                 </li>
               );
             })}

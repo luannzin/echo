@@ -1,19 +1,17 @@
 "use client";
 
 import {
-  buildAnchors,
   buildBrief,
   type Change,
   type CoOpens,
   deriveTitle,
   folderPath,
-  type Place,
   type ProjectBrief,
   whatChanged,
 } from "@echo/core";
 import type { EmbedderStatus } from "@echo/embeddings";
 import { adjust, affinity, aliasKey, dismissed, type LearnedRule, ruleFor } from "@echo/learning";
-import { type Destination, DUPLICATE_SIMILARITY, suggestCategories } from "@echo/search";
+import { type Destination, DUPLICATE_SIMILARITY } from "@echo/search";
 import {
   type Category,
   DEFAULT_WORKSPACE_ID,
@@ -26,6 +24,7 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { paletteCommands } from "@/app/commands";
 import { type CapturedTask, Composer } from "@/modules/capture/_components/composer";
+import { predictedCategories } from "@/modules/capture/predicted";
 import { EditorMode } from "@/modules/editor/_components/editor-mode";
 import { Explorer } from "@/modules/explorer/_components/explorer";
 import { FilingPlan } from "@/modules/inbox/_components/filing-plan";
@@ -36,25 +35,23 @@ import {
   planFiling,
   reasonsFor as reasonsForNote,
 } from "@/modules/inbox/plan";
-import { Learned } from "@/modules/intelligence/_components/learned";
-import { RelatedNotes } from "@/modules/intelligence/_components/related-notes";
+import { IntelligencePanel } from "@/modules/intelligence/_components/intelligence-panel";
 import type { Related } from "@/modules/intelligence/related";
 import { NoteEditor } from "@/modules/notes/_components/note-editor";
-import { Stream } from "@/modules/notes/_components/stream";
+import { StreamView } from "@/modules/notes/_components/stream-view";
 import { Arrival } from "@/modules/onboarding/_components/arrival";
 import { Checklist } from "@/modules/onboarding/_components/checklist";
 import { Tour } from "@/modules/onboarding/_components/tour";
 import { type Milestone, reached, rememberFound } from "@/modules/onboarding/progress";
 import { CommandPalette } from "@/modules/search/_components/command-palette";
 import type { SearchPass } from "@/modules/search/model";
+import { anchorsOf, placesOf } from "@/modules/search/places";
 import { Settings } from "@/modules/settings/_components/settings";
 import { AppShell } from "@/modules/shell/_components/app-shell";
-import { Pane } from "@/modules/shell/_components/pane";
 import type { View } from "@/modules/shell/view";
 import { Tasks } from "@/modules/tasks/_components/tasks";
 import { Timeline } from "@/modules/timeline/_components/timeline";
 import type { Upcoming } from "@/modules/timeline/model";
-import { Label } from "@/shared/_components/label";
 import { byNote, countByCategory, labelsOf, type NoteLabels } from "@/shared/lib/categories";
 import { type AnalysisState, getEcho } from "@/shared/lib/echo";
 import { folderPaths } from "@/shared/lib/folder-paths";
@@ -66,7 +63,9 @@ import {
   readLocale,
   setLocale,
 } from "@/shared/lib/i18n";
+import { replace, upsert } from "@/shared/lib/lists";
 import { type McpEndpoint, serveMcp, startMcp, stopMcp } from "@/shared/lib/mcp";
+import { narrow, scopeNameOf } from "@/shared/lib/narrowing";
 import {
   POSTIT_NOTE,
   POSTIT_OPEN,
@@ -98,18 +97,6 @@ const RELATED_LIMIT = 8;
 const RELATED_SHOWN = 4;
 
 /**
- * The note list is ordered by when a note was last touched. Applying that here rather than asking
- * the database again is what keeps a keystroke's autosave from re-reading every note: an edit moves
- * one row, and the screen already knows which one.
- */
-const upsert = (notes: Note[], note: Note): Note[] => {
-  const without = notes.filter((existing) => existing.id !== note.id);
-  const at = without.findIndex((existing) => existing.updatedAt <= note.updatedAt);
-  if (at === -1) return [...without, note];
-  return [...without.slice(0, at), note, ...without.slice(at)];
-};
-
-/**
  * One step Ctrl Z takes back. Every reversible thing the reader does pushes one, so undo walks
  * backwards through a session rather than only ever forgiving the last note sent.
  *
@@ -136,13 +123,6 @@ const UNDO_DEPTH = 25;
 /** Which note a concept was taken off. The lesson is about this note, not about the word. */
 const conceptKey = (noteId: string, concept: string): string =>
   `${noteId}:${concept.toLowerCase()}`;
-
-/** Folders and tasks are small lists kept in the order they arrive in. */
-const replace = <T extends { id: string }>(items: T[], item: T): T[] => {
-  const at = items.findIndex((existing) => existing.id === item.id);
-  if (at === -1) return [...items, item];
-  return [...items.slice(0, at), item, ...items.slice(at + 1)];
-};
 
 const Page = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -233,8 +213,8 @@ const Page = () => {
   const runtime = useRef<Awaited<ReturnType<typeof getEcho>> | null>(null);
   const conceptsRef = useRef<(noteId: string) => readonly string[]>(() => []);
   /** Read by search on a keystroke, so naming a place never re-subscribes the palette. */
-  const placesRef = useRef<Place[]>([]);
-  const anchorsRef = useRef<ReturnType<typeof buildAnchors>>(new Map());
+  const placesRef = useRef<ReturnType<typeof placesOf>>([]);
+  const anchorsRef = useRef<ReturnType<typeof anchorsOf>>(new Map());
   const togetherRef = useRef<CoOpens>(new Map());
   const undoStackRef = useRef<Undoable[]>([]);
   /**
@@ -465,18 +445,10 @@ const Page = () => {
   const labels = useMemo(() => byNote(assignments), [assignments]);
   const labelCounts = useMemo(() => countByCategory(assignments), [assignments]);
 
-  const listed = useMemo(() => {
-    if (categoryFilter !== undefined) {
-      const tagged = new Set(
-        assignments
-          .filter((assignment) => assignment.categoryId === categoryFilter)
-          .map((assignment) => assignment.noteId),
-      );
-      return notes.filter((note) => tagged.has(note.id));
-    }
-    if (folderFilter === undefined) return notes;
-    return notes.filter((note) => note.folderId === folderFilter);
-  }, [notes, folderFilter, categoryFilter, assignments]);
+  const listed = useMemo(
+    () => narrow(notes, assignments, { folderId: folderFilter, categoryId: categoryFilter }),
+    [notes, folderFilter, categoryFilter, assignments],
+  );
 
   /** The stream says what a note is about in one line, which is what keeps its rows memoized. */
   const streamLabels = useCallback(
@@ -538,13 +510,10 @@ const Page = () => {
    * selecting a folder turns it into that project's history without a second control to keep in
    * step — and this is the name that heading carries.
    */
-  const scopeName = useMemo(() => {
-    if (categoryFilter !== undefined) {
-      return categories.find((category) => category.id === categoryFilter)?.name ?? null;
-    }
-    if (folderFilter !== undefined) return folderPath(folders, folderFilter) || null;
-    return null;
-  }, [categoryFilter, folderFilter, categories, folders]);
+  const scopeName = useMemo(
+    () => scopeNameOf(folders, categories, { folderId: folderFilter, categoryId: categoryFilter }),
+    [categoryFilter, folderFilter, categories, folders],
+  );
 
   /**
    * What this project is, as echo reads it. Derived on every read like everything else here: there
@@ -564,43 +533,16 @@ const Page = () => {
    * Everywhere the reader has made, so a question can name one — "notes about auth in my Work
    * projects". Folders and categories in one list because a question does not distinguish them.
    */
-  const places = useMemo(
-    (): Place[] => [
-      ...folders.map((folder) => ({
-        kind: "folder" as const,
-        id: folder.id,
-        name: folderPath(folders, folder.id),
-      })),
-      ...categories.map((category) => ({
-        kind: "category" as const,
-        id: category.id,
-        name: category.name,
-      })),
-    ],
-    [folders, categories],
-  );
+  const places = useMemo(() => placesOf(folders, categories), [folders, categories]);
 
   /**
    * When each project started, for a question anchored to one — "desde que comecei HEREZE". A
    * project began when its first note was written, so this is the earliest note in it.
    */
-  const anchors = useMemo(() => {
-    // Named once for the whole corpus rather than looked up per note: the notes are the list that
-    // grows, and a `find` inside this loop is the same mistake the note list already had.
-    const folderNames = new Map(folders.map((folder) => [folder.id, folder.name]));
-    const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
-
-    const named: { name: string; at: Date }[] = [];
-    for (const note of notes) {
-      const folder = note.folderId === null ? undefined : folderNames.get(note.folderId);
-      if (folder) named.push({ name: folder, at: note.createdAt });
-      for (const assignment of labels.get(note.id) ?? []) {
-        const category = categoryNames.get(assignment.categoryId);
-        if (category) named.push({ name: category, at: note.createdAt });
-      }
-    }
-    return buildAnchors(named);
-  }, [notes, folders, categories, labels]);
+  const anchors = useMemo(
+    () => anchorsOf(notes, folders, categories, labels),
+    [notes, folders, categories, labels],
+  );
 
   // Read inside callbacks and effects, so none of them re-subscribes when any of this changes.
   listedRef.current = listed;
@@ -1578,20 +1520,12 @@ const Page = () => {
    * with. It costs nothing extra: the neighbours were already fetched for the Related panel, and
    * this is a count over labels the screen is holding.
    */
-  const predicted = useMemo(() => {
-    if (editingId !== null || related.length === 0 || categories.length === 0) return [];
-    const byId = new Map(categories.map((category) => [category.id, category]));
-    return suggestCategories(
-      related.map(({ note, semantic }) => ({
-        noteId: note.id,
-        similarity: semantic,
-        categoryIds: (labels.get(note.id) ?? []).map((assignment) => assignment.categoryId),
-      })),
-      // A label the reader keeps taking off goes quiet. Nothing here can invent one the notes did
-      // not already carry: history is a second opinion, never the evidence.
-      { weightOf: (categoryId) => adjust(1, ruleFor(rules, "category", categoryId)) },
-    ).flatMap((guess) => byId.get(guess.categoryId) ?? []);
-  }, [related, labels, categories, rules, editingId]);
+  // Only for a draft in the composer: an open note is already labelled, and guessing at one the
+  // reader is reading would be echo talking over them.
+  const predicted = useMemo(
+    () => (editingId === null ? predictedCategories(related, labels, categories, rules) : []),
+    [related, labels, categories, rules, editingId],
+  );
 
   // Close enough to be the same thought written twice — unless the reader has already said it is
   // not, in which case echo does not get to ask again.
@@ -1716,21 +1650,14 @@ const Page = () => {
     }
     if (view === "stream") {
       return (
-        // The composer scrolls inside the stream rather than beside it: sharing one scroll container
-        // is what keeps both columns exactly the same width.
-        <div
-          data-stream-scroll
-          className="h-full overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_20px)]"
-        >
-          <Stream
-            notes={notes}
-            labelsOf={streamLabels}
-            arrivedId={arrivedId}
-            previewId={previewId}
-            onOpen={openNote}
-          />
-          <div className="sticky bottom-0 bg-background pt-2">{composer(true)}</div>
-        </div>
+        <StreamView
+          notes={notes}
+          labelsOf={streamLabels}
+          arrivedId={arrivedId}
+          previewId={previewId}
+          onOpen={openNote}
+          composer={composer(true)}
+        />
       );
     }
     return composer(false);
@@ -1824,33 +1751,17 @@ const Page = () => {
         }
         workspace={workspace()}
         intelligence={
-          <div className="flex h-full flex-col">
-            <div className="min-h-0 flex-1">
-              <Pane title={copy().intelligence.related}>
-                <RelatedNotes
-                  related={related.slice(0, RELATED_SHOWN)}
-                  duplicate={duplicate}
-                  analysis={analysis}
-                  model={model}
-                  onOpen={openSuggested}
-                  onDismissDuplicate={(noteId) =>
-                    void correct({
-                      type: "duplicate_dismissed",
-                      kind: "duplicate",
-                      subject: noteId,
-                      noteId,
-                    })
-                  }
-                />
-              </Pane>
-            </div>
-            <div className="border-t px-4 py-4 text-muted-foreground">
-              <div className="pb-2">
-                <Label>{copy().intelligence.learned}</Label>
-              </div>
-              <Learned rules={rules} folders={folders} onForget={(rule) => void forget(rule)} />
-            </div>
-          </div>
+          <IntelligencePanel
+            related={related.slice(0, RELATED_SHOWN)}
+            duplicate={duplicate}
+            analysis={analysis}
+            model={model}
+            rules={rules}
+            folders={folders}
+            onOpen={openSuggested}
+            onCorrect={(event) => void correct(event)}
+            onForget={(rule) => void forget(rule)}
+          />
         }
       />
       <CommandPalette

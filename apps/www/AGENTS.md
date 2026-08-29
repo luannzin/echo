@@ -7,15 +7,17 @@ run it. It is the loud half of the brand (`docs/DESIGN.md`): electric blue field
 mono micro-labels, dithered engravings. The application lives in `apps/web` and shares nothing with
 this app at build time.
 
-The page argues in four demonstrations rather than in feature cards: the composer parsing a note as
-it is written, the palette taking a question apart, two of the reader's own words turning out to be
-one word, and the Inbox naming the notes that argued for a destination. A claim without a screen
-under it does not get a section.
+The page argues by showing the application rather than by describing it: a 2K screen recording under
+the hero, and a captured screen beside every claim — the palette taking a question apart, the Inbox
+naming the notes that argued for a destination, a note arriving with its neighbours, and two of the
+reader's own words turning out to be one word. A claim without a screen under it does not get a
+section.
 
 ## Ownership
 
-- Owns `app/**` (the two roots and the tokens), `components/**` (every section of the page) and
-  `content/**` (everything the page says, in both languages).
+- Owns `app/**` (the two roots and the tokens), `components/**` (every section of the page, plus the
+  shared `cta.tsx` and `language-link.tsx`) and `content/**` (everything the page says, in both
+  languages). Owns `public/shots/**` and `public/reel/**`: the captures of the running application.
 - Owns its own token set in `app/globals.css`. It re-declares the brand values rather than importing
   the application's stylesheet, so a change to the app's chrome cannot repaint the site by accident.
 - Does not own product truth: every claim on the page has to be something the app already does.
@@ -53,19 +55,23 @@ under it does not get a section.
   writes a static export to `out/` (`index.html` and `pt-br.html`).
 - No workspace dependencies. The site imports nothing from `@echo/*`, so it has no database, no
   parser, and no reason to compile the domain.
-- Imagery is generated, never a file: plates are drawn as greyscale SVG in `components/engraving.tsx`
-  and printed through the filters in `components/filters.tsx`. Do not add an image asset without a
-  reason no vector can meet. The plates are ground now, not subject. The demos are.
-- **Demos are the application, not a picture of it.** `components/*-demo.tsx` are real markup inside
-  `components/panel.tsx`, painted with the app's own tokens (`carbon`, `carbon-lift`, `quiet`,
-  `faint`, `brand-lit`), so they stay sharp at any density and repaint with the theme. Never a
-  screenshot. **The mechanics are the running app's; the corpus is illustration.** Counts, chips,
-  reason sentences and learned sentences keep the exact shape and wording the app produced in the
-  S1–S4 verification notes in `docs/STATE.md`: `16 set aside`, `File 13`, `you usually put x and y
-  notes there`, `“a” and “b” are the same thing`. The note titles and project names around them are
-  an ordinary working programmer's corpus, deliberately not the author's own projects, so a visitor
-  reads their own notebook rather than someone else's. Changing a shape is inventing a feature;
-  changing a note title is not.
+- **The ground is drawn; the product is captured.** Plates are greyscale SVG in
+  `components/engraving.tsx`, printed through the filters in `components/filters.tsx` — do not add a
+  decorative image asset a vector could have drawn. The screens are the exception and the reason the
+  rule has one: the Inbox arguing for a folder is worth more as the thing itself than as a drawing
+  of it, and a drawing is where a claim quietly stops being true. `public/shots/*.webp` and
+  `public/reel/*` are captures of `apps/web` running against a real corpus, never mockups.
+- **Every capture is of the app as it actually is.** Re-take them when the interface moves; a
+  screenshot of a build that no longer exists is a lie with a timestamp. The reel is 2560x1440 so it
+  is sharp on the monitors this page is read on, 16:9 so `.reel-video` crops nothing, and about
+  thirty seconds — long enough for one note to be written, searched for and filed, short enough to
+  loop without becoming furniture.
+- **The mechanics are the running app's; the corpus is illustration.** Whatever the captures show —
+  counts, chips, reason sentences — is whatever the application produced, never a number typed in
+  afterwards. The note titles and project names around them are an ordinary working programmer's
+  corpus, deliberately not the author's own projects, so a visitor reads their own notebook rather
+  than someone else's. `alt` text describes what is in the file and inherits that honesty: if it
+  names a count, the count has to be on screen.
 - Filters take their colours from CSS custom properties through `flood-color`, so no filter, plate or
   component carries a hex value. `components/links.tsx` is the only place a URL is written down.
 - Motion is CSS, not JavaScript. There is no scroll listener, no observer and no motion library on
@@ -86,16 +92,29 @@ under it does not get a section.
   the clipboard and the tab state need one, and `reel-player.tsx`, because whether the reel may play
   at all is a question about the visitor's machine. Everything else stays a server component, the
   language switcher included: it is a link.
-- **Portuguese is written, not translated.** `.label` is mono, uppercase and tracked at `0.18em`,
-  which is the least forgiving specification on either surface, and Portuguese runs twenty to thirty
-  percent longer. A shorter true sentence beats a faithful one that wraps into three lines of
-  tracked capitals. Measured: nothing on either document scrolls sideways at 375px, and the hero's
-  eyebrow takes the same two lines there in both languages.
-- **The hero composer is real.** It answers what is typed into it (word count, the task phrase that
-  gave it away, the day it found) through `components/note-signals.ts`, a small deterministic
-  stand-in for `@echo/parser` (the site has no workspace dependencies, so it cannot use the real
-  one). Keep that ruleset short: a composer that finds a task in every sentence is the bug the real
-  threshold exists to prevent. Nothing typed there is stored, sent or lifted into page state.
+- **The reel is ambient; the demo is the dialog.** `.reel-frame` fades the recording out at the foot
+  so it becomes the spectrum rather than ending on a line, which is exactly what makes the bottom of
+  it unreadable — so the frame carries a centred **Play demo** button that opens the same file in a
+  near-fullscreen `<dialog>`, opaque and unmasked, with the browser's own controls. Native
+  `showModal()`, never a hand-built overlay: the focus trap, the return of focus, Escape and
+  `::backdrop` all come from the platform. The small Play/Pause at the head stays — it is the motion
+  switch that autoplaying content owes the reader, and it is a different question from "let me watch
+  this".
+- **Portuguese is written first, and English follows it.** `content/en.ts` is still the *shape* every
+  language is checked against, but it is not where the words are decided. Writing English first is
+  what produced the paragraphs this page used to carry: `.label` is mono, uppercase and tracked at
+  `0.18em`, Portuguese runs twenty to thirty percent longer, and a sentence that only fits in English
+  is a sentence the other document has to wrap into three lines of tracked capitals. A shorter true
+  sentence beats a faithful one. Measured: nothing on either document scrolls sideways at 390px, and
+  the hero's eyebrow takes the same two lines there in both languages.
+- **Two sentences per claim.** Every `body` and `subtitle` says what the thing does and what the
+  reader gets, and stops. The third sentence is always the one defending a point the first two have
+  already made, and it is where readers leave. Titles carry no metaphor that has to survive
+  translation — "duas perguntas vestindo um casaco só" only ever worked in English.
+- One definition per repeated control: `components/cta.tsx` is the hero's and the footer's shared
+  call to action in three tones, and `components/language-link.tsx` is the other-language link at
+  both ends of the page. The language's `hreflang` comes from `content.other.lang`, never from
+  comparing its display label.
 - Copy describes the product, never the build order: no phase numbers, no roadmap, no dead links.
 
 ## Work Guidance

@@ -1,14 +1,13 @@
+import { LanguageLink } from "@/components/language-link";
 import { REPO } from "@/components/links";
 import type { Content } from "@/content/en";
 
 /**
  * The nav, and the only place the other language is offered above the fold.
  *
- * A link rather than a redirect. Sending a visitor whose browser says `pt` to the Portuguese
- * document would break the back button, split the crawl, and take the choice away from the many
- * Brazilians who read documentation in English on purpose — so the site says which languages it has
- * and lets them pick. The label is written in the language it leads to, which is the one word a
- * reader of that language is certain to recognise.
+ * The button here is deliberately not a `Cta`: it is smaller than the ones in the hero and the
+ * footer, and it inverts on hover rather than washing, because a control sitting on a sticky bar
+ * over moving content has to separate from whatever scrolls under it.
  */
 export const SiteNav = ({ content }: { content: Content }) => (
   <header className="sticky top-0 z-50 bg-brand/90 backdrop-blur-md">
@@ -27,13 +26,10 @@ export const SiteNav = ({ content }: { content: Content }) => (
             {link.label}
           </a>
         ))}
-        <a
-          href={content.other.href}
-          hrefLang={content.other.label === "English" ? "en" : "pt-BR"}
-          className="label text-ink/85 underline decoration-ink/30 underline-offset-4 transition-colors hover:text-ink"
-        >
-          {content.other.label}
-        </a>
+        <LanguageLink
+          other={content.other}
+          className="underline decoration-ink/30 underline-offset-4"
+        />
         <a
           href="#install"
           className="press label border rule-ink px-3.5 py-2 text-ink/85 transition-colors hover:bg-ink hover:text-brand"

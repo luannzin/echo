@@ -2,6 +2,8 @@
 
 import type { ProjectBrief } from "@echo/core";
 import { SquareCheck } from "lucide-react";
+import { Band } from "@/modules/timeline/_components/band";
+import { NoteLink } from "@/modules/timeline/_components/note-link";
 import { Label } from "@/shared/_components/label";
 import { copy } from "@/shared/lib/i18n";
 import { formatDay, formatDue } from "@/shared/lib/time";
@@ -25,7 +27,7 @@ export const ProjectBriefBlock = ({
   onOpenNote: (noteId: string, from: HTMLElement) => void;
   onOpenTasks: () => void;
 }) => (
-  <section className="mb-6 rounded-lg border border-border bg-card/40 px-4 py-3.5">
+  <Band>
     {/* One sentence, built in the dictionary: the count, the project and the two dates sit in a
         different order in every language, and this is the shape that lets them move. */}
     <p className="text-sm leading-relaxed">
@@ -37,13 +39,7 @@ export const ProjectBriefBlock = ({
       <ul className="pt-1">
         {brief.recent.map((note) => (
           <li key={note.id}>
-            <button
-              type="button"
-              onClick={(event) => onOpenNote(note.id, event.currentTarget)}
-              className="-mx-2 flex w-[calc(100%+1rem)] items-center rounded-md px-2 py-1 text-start text-sm outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-quart)] hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
-            >
-              <span className="truncate">{note.title || copy().common.untitled}</span>
-            </button>
+            <NoteLink note={note} onOpen={onOpenNote} />
           </li>
         ))}
       </ul>
@@ -82,5 +78,5 @@ export const ProjectBriefBlock = ({
         </button>
       </div>
     ) : null}
-  </section>
+  </Band>
 );
