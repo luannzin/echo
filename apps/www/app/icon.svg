@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
   <title>echo</title>
-  <rect width="64" height="64" fill="#1a1aff"/>
-  <text x="32" y="47" font-family="Instrument Serif, Georgia, serif" font-size="46" fill="#f2f4ff" text-anchor="middle">e</text>
+  <rect width="320" height="320" fill="#0015fc"/>
+  <g>
+    <circle cx="160" cy="160" r="118" fill="#f1f5fe"/>
+    <g fill="none" stroke="#0015fc" stroke-width="13"><ellipse cx="160" cy="115.2" rx="90.6" ry="16.5"/><ellipse cx="160" cy="160.0" rx="112.0" ry="18.0"/><ellipse cx="160" cy="204.8" rx="90.6" ry="16.5"/></g>
+  </g>
 </svg>

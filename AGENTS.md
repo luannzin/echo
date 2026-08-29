@@ -174,6 +174,16 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   ordinary `<img>`: it plays inline, it degrades to its own first frame rather than to nothing, and
   at 1280px it is a tenth of the equivalent GIF. Re-encode it from `apps/www/public/reel/echo.mp4`
   whenever the reel is re-captured; it links to the blob view, which does play the full 2560x1440.
+- **The application icon is generated, not drawn by hand.** `scripts/icons.mjs` prints the `orb`
+  plate from `apps/www/components/engraving.tsx` on the brand field through the site's own Bayer
+  dither, and writes every size both applications ship: `apps/web/app/icon.png` and `apple-icon.png`,
+  the three in `apps/web/public`, the four PNGs and the `.ico` in `apps/desktop/src-tauri/icons`,
+  and `apps/www/app/icon.svg`. Re-run it after changing the plate, the brand colour or the set;
+  never edit an icon by hand, because the next run overwrites it. It needs `bunx playwright install
+  chromium` and is deliberately not a workspace dependency.
+- Sizes at or over 128px are dithered and sizes at or under 64px are flat. That split is arithmetic,
+  not taste: the screen is an 8x8 tile and one Bayer cell cannot be smaller than one pixel, so a
+  32px dithered orb is noise. Small sizes get the silhouette instead.
 - **MIT, and every package says so.** `LICENSE` at the root is the text; `"license": "MIT"` is set in
   all sixteen `package.json` files and in `src-tauri/Cargo.toml`, because a workspace where only the
   root declares it is a workspace whose published metadata disagrees with itself. A new package
