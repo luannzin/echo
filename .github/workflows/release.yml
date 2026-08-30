@@ -42,9 +42,13 @@ jobs:
           - platform: windows-latest
             target: ""
             name: Windows
-          # `.deb`, `.rpm` and an AppImage. 22.04 rather than latest: the glibc a build links
-          # against is the oldest one it will run on, and the newer runner would rule out Debian
-          # stable and every LTS beside it.
+          # `.deb`, `.rpm` and an AppImage. 22.04 rather than latest, and this is the one runner
+          # choice here that is load-bearing: glibc is backward compatible and not forward
+          # compatible, so the version a binary links against is the *oldest* it will ever run on.
+          # Built on a current Ubuntu, echo-notes asks for GLIBC_2.43 and Debian stable answers
+          # "version not found" before main() — which is exactly what happened. 22.04 is glibc 2.35,
+          # under every distribution that has the webkit2gtk 4.1 Tauri v2 needs. `glibc floor` below
+          # is what keeps that true.
           - platform: ubuntu-22.04
             target: ""
             name: Linux
@@ -110,3 +114,26 @@ jobs:
 
             Signing them is what a certificate costs, not what the build does — the workflow takes
             the credentials the moment they exist.
+
+      # What the Linux build will actually run on, asserted rather than assumed.
+      #
+      # This is the check that would have caught the release that ran on the machine that built it
+      # and nowhere else. Every symbol a binary imports carries the glibc version that introduced
+      # it, and the highest of them is the floor: a `.deb` asking for GLIBC_2.43 installs happily on
+      # Debian 12 and then refuses to start. The number below is Ubuntu 22.04's, so raising it means
+      # deciding to drop distributions — which is a decision, not a build detail, and belongs in a
+      # diff rather than in a bug report from somebody's friend.
+      - name: glibc floor
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          FLOOR: "2.35"
+        run: |
+          binary=apps/desktop/src-tauri/target/release/echo-notes
+          needs=$(objdump -T "$binary" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -uV | tail -1)
+          needs=${needs#GLIBC_}
+          echo "echo-notes needs glibc $needs; the floor is $FLOOR"
+          objdump -T "$binary" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -uV | tail -5
+          if dpkg --compare-versions "$needs" gt "$FLOOR"; then
+            echo "::error::Built against glibc $needs, which will not start on anything older."
+            exit 1
+          fi

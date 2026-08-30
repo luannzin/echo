@@ -64,9 +64,13 @@ const latitudes = (count) =>
  * @param size      rendered pixels, square
  * @param orbScale  1 is the plate's own proportion; the maskable icon shrinks it into the safe zone
  * @param cellPx    how many pixels one Bayer cell should occupy in the output
+ * @param dithered  which of the two drawings this is. Asked for rather than inferred from the size:
+ *                  the application ships one icon and it is the screened one, and the flat disc is
+ *                  now only where a dither cannot survive at all — `apps/www/app/icon.svg`, which a
+ *                  browser paints at 16 pixels from a single scalable file.
  */
-const iconSvg = ({ size, orbScale = 1, cellPx = 2 }) => {
-  if (size <= 64) {
+const iconSvg = ({ size, orbScale = 1, cellPx = size <= 64 ? 1 : 2, dithered = true }) => {
+  if (!dithered) {
     // The orb as it looks from far away: a disc with three bands through it. The rings are clipped
     // by construction here, since none of them reaches the silhouette.
     const flat = [0.3, 0.5, 0.7]
@@ -90,9 +94,23 @@ const iconSvg = ({ size, orbScale = 1, cellPx = 2 }) => {
   // One Bayer cell should be `cellPx` device pixels. The tile holds 8 of them, and the viewBox is
   // 320 units wide however big the output is, so: tile = 8 * cellPx * 320 / size.
   const tile = (8 * cellPx * 320) / size;
-  const bands = size >= 256 ? 22 : 14;
-  const weight = size >= 256 ? 1.1 : 2.2;
-  const rim = size >= 256 ? 2.4 : 4;
+  // Fewer and heavier the smaller it gets, and the third rung is the one the desktop set lives on:
+  // fourteen latitudes inside 32 pixels is fourteen lines less than a pixel apart, which the dither
+  // reads as one flat field. Six heavy ones survive being screened at that size.
+  const bands = size >= 256 ? 22 : size >= 128 ? 14 : 6;
+  const weight = size >= 256 ? 1.1 : size >= 128 ? 2.2 : 5;
+  const rim = size >= 256 ? 2.4 : size >= 128 ? 4 : 7;
+
+  /**
+   * Whether the ground around the orb is screened too, or left as flat brand.
+   *
+   * Screening a black field leaves exactly one ink cell per 8x8 tile — the one the Bayer matrix
+   * gives a zero. At 512 pixels that is thirty-two dots across and reads as the halftone it is; at
+   * 64 it is eight specks in the margin and reads as dirt. So under 128 the ground is painted
+   * solid and the screen is clipped to the plate, which is the same picture with nothing loose
+   * around it. The orb itself is dithered at every size.
+   */
+  const field = size >= 128;
   const rings = latitudes(bands)
     .map(
       (b) =>
@@ -104,6 +122,7 @@ const iconSvg = ({ size, orbScale = 1, cellPx = 2 }) => {
   <title>echo</title>
   <defs>
     <clipPath id="ball"><circle cx="160" cy="160" r="118"/></clipPath>
+    <clipPath id="plate"><circle cx="160" cy="160" r="${(118 + rim / 2).toFixed(2)}"/></clipPath>
     <radialGradient id="sphere" cx="36%" cy="30%">
       <stop offset="0%" stop-color="white"/>
       <stop offset="55%" stop-color="#707070"/>
@@ -127,7 +146,8 @@ const iconSvg = ({ size, orbScale = 1, cellPx = 2 }) => {
       <feMerge><feMergeNode in="ground"/><feMergeNode in="marks"/></feMerge>
     </filter>
   </defs>
-  <g filter="url(#dither)">
+  ${field ? "" : `<rect width="320" height="320" fill="${BRAND}"/>`}
+  <g${field ? "" : ' clip-path="url(#plate)"'} filter="url(#dither)">
     <rect width="320" height="320" fill="black"/>
     <g transform="translate(160 160) scale(${orbScale}) translate(-160 -160)">
       <circle cx="160" cy="160" r="118" fill="url(#sphere)"/>
@@ -386,7 +406,7 @@ console.log("\napps/www:");
 // the screen would be noise, and one SVG cannot pick a different drawing per size the way a set can.
 writeFileSync(
   join(REPO, "apps/www/app/icon.svg"),
-  `${iconSvg({ size: 64 })
+  `${iconSvg({ size: 64, dithered: false })
     .replace(' width="64" height="64"', "")
     .replace('<g transform="translate(160 160) scale(1) translate(-160 -160)">', "<g>")}\n`,
 );

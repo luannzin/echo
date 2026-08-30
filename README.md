@@ -70,7 +70,7 @@ bun run dev
 
 The app is at http://localhost:3000 and the marketing site at http://localhost:3001. There is no `.env` to fill in and no account to create.
 
-For the desktop build, `bun run dev:desktop` opens the Tauri window and `bun run build:desktop` packages it. It also wants a Rust toolchain, and on Linux `webkit2gtk-4.1`, `gtk+-3.0` and `libsoup-3.0`. Tagged builds land under [Releases](https://github.com/luannzin/echo/releases/latest).
+For the desktop build, `bun run dev:desktop` opens the Tauri window and `bun run build:desktop` packages it. It also wants a Rust toolchain, and on Linux `webkit2gtk-4.1`, `gtk+-3.0` and `libsoup-3.0`. Tagged builds land under [Releases](https://github.com/luannzin/echo/releases/latest), built by CI rather than by hand — a Linux binary runs only on the glibc it was built against or newer, so the released `.deb` is made on Ubuntu 22.04 and one built on your own machine will usually start nowhere but your own machine.
 
 **The one download.** `multilingual-e5-small` (about 120 MB) is fetched from Hugging Face the first time you search by meaning, then cached by the browser. Writing, filing and word search all work before it lands. It is multilingual on purpose: notes written in pt-BR have to search as well as notes written in English.
 

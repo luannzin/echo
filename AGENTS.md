@@ -209,9 +209,18 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   is not the fix: it would make the brand field transparent, and the field is the icon. So
   `scripts/icons.mjs` undoes the PNG filters, adds an opaque channel and re-encodes. Verified
   lossless against Chromium's own decoder: 1.4 million pixels, none of them changed.
-- Sizes at or over 128px are dithered and sizes at or under 64px are flat. That split is arithmetic,
-  not taste: the screen is an 8x8 tile and one Bayer cell cannot be smaller than one pixel, so a
-  32px dithered orb is noise. Small sizes get the silhouette instead.
+- **Every icon the applications ship is the dithered orb, at every size.** Both drawings still
+  exist, but which one is used is now asked for rather than inferred from the size, and the flat
+  silhouette survives in exactly one place: `apps/www/app/icon.svg`, where a single scalable file is
+  painted by a browser at 16 pixels and cannot pick a different drawing per size the way a set can.
+- Under 128px the screen only works with the ladder tightened, and two rungs do it. The Bayer cell
+  drops to a single pixel and the sphere to six heavy latitudes with a thicker rim: fourteen thin
+  ones inside 32 pixels are lines less than a pixel apart, which the dither reads as one flat field.
+- **And under 128px the ground is painted rather than screened.** Screening a black field leaves
+  exactly one ink cell per 8x8 tile, the one Bayer gives a zero. At 512px that is thirty-two dots
+  across and reads as the halftone it is; at 64px it is eight specks in the margin and reads as
+  dirt. So the small sizes get a solid brand ground with the screen clipped to the plate — the same
+  picture with nothing loose around it. `field` in `scripts/icons.mjs` is that line.
 - **MIT, and every package says so.** `LICENSE` at the root is the text; `"license": "MIT"` is set in
   all sixteen `package.json` files and in `src-tauri/Cargo.toml`, because a workspace where only the
   root declares it is a workspace whose published metadata disagrees with itself. A new package

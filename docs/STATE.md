@@ -950,6 +950,16 @@ builds the desktop app on a tag: NSIS `.exe` and `.msi` on Windows, a `.dmg` per
 macOS, `.deb`/`.rpm`/AppImage on Linux, all onto one draft release. `bun run bump <version>` writes
 the number where it is declared and prints the tag to push.
 
+**Linux builds are made on the oldest distribution echo supports, and this was learned the hard
+way.** A `.deb` built on a current Ubuntu installed on a friend's Debian and refused to start:
+`libm.so.6: version GLIBC_2.43 not found`. glibc is backward compatible and not forward compatible,
+so the version a binary links against is the *oldest* it will ever run on — building on your own
+machine produces a package for your own machine. `release.yml` builds Linux on `ubuntu-22.04`, glibc
+2.35, which is under every distribution carrying the webkit2gtk 4.1 Tauri v2 requires; Debian 11 is
+out of reach for that reason and not for this one. The `glibc floor` step reads the built binary's
+symbols back and fails the release if they ask for more than 2.35, so the next time this is wrong it
+is a red build rather than a message from somebody's friend.
+
 **Two things broke the first release run, and both had been sitting there since the icon generator
 landed — the desktop build had not been run since.** `cargo check` in `check.yml` catches both, which
 is the argument for that workflow existing at all:
@@ -1361,11 +1371,12 @@ production app still opens its database, files a note from the Inbox and moves o
   deployment-time decision rather than a safe one. Worth knowing before choosing a host: the largest
   single file is `ort-wasm-simd-threaded.jsep.wasm` at 26.5MB, over Cloudflare Pages' 25MB per-file
   limit.
-- **The desktop build has never run on this machine.** No Rust toolchain here, so nothing below
-  `tauri.conf.json` has been compiled locally. The release workflow has now run once and got as far
-  as compiling the crate, which is what found the RGBA and `PathBuf` problems above; what it has not
-  yet done is produce an installer. The next tag is the first test of the bundling half — the
-  `.icns`, the NSIS `.exe`, the two `.dmg`s — and of whether the draft release assembles.
+- **Windows is built and verified; macOS and Linux are not.** `bun run build:desktop` on Windows
+  produces `echo_0.1.9_x64-setup.exe` (31.4MB, NSIS) and `echo_0.1.9_x64_en-US.msi` (34.7MB) from a
+  57.2MB binary, and the app runs: the window opens, the Rust side writes its MCP token, and the
+  webview leaves 8.1MB of IndexedDB behind — which only exists once PGlite has opened and migrated.
+  What no machine here has done is produce a `.dmg` or a `.deb`. The `.icns` has never been read by
+  the macOS bundler, and the `glibc floor` step has never run.
 - `next-env.d.ts` is committed and rewritten by Next itself — `next dev` points it at `.next/dev/`
   and `next build` at `.next/` — so it flips in `git status` depending on which ran last. Harmless:
   `typecheck` passes either way, with or without `.next` present.
