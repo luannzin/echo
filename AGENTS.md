@@ -193,9 +193,9 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   whenever the reel is re-captured; it links to the blob view, which does play the full 2560x1440.
 - **The application icon is generated, not drawn by hand.** `scripts/icons.mjs` prints the `orb`
   plate from `apps/www/components/engraving.tsx` on the brand field through the site's own Bayer
-  dither, and writes every size both applications ship: `apps/web/app/icon.png` and `apple-icon.png`,
-  the three in `apps/web/public`, the four PNGs plus the `.ico` and the `.icns` in
-  `apps/desktop/src-tauri/icons`, and `apps/www/app/icon.svg`. Re-run it after changing the plate,
+  dither, and writes every size all three applications ship: `apps/web/app/favicon.ico` and
+  `apple-icon.png`, the three in `apps/web/public`, the four PNGs plus the `.ico` and the `.icns` in
+  `apps/desktop/src-tauri/icons`, and `apps/www/app/favicon.ico`. Re-run it after changing the plate,
   the brand colour or the set; never edit an icon by hand, because the next run overwrites it. It
   needs `bunx playwright install chromium` and is deliberately not a workspace dependency.
 - **The `.ico` and the `.icns` are built here, not fetched from a platform tool.** Both are
@@ -209,10 +209,14 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   is not the fix: it would make the brand field transparent, and the field is the icon. So
   `scripts/icons.mjs` undoes the PNG filters, adds an opaque channel and re-encodes. Verified
   lossless against Chromium's own decoder: 1.4 million pixels, none of them changed.
-- **Every icon the applications ship is the dithered orb, at every size.** Both drawings still
-  exist, but which one is used is now asked for rather than inferred from the size, and the flat
-  silhouette survives in exactly one place: `apps/www/app/icon.svg`, where a single scalable file is
-  painted by a browser at 16 pixels and cannot pick a different drawing per size the way a set can.
+- **One drawing, everywhere: the dithered orb at every size, in every surface.** There used to be a
+  second, flat one that the generator chose automatically below 64px, which is why a taskbar icon
+  looked nothing like a browser tab. It is gone, and so is the last thing that used it.
+- **Both applications' favicons are the desktop application's `.ico`, byte for byte.** A browser
+  handed one large PNG resamples it to sixteen pixels itself and the screen collapses into grey —
+  which is what `apps/web` shipped, a 512px file for a 16px slot. An `.ico` hands the browser the
+  drawing already solved at that size. An SVG favicon was the alternative and it cannot pick a
+  different drawing per size, which is the whole reason the small sizes are drawn separately at all.
 - Under 128px the screen only works with the ladder tightened, and two rungs do it. The Bayer cell
   drops to a single pixel and the sphere to six heavy latitudes with a thicker rim: fourteen thin
   ones inside 32 pixels are lines less than a pixel apart, which the dither reads as one flat field.

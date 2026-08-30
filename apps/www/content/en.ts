@@ -86,7 +86,7 @@ export const en = {
 
   tour: {
     title: "The same notes, read four ways",
-    lede: "A stream, a task list, a timeline and a page you write on. Nothing here is a separate place to keep up to date.",
+    lede: "A stream, a task list, a window of its own and a page you write on. Nothing here is a separate place to keep up to date.",
     legend: "Choose a screen",
     points: [
       {
@@ -100,9 +100,10 @@ export const en = {
         alt: "The task list: the ones with a date grouped under Due and the rest under No date, each showing the note it came out of.",
       },
       {
-        title: "Timeline",
-        subtitle: "The same notes by day and by week, with whatever is coming up on top.",
-        alt: "The timeline: a This week band holding the deadlines echo found, and under it the days, each with the notes written that day.",
+        title: "Native",
+        subtitle:
+          "The same notes in a window of its own, with tabs and a mode that is only writing.",
+        alt: "The desktop application in a window of its own, over the full application behind it: four notes open as tabs, one being written in with the slash menu open, and a Reads as a task chip above it.",
       },
       {
         title: "Writing",

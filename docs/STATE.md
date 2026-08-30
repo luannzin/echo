@@ -981,6 +981,29 @@ way it already wrote the `.ico` — a container of PNG payloads, built rather th
 build depending on which machine ran the generator. Regenerating produced byte-identical PNGs, which
 is the check that the change is additive.
 
+### Icon and site pass
+
+**One drawing, everywhere.** The generator used to pick a flat silhouette under 64px and the screened
+orb above it, which is why the desktop taskbar icon looked nothing like a browser tab. Which drawing
+is used is no longer inferred from the size — there is one, and it is the dithered orb. The small
+sizes tighten the ladder instead: a one-pixel Bayer cell, six heavy latitudes with a thicker rim, and
+a painted ground rather than a screened one, because screening a black field leaves one ink cell per
+8x8 tile, which is a halftone at 512px and eight specks in the margin at 64.
+
+**Both favicons are the desktop application's `.ico`, byte for byte.** `apps/web` shipped a single
+512x512 PNG for a 16px slot and let the browser resample it, which turns a dither into grey;
+`apps/www` shipped the flat SVG, so the site and the app in the taskbar were two different drawings.
+Both are now `app/favicon.ico`, written by `scripts/icons.mjs` from the same size list the bundle
+uses. `apps/web/app/icon.png` and `apps/www/app/icon.svg` are gone, and with the SVG went the last
+caller of the flat drawing.
+
+**The tour's third panel is the desktop application.** `Timeline` is replaced by `Native` in
+`components/tour.tsx` and both content files: the same notes in a window of its own, with tabs and
+the simpler mode. `public/shots/native.webp` is cut from a 2559x1398 capture to the 2290x1760 every
+other shot is cut to — `components/shot.tsx` writes those numbers down once for all of them, so a
+file at another ratio makes the browser reserve the wrong box and the page jump. The timeline shot
+stays in both READMEs, which still show it.
+
 ## In progress
 - **E2's simpler-mode half is unverified.** Written, typechecked, and never driven — see above.
   Still open from Phase 5: whether projects should be their

@@ -85,7 +85,7 @@ export const pt: Content = {
 
   tour: {
     title: "As mesmas notas, quatro jeitos de ler",
-    lede: "Fluxo, tarefas, linha do tempo e página de escrita. Nada aqui é um lugar separado para manter atualizado.",
+    lede: "Fluxo, tarefas, janela própria e página de escrita. Nada aqui é um lugar separado para manter atualizado.",
     legend: "Escolha uma tela",
     points: [
       {
@@ -99,9 +99,9 @@ export const pt: Content = {
         alt: "A lista de tarefas: as com data agrupadas em A vencer e o resto em Sem data, cada uma mostrando a nota de onde saiu.",
       },
       {
-        title: "Linha do tempo",
-        subtitle: "As mesmas notas por dia e por semana, com o que vem aí no alto.",
-        alt: "A linha do tempo: uma faixa Esta semana com os prazos que echo encontrou, e abaixo os dias, cada um com as notas escritas ali.",
+        title: "Nativo",
+        subtitle: "As mesmas notas numa janela própria, com abas e um modo que é só escrita.",
+        alt: "O aplicativo desktop numa janela própria, sobre o aplicativo completo atrás dele: quatro notas abertas em abas, uma sendo escrita com o menu de barra aberto, e a etiqueta Lê como tarefa no alto.",
       },
       {
         title: "Escrevendo",

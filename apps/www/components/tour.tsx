@@ -5,7 +5,7 @@ import type { Content } from "@/content/en";
 const SHOTS = [
   "/shots/stream.webp",
   "/shots/tasks.webp",
-  "/shots/timeline.webp",
+  "/shots/native.webp",
   "/shots/write.webp",
 ];
 

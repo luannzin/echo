@@ -15,8 +15,12 @@
  * Per size rather than one master resampled down, because the screen is an 8x8 tile measured in
  * user units: scaling one file from 1024 to 32 takes the tile with it and the pattern collapses
  * into grey. Each output is drawn at its own size with the tile solved so one Bayer cell lands on
- * whole pixels, and at or below 64px the screen is dropped for a flat silhouette, because one cell
- * cannot be smaller than one pixel.
+ * whole pixels — which is also why a browser handed one big PNG cannot produce a decent favicon,
+ * and why both applications get an `.ico` holding the sizes rather than a single file to squash.
+ *
+ * One drawing, everywhere. The small sizes tighten the ladder — a finer cell, fewer and heavier
+ * latitudes, and a painted ground instead of a screened one — but the orb is the screened orb at
+ * sixteen pixels and at a thousand.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -63,34 +67,10 @@ const latitudes = (count) =>
 /**
  * @param size      rendered pixels, square
  * @param orbScale  1 is the plate's own proportion; the maskable icon shrinks it into the safe zone
- * @param cellPx    how many pixels one Bayer cell should occupy in the output
- * @param dithered  which of the two drawings this is. Asked for rather than inferred from the size:
- *                  the application ships one icon and it is the screened one, and the flat disc is
- *                  now only where a dither cannot survive at all — `apps/www/app/icon.svg`, which a
- *                  browser paints at 16 pixels from a single scalable file.
+ * @param cellPx    how many pixels one Bayer cell should occupy in the output. One device pixel
+ *                  under 128, where eight cells have to carry the whole orb, and two above it
  */
-const iconSvg = ({ size, orbScale = 1, cellPx = size <= 64 ? 1 : 2, dithered = true }) => {
-  if (!dithered) {
-    // The orb as it looks from far away: a disc with three bands through it. The rings are clipped
-    // by construction here, since none of them reaches the silhouette.
-    const flat = [0.3, 0.5, 0.7]
-      .map((t) => {
-        const y = 160 + (t - 0.5) * 224;
-        const rx = 112 * Math.sin(t * Math.PI);
-        const ry = 10 + 8 * Math.sin(t * Math.PI);
-        return `<ellipse cx="160" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"/>`;
-      })
-      .join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 320 320">
-  <title>echo</title>
-  <rect width="320" height="320" fill="${BRAND}"/>
-  <g transform="translate(160 160) scale(${orbScale}) translate(-160 -160)">
-    <circle cx="160" cy="160" r="118" fill="${INK}"/>
-    <g fill="none" stroke="${BRAND}" stroke-width="13">${flat}</g>
-  </g>
-</svg>`;
-  }
-
+const iconSvg = ({ size, orbScale = 1, cellPx = size <= 64 ? 1 : 2 }) => {
   // One Bayer cell should be `cellPx` device pixels. The tile holds 8 of them, and the viewBox is
   // 320 units wide however big the output is, so: tile = 8 * cellPx * 320 / size.
   const tile = (8 * cellPx * 320) / size;
@@ -362,6 +342,13 @@ const buildIcns = (entries, target) => {
   writeFileSync(target, Buffer.concat([header, ...chunks]));
 };
 
+/**
+ * The sizes a tab, a taskbar and a bundle all want, in one list because they all want the same
+ * icon. A browser handed a single large PNG resamples it down to sixteen pixels itself and the
+ * screen collapses into grey; an `.ico` hands it the drawing already solved at that size.
+ */
+const FAVICON = ["16.png", "32.png", "48.png", "64.png", "128.png", "256.png"];
+
 const put = (from, to) => {
   const target = join(REPO, to);
   mkdirSync(dirname(target), { recursive: true });
@@ -370,7 +357,8 @@ const put = (from, to) => {
 };
 
 console.log("\napps/web:");
-put("512.png", "apps/web/app/icon.png");
+buildIco(FAVICON, join(REPO, "apps/web/app/favicon.ico"));
+console.log("  apps/web/app/favicon.ico (16, 32, 48, 64, 128, 256)");
 put("180.png", "apps/web/app/apple-icon.png");
 put("192.png", "apps/web/public/icon-192.png");
 put("512.png", "apps/web/public/icon-512.png");
@@ -381,10 +369,7 @@ put("32.png", "apps/desktop/src-tauri/icons/32x32.png");
 put("128.png", "apps/desktop/src-tauri/icons/128x128.png");
 put("256.png", "apps/desktop/src-tauri/icons/128x128@2x.png");
 put("1024.png", "apps/desktop/src-tauri/icons/icon.png");
-buildIco(
-  ["16.png", "32.png", "48.png", "64.png", "128.png", "256.png"],
-  join(REPO, "apps/desktop/src-tauri/icons/icon.ico"),
-);
+buildIco(FAVICON, join(REPO, "apps/desktop/src-tauri/icons/icon.ico"));
 console.log("  apps/desktop/src-tauri/icons/icon.ico (16, 32, 48, 64, 128, 256)");
 buildIcns(
   [
@@ -402,12 +387,8 @@ buildIcns(
 console.log("  apps/desktop/src-tauri/icons/icon.icns (32, 64, 128, 256, 512, 1024)");
 
 console.log("\napps/www:");
-// Scalable, so it gets the flat drawing: a browser paints a favicon between 16 and 32 pixels, where
-// the screen would be noise, and one SVG cannot pick a different drawing per size the way a set can.
-writeFileSync(
-  join(REPO, "apps/www/app/icon.svg"),
-  `${iconSvg({ size: 64, dithered: false })
-    .replace(' width="64" height="64"', "")
-    .replace('<g transform="translate(160 160) scale(1) translate(-160 -160)">', "<g>")}\n`,
-);
-console.log("  apps/www/app/icon.svg");
+// The same file the application ships, so a tab and a taskbar show one icon and not two drawings
+// of it. An SVG favicon was the alternative and it cannot pick a different drawing per size the way
+// a set can, which is the whole reason the small sizes are drawn separately at all.
+buildIco(FAVICON, join(REPO, "apps/www/app/favicon.ico"));
+console.log("  apps/www/app/favicon.ico (16, 32, 48, 64, 128, 256)");

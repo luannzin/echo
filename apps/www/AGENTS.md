@@ -18,6 +18,9 @@ section.
 - Owns `app/**` (the two roots and the tokens), `components/**` (every section of the page, plus the
   shared `cta.tsx` and `language-link.tsx`) and `content/**` (everything the page says, in both
   languages). Owns `public/shots/**` and `public/reel/**`: the captures of the running application.
+- Does **not** own `app/favicon.ico`. It is written by `scripts/icons.mjs` and is the same file the
+  desktop application bundles, so a tab and a taskbar show one icon rather than two drawings of it.
+  Root `AGENTS.md` has the rules; editing it by hand is overwritten by the next run.
 - Owns its own token set in `app/globals.css`. It re-declares the brand values rather than importing
   the application's stylesheet, so a change to the app's chrome cannot repaint the site by accident.
 - Does not own product truth: every claim on the page has to be something the app already does.
@@ -66,10 +69,17 @@ section.
   than imported as a coffee glyph so it holds at any density and takes its two colours from the
   theme. An icon set would have broken both rules at once.
 - **Every capture is of the app as it actually is.** Re-take them when the interface moves; a
-  screenshot of a build that no longer exists is a lie with a timestamp. The reel is 2560x1440 so it
-  is sharp on the monitors this page is read on, 16:9 so `.reel-video` crops nothing, and about
-  thirty seconds — long enough for one note to be written, searched for and filed, short enough to
-  loop without becoming furniture.
+  screenshot of a build that no longer exists is a lie with a timestamp.
+  The reel is 2560x1440 so it is sharp on the monitors this page is read on, 16:9 so `.reel-video`
+  crops nothing, and about thirty seconds — long enough for one note to be written, searched for and
+  filed, short enough to loop without becoming furniture.
+- **Every file in `public/shots` is cut to 2290x1760**, because `components/shot.tsx` writes those
+  numbers down once for all of them rather than taking them per shot. A file at another ratio is not
+  a smaller mistake than a wrong `width` attribute — it is the same one, and it makes the browser
+  reserve a box the wrong height and the page jump under the reader. So crop to the ratio before
+  adding a capture, and crop rather than letterbox: `native.webp` came off a 2559x1398 screen and is
+  the middle 1810 columns of it, chosen to clear the sidebar's empty states on one edge and a
+  half-cut button on the other.
 - **The mechanics are the running app's; the corpus is illustration.** Whatever the captures show —
   counts, chips, reason sentences — is whatever the application produced, never a number typed in
   afterwards. The note titles and project names around them are an ordinary working programmer's
