@@ -78,7 +78,7 @@ export const en = {
       {
         label: "Vocabulary",
         title: "It learns your words",
-        body: "You type k8s. Half your notes say kubernetes and the rest say the cluster. echo works that out on its own, from your notes alone, so searching one finds the other.",
+        body: "You type k8s. Half your notes say kubernetes and the rest say the cluster. echo works that out on its own, from your notes alone, so searching one finds the other. It learns the words you keep using.",
         alt: "Searching for k8s. The first result contains the letters; the second is a note about kubernetes that does not, found by meaning rather than by spelling.",
       },
     ],
