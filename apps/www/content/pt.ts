@@ -22,6 +22,7 @@ export const pt: Content = {
     title: "echo · o bloco de notas que aprende com você",
     description:
       "Escreva uma linha e aperte Enter. echo acha o prazo, a tarefa e as palavras que você repete. Código aberto, e tudo roda na sua máquina: sem conta, sem servidor.",
+    alt: "A marca echo sobre o campo da marca, acima da linha O BLOCO DE NOTAS QUE APRENDE COM VOCÊ, com anéis saindo de uma fonte à direita.",
   },
 
   other: { label: "English", href: "/", lang: "en" },

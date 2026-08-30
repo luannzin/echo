@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import type { ReactNode } from "react";
+import { Analytics } from "@/components/analytics";
 import { Filters } from "@/components/filters";
 import { SITE } from "@/components/links";
 import { pt } from "@/content/pt";
@@ -35,11 +36,21 @@ export const metadata: Metadata = {
     canonical: "/pt-br/",
     languages: { en: "/", "pt-BR": "/pt-br/", "x-default": "/" },
   },
+  /** The English document's card, in Portuguese: see `(en)/layout.tsx` for why it is declared. */
   openGraph: {
     title: pt.meta.title,
     description: pt.meta.description,
+    url: "/pt-br/",
+    siteName: "echo",
     locale: "pt_BR",
     type: "website",
+    images: [{ url: "/og-pt.png", width: 1200, height: 630, alt: pt.meta.alt }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: pt.meta.title,
+    description: pt.meta.description,
+    images: [{ url: "/og-pt.png", alt: pt.meta.alt }],
   },
 };
 
@@ -63,6 +74,7 @@ const PortugueseLayout = ({ children }: { children: ReactNode }) => (
       <Filters />
       {children}
       <div className="grain" />
+      <Analytics />
     </body>
   </html>
 );

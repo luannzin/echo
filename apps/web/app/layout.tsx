@@ -13,9 +13,50 @@ const display = Instrument_Serif({
   variable: "--font-display",
 });
 
+/**
+ * Where this build is served from, which is the one thing a static export cannot work out for
+ * itself. It is written here rather than read from the environment because the same export is also
+ * the desktop app's frontend, and a Tauri window has no origin worth resolving a social card
+ * against. The marketing site keeps its own copy in `apps/www/components/links.tsx`.
+ */
+const APP = "https://app.useecho.dev";
+
+const TITLE = "echo - open source no-ai note taker that learns with you";
+const DESCRIPTION = "The note taker that learns with you. Local-first, private, open source.";
+
+/**
+ * The picture a link to the app unfurls into.
+ *
+ * This is the address that actually gets pasted into a chat, so it is the card most people see.
+ * `scripts/og.mjs` draws it beside the site's two, from the same drawing: the brand field, the
+ * wordmark and the echoes. Only the line under it differs, because this link opens echo rather
+ * than describing it.
+ */
 export const metadata: Metadata = {
-  title: "echo - open source no-ai note taker that learns with you",
-  description: "The note taker that learns with you. Local-first, private, open source.",
+  metadataBase: new URL(APP),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/",
+    siteName: "echo",
+    type: "website",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "The echo wordmark on the brand field, over the line THE NOTE TAKER THAT LEARNS WITH YOU, with rings leaving a source on the right.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og.png"],
+  },
 };
 
 export const viewport: Viewport = {
@@ -77,6 +118,27 @@ if(localStorage.getItem('echo:motion')==='reduced')
 document.documentElement.dataset.echoMotion='reduced'
 }catch(e){}`;
 
+/**
+ * The worker that keeps a copy of the application, registered before anything else is asked for.
+ *
+ * It used to register after hydration, and by then the browser had already fetched the stylesheet,
+ * the fonts, the chunks and sixteen megabytes of database runtime with nothing watching: a first
+ * visit left a cache that could not open the application offline, and the only way to complete it
+ * was to download all of it a second time. Registered here it is claiming the page inside a
+ * hundred milliseconds, before PGlite asks for its WebAssembly, so the heavy files land in the
+ * cache as they arrive at no cost at all. `warmServiceWorker` backfills the handful of small ones
+ * the preload scanner had already asked for by then.
+ *
+ * Not on the desktop, which serves every one of these files from disk and has nothing to gain from
+ * a second copy of them. That is the one thing here that can fail open: Tauri has to have injected
+ * itself before this runs, and if it has not, a desktop install caches files it will never read.
+ */
+const WORKER_ON_OPEN = `try{
+if(!window.__TAURI_INTERNALS__&&'serviceWorker' in navigator)
+navigator.serviceWorker.register('/sw.js?v=${process.env.NEXT_PUBLIC_ECHO_VERSION ?? "0.0.0"}')
+.catch(function(){})
+}catch(e){}`;
+
 const RootLayout = ({ children }: { children: ReactNode }) => (
   <html
     lang="en"
@@ -87,6 +149,11 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
       <script dangerouslySetInnerHTML={{ __html: MODE_ON_OPEN }} />
       <script dangerouslySetInnerHTML={{ __html: LANGUAGE_ON_OPEN }} />
       <script dangerouslySetInnerHTML={{ __html: APPEARANCE_ON_OPEN }} />
+      {/* Never in development, where a cache in front of chunks that change on every save is a
+          debugging session nobody asked for. */}
+      {process.env.NODE_ENV === "production" && (
+        <script dangerouslySetInnerHTML={{ __html: WORKER_ON_OPEN }} />
+      )}
     </head>
     <body className="min-h-dvh font-sans antialiased">{children}</body>
   </html>

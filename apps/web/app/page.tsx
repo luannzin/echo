@@ -76,7 +76,7 @@ import {
 import { readPreference, writePreference } from "@/shared/lib/preferences";
 import type { Suggestion } from "@/shared/lib/retrieval";
 import { saveCopy } from "@/shared/lib/save-copy";
-import { registerServiceWorker } from "@/shared/lib/service-worker";
+import { warmServiceWorker } from "@/shared/lib/service-worker";
 import { isUndoChord, shortcutFor, shortcutLabel } from "@/shared/lib/shortcuts";
 import { isDesktopApp } from "@/shared/lib/tauri";
 import { navigate, noteRow } from "@/shared/lib/transition";
@@ -317,7 +317,7 @@ const Page = () => {
     setTouring(!readPreference("tour-done", false));
     setChecklistShown(!readPreference("checklist-hidden", false));
 
-    registerServiceWorker();
+    warmServiceWorker();
   }, []);
 
   /**

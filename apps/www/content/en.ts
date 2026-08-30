@@ -22,6 +22,12 @@ export const en = {
     title: "echo · the note taker that learns with you",
     description:
       "Write one line and press Enter. echo finds the deadline, the task and the words you keep using. Open source, and all of it runs on your machine: no account, no server.",
+    /**
+     * The social card, described for the readers who are handed the description instead of the
+     * picture: a screen reader on a timeline, and every client that shows `alt` when the image
+     * does not arrive. It describes what is in `public/og.png`, which `scripts/og.mjs` draws.
+     */
+    alt: "The echo wordmark on the brand field, over the line THE NOTE TAKER THAT LEARNS WITH YOU, with rings leaving a source on the right.",
   },
 
   /** The other language, named in itself, where it lives, and the tag `hreflang` needs. */

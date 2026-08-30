@@ -16,8 +16,9 @@ section.
 ## Ownership
 
 - Owns `app/**` (the two roots and the tokens), `components/**` (every section of the page, plus the
-  shared `cta.tsx` and `language-link.tsx`) and `content/**` (everything the page says, in both
-  languages). Owns `public/shots/**` and `public/reel/**`: the captures of the running application.
+  shared `cta.tsx`, `language-link.tsx` and `analytics.tsx`) and `content/**` (everything the page
+  says, in both languages). Owns `public/shots/**` and `public/reel/**`: the captures of the running
+  application.
 - Does **not** own `app/favicon.ico`. It is written by `scripts/icons.mjs` and is the same file the
   desktop application bundles, so a tab and a taskbar show one icon rather than two drawings of it.
   Root `AGENTS.md` has the rules; editing it by hand is overwritten by the next run.
@@ -80,6 +81,12 @@ section.
   adding a capture, and crop rather than letterbox: `native.webp` came off a 2559x1398 screen and is
   the middle 1810 columns of it, chosen to clear the sidebar's empty states on one edge and a
   half-cut button on the other.
+- **The social card is drawn, not screenshotted.** `public/og.png` and `public/og-pt.png` come out
+  of `scripts/og.mjs` at the repository root, which draws the README banner at 1200x630. They are
+  declared in both layouts with their dimensions written down, because a crawler that has to fetch
+  the file to learn them shows a small square in the meantime and some never come back for the
+  rest. `meta.alt` in the content files describes what is in the picture, and inherits the same
+  honesty the shot `alt` text does.
 - **The mechanics are the running app's; the corpus is illustration.** Whatever the captures show —
   counts, chips, reason sentences — is whatever the application produced, never a number typed in
   afterwards. The note titles and project names around them are an ordinary working programmer's
@@ -115,10 +122,31 @@ section.
 - A reveal holds its own content and uncovers it (`clip-path`), so nothing on the page is gated on
   an animation having run. `@media print` at the foot of the components layer settles every one of
   them, and it wins by being declared last rather than by `!important`.
-- Two client components, and no more without a reason of the same weight: `install-box.tsx`, because
-  the clipboard and the tab state need one, and `reel-player.tsx`, because whether the reel may play
-  at all is a question about the visitor's machine. Everything else stays a server component, the
-  language switcher included: it is a link.
+- Two client components written here, and no more without a reason of the same weight:
+  `install-box.tsx`, because the clipboard and the tab state need one, and `reel-player.tsx`, because
+  whether the reel may play at all is a question about the visitor's machine. Everything else stays a
+  server component, the language switcher included: it is a link. The others on the page are not
+  written here: `GoogleAnalytics`, `Analytics` and `SpeedInsights` all ship as client components,
+  and a tag that reports what a browser did could not have been anything else.
+- **The site measures itself; the application never does.** `components/analytics.tsx` is the one
+  definition of everything this page measures, rendered by both roots, because separate root layouts
+  mean anything common is a component rather than a parent. It is the marketing page only. `apps/web`
+  has no analytics of any kind and gains none: a local-first note taker that reported on its reader
+  would be arguing against itself, and the separation is the point rather than an oversight.
+- Three tags, answering three questions. GA4 (`@next/third-parties`) is who arrived and where from.
+  Vercel's analytics is the same visit counted by the host that served it, with no cookie and no ID.
+  Speed Insights is the field data: Core Web Vitals from readers on their own machines, which is the
+  only honest answer to whether a page carrying a 2560x1440 reel is fast, and one no local Lighthouse
+  run can give. A fourth needs a question none of these three answers.
+- No URL left `links.tsx` for any of them, and that is why these are packages rather than pasted
+  snippets. `@next/third-parties` owns the `googletagmanager.com` address and loads it
+  after-interactive; both Vercel tags report to `/_vercel/insights` and `/_vercel/speed-insights` on
+  whatever domain served the page, so they collect nowhere else and go quiet on a deploy that is not
+  Vercel's. The GA4 measurement ID is the one identifier written down here, in `analytics.tsx`,
+  because it is an ID and not an address.
+- Dependencies outside `next`, `react` and `react-dom`: `@next/third-parties`, `@vercel/analytics`,
+  `@vercel/speed-insights`. All three are analytics, all three are in that one component, and the
+  site still compiles no domain.
 - **The reel is ambient; the demo is the dialog.** `.reel-frame` fades the recording out at the foot
   so it becomes the spectrum rather than ending on a line, which is exactly what makes the bottom of
   it unreadable — so the frame carries a centred **Play demo** button that opens the same file in a

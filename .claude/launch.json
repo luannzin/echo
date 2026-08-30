@@ -21,6 +21,13 @@
       "runtimeArgs": ["run", "dev:www"],
       "port": 3001,
       "autoPort": true
+    },
+    {
+      "name": "www-prod",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "--cwd", "apps/www", "start"],
+      "port": 3001,
+      "autoPort": true
     }
   ]
 }

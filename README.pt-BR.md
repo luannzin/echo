@@ -111,6 +111,12 @@ Duas palavras são a mesma palavra quando você escreve uma *no lugar* da outra,
 | <img src="apps/www/public/shots/timeline.webp" alt="A linha do tempo: uma faixa Esta semana com os prazos que echo encontrou, e abaixo os dias, cada um com as palavras que passaram por ele." width="100%"> | <img src="apps/www/public/shots/write.webp" alt="Uma frase sendo escrita no echo. O campo mostra a contagem de palavras e uma etiqueta Vence sexta, e o painel ao lado já lista as notas ligadas a ela." width="100%"> |
 | **Linha do tempo.** Por dia e por semana, com o que vem aí no alto. | **Escrevendo.** Escreva uma linha e veja ela sendo lida, ao lado das notas que ele lembrou. |
 
+### Uma janela só dele
+
+<img src="apps/www/public/shots/native.webp" alt="O aplicativo desktop numa janela própria, sobre o aplicativo completo atrás dele: quatro notas abertas em abas, uma sendo escrita com o menu de barra aberto, e a etiqueta Lê como tarefa no alto." width="100%">
+
+A versão desktop é o mesmo código numa janela Tauri: as notas abrem em abas, o menu de barra continua onde sempre esteve, e o modo editor reduz a casca à página em que você está escrevendo. É também o único lugar em que echo serve MCP no loopback, então um assistente na sua máquina lê e escreve pelas ferramentas do próprio echo.
+
 ---
 
 ## Como ele roda
@@ -118,7 +124,7 @@ Duas palavras são a mesma palavra quando você escreve uma *no lugar* da outra,
 | | |
 | --- | --- |
 | **A busca acompanha a digitação** | Um índice GIN sobre um `tsvector` guardado, não uma varredura. Dez mil notas respondem em 21 ms, e as relacionadas em 8 ms. O sentido chega um instante depois e reordena as respostas, sem segurar nada. |
-| **Offline é o caso normal** | O service worker não faz precache: o documento vem da rede primeiro, então uma interface velha nunca prende você a uma build antiga, e o resto vem do cache primeiro porque é endereçado por conteúdo. |
+| **Offline é o caso normal** | O service worker é registrado antes de a primeira folha de estilo ser pedida, então uma visita basta. Ele faz precache do documento e de mais nada: o documento vem da rede primeiro, então uma interface velha nunca prende você a uma build antiga, e o resto vem do cache primeiro porque é endereçado por conteúdo. |
 | **Esquecer é de verdade** | As regras aprendidas são refeitas na leitura e nunca ficam guardadas, então "esquecer isso" é apagar e não marcar uma bandeira que alguma outra parte ainda consulta. |
 | **A versão desktop é o mesmo código** | Tauri v2 em volta do mesmo export estático. O lado Rust é uma janela e nada mais: o banco, a busca e o aprendizado rodam no app web em qualquer host. |
 | **O banco é Postgres de verdade** | PGlite no navegador agora, as mesmas migrations num servidor depois. Nada fora do `@echo/db` escreve SQL. |

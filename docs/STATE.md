@@ -601,6 +601,23 @@ discipline stayed; the structure did not.
   call to action in the nav, the hero and the footer is **Open echo** rather than `git clone`, and
   running it yourself is offered one step quieter. Both URLs are written down once, in
   `apps/www/components/links.tsx`.
+- Done since: the site measures itself and the application still reports nothing anywhere. Three tags
+  in `components/analytics.tsx`, rendered by both roots because separate root layouts have no parent
+  to share: GA4 (`G-8YXFT0J783`, who arrived and where from), Vercel analytics (the same visit
+  counted by the host, no cookie and no ID) and Speed Insights (Core Web Vitals from real readers,
+  which is the only measurement that can answer for a page carrying a 2560x1440 reel).
+- Packages rather than pasted snippets, for one reason three times over: none of them puts a vendor
+  URL in a component, so `links.tsx` stays the one place a URL is written down. `@next/third-parties`
+  also owns the after-interactive loading; both Vercel tags report to `/_vercel/*` on whatever domain
+  served the page, which means a fork inherits silence rather than someone else's dashboard. The GA4
+  ID does not: it is written down and a fork reports to this property until it changes that line.
+- Verified against the production export: `gtag/js?id=G-8YXFT0J783` at 170ms and a real
+  `google-analytics.com/g/collect` hit carrying that `tid`, then `window.gtag`, `window.va` and
+  `window.si` all live with both `/_vercel/*/script.js` tags deferred in the DOM, on `/` and on
+  `/pt-br`. The two Vercel scripts 404 off Vercel, which is what going quiet looks like.
+- Not done, and it is a decision waiting rather than an oversight: no consent banner. GA4 sets
+  cookies, so an EU reader is a question this page does not currently ask. Nothing on the site
+  depends on the answer.
 
 Verified: `bun run lint` clean, `bun run --cwd apps/www typecheck` clean, `bun run --cwd apps/www
 build` exports the same three static routes. Read at 1440, 1280, 768 and 375 with no horizontal
@@ -944,6 +961,32 @@ the network. A reader who installed echo once would have run that build's WebAss
 build after it. The page registers `/sw.js?v=<version>` now and the worker names its cache after
 what it was registered with, so a release replaces both itself and what the last one kept.
 
+**Fixed: every release threw away the model.** The fix above made the cache name move with the
+version, and `activate` deletes every cache that is not the current name. `caches` is the whole
+origin's, though, not this worker's, and transformers.js keeps the 120MB of weights in one of its
+own called `transformers-cache`. So an update was also a re-download, and an update taken offline
+was semantic search dropping back to words with nothing to say about why. It deletes names starting
+`echo-` now. Verified by bumping 0.1.9 to 0.2.1 against a live install: the old cache went, the
+weights stayed, and a search run with the server stopped still answered by meaning.
+
+**Fixed: one visit to the sticky note replaced the application.** `document_` cached every
+navigation under `/` and read the same key back, and this export has two documents. Opening
+`/postit` once wrote the sticky note over the application's own entry, so the next offline visit to
+the root got a sticky note with nothing to talk to. Reproduced, then keyed by `pathname`: by path
+rather than by request, because the sticky note carries the note's id in its query and caching the
+request would write one copy of the same document per note ever pinned. A non-`ok` response is no
+longer stored either, so a host mid-deploy cannot leave its 503 on disk as the shell.
+
+**Fixed: a first visit left a cache that could not open the application.** The worker was registered
+after hydration, by which time the document, the stylesheet, the fonts and sixteen megabytes of
+database runtime were already down with nothing watching. A reader who installed echo and closed
+the tab came back offline to a browser error page. Registration moved into the head, which is early
+enough to catch PGlite's WebAssembly live at no cost, and `install` precaches the one file that can
+never catch itself. Warming from the resource timeline was tried first and rejected on its own
+merits: it re-downloaded what the page had just fetched, and asking for twenty files in parallel
+while the app was still loading dropped the two largest every time. It survives as the backfill for
+the small early files, one at a time. First visit before: 3 entries and no shell. After: 25.
+
 **Releases.** `.github/workflows/check.yml` runs `typecheck`, `lint`, `test` and `build` plus
 `cargo fmt --check`, `cargo check` and `cargo test` on every push and pull request. `release.yml`
 builds the desktop app on a tag: NSIS `.exe` and `.msi` on Windows, a `.dmg` per architecture on
@@ -1075,7 +1118,8 @@ stays in both READMEs, which still show it.
 | 2026-08-26 | Projects deferred, not built | today a project would be a folder with a different icon; the domain is ready when the product has something to say about them |
 | 2026-08-26 | The tree and the note list are one component | a drag crosses between them, and the row it is heading for must light up mid-air |
 | 2026-08-26 | Mobile is CSS, not a second tree | one note list in the document, one drag target, and no guess about the viewport before the browser has said what it is |
-| 2026-08-26 | Service worker precaches nothing | the app loads all of it on the first visit anyway; a precache list would download 13MB before the first note |
+| 2026-08-26 | Service worker precaches one file, the document | the app loads the rest on the first visit anyway and the worker is registered early enough to catch it; a precache list would download 13MB before the first note |
+| 2026-08-29 | The worker is registered in the head, not after hydration | when it registers decides what it can catch, and the 16MB of database runtime is requested at 207ms |
 | 2026-08-26 | The document is network-first, everything else cache-first | a stale shell would pin a reader to an old build; hashed assets never go stale |
 | 2026-08-26 | The project brief is derived on read, never stored | a description that has to be maintained is a description that goes stale; this one is either right or the notes are |
 | 2026-08-26 | Organize shows the plan before it moves anything | filing fourteen notes wrongly is a far worse afternoon than filing them one at a time; undo is not the same promise as never having done it |
@@ -1321,12 +1365,18 @@ production app still opens its database, files a note from the Inbox and moves o
 - **Installable.** `app/manifest.ts` (force-static, because the app is an export) plus an icon set
   drawn from one source: a bright source dot with echoes fading outward. 192, 512, a maskable 512
   with the safe zone, an apple touch icon, and the Windows `.ico` for the desktop bundle.
-- **Offline is the normal case.** `public/sw.js` is thirty lines and precaches nothing: the document
-  is network-first so a stale shell can never pin a reader to an old build, and everything else is
-  cache-first because it is content-addressed. Everything the app loads it loads on the first visit
-  anyway, so this costs one visit rather than a thirteen-megabyte download up front.
+- **Offline is the normal case.** `public/sw.js` precaches one file, the document, and catches
+  everything else on the way past: the document is network-first so a stale shell can never pin a
+  reader to an old build, and everything else is cache-first because it is content-addressed.
+  Everything the app loads it loads on the first visit anyway, so this costs one visit rather than a
+  thirteen-megabyte download up front.
+- Registration is a blocking script in `layout.tsx`, and the position is the point. `warmServiceWorker`
+  in `shared/lib/service-worker.ts` is the other half: it posts the page's own resource timeline once
+  the worker is controlling, and the worker backfills, one at a time, whatever it holds no copy of.
 - Verified by stopping the server and reloading: the shell, the database, the folder tree and every
-  note came back, and a note written with nothing serving the app saved and stayed saved.
+  note came back, and a note written with nothing serving the app saved and stayed saved. Verified
+  again from a single visit with the caches cleared and the worker unregistered: 25 entries, the
+  shell and both WebAssembly runtimes among them, and one request apiece in the server log.
 - **Mobile is not a shrunk desktop.** Below `md` the rail is gone and a bottom bar takes its place —
   Write, Search, Inbox, Tasks, Places — with the count as a dot and padding for the home indicator.
   The navigation pane becomes a sheet from the reading edge; the intelligence panel becomes a sheet

@@ -152,6 +152,12 @@ live in `apps/desktop/AGENTS.md`.
 `apps/www` is the marketing site: its own Next app, its own tokens, no `@echo/*` dependency, and its
 own deploy. Its rules live in `apps/www/AGENTS.md`.
 
+**Analytics belong to the site and never to the application.** `apps/www` carries a GA4 tag because
+a page whose job is to be found has to know whether it is being found. `apps/web` and `apps/desktop`
+carry nothing of the kind, and adding it is not a decision anyone gets to make quietly: the product
+claim is that what a reader writes stays on their machine, and a note taker that phoned home about
+its own use would be the one thing this project promises it is not.
+
 ## Code style
 
 - TypeScript only, `.ts` / `.tsx`
@@ -225,6 +231,14 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   across and reads as the halftone it is; at 64px it is eight specks in the margin and reads as
   dirt. So the small sizes get a solid brand ground with the screen clipped to the plate — the same
   picture with nothing loose around it. `field` in `scripts/icons.mjs` is that line.
+- **The social cards are generated from the same drawing as the banner.** `scripts/og.mjs` is
+  `assets/banner.svg` at 1200x630: the brand field, the wordmark, the rule, the tracked line, the
+  echoes and the dither ramp. It writes `apps/www/public/og.png`, `og-pt.png` beside it and
+  `apps/web/public/og.png`, which are one picture with one line of copy changed, so a link to the
+  site, a link to the app and the README all unfurl into the same identity. It wants the same
+  browser `icons.mjs` does, and a network: the type is the site's own webfaces, and a run that
+  cannot fetch them throws rather than shipping a card set in Georgia. The words on the site's two
+  cards, `alt` included, come from `apps/www/content/*.ts` like every other word it says.
 - **MIT, and every package says so.** `LICENSE` at the root is the text; `"license": "MIT"` is set in
   all sixteen `package.json` files and in `src-tauri/Cargo.toml`, because a workspace where only the
   root declares it is a workspace whose published metadata disagrees with itself. A new package

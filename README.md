@@ -111,6 +111,12 @@ Two words are the same word when you write one *instead* of the other, so aliase
 | <img src="apps/www/public/shots/timeline.webp" alt="The timeline: a This week band holding the deadlines echo found, and under it the days, each with the words that ran through them." width="100%"> | <img src="apps/www/public/shots/write.webp" alt="A sentence being written in echo. The composer shows a word count and a Due friday chip, and the panel beside it already lists the notes it connects to." width="100%"> |
 | **Timeline.** By day and by week, with whatever is coming up on top. | **Writing.** Write a line and watch it get read, next to the notes it recalled. |
 
+### A window of its own
+
+<img src="apps/www/public/shots/native.webp" alt="The desktop application in a window of its own, over the full application behind it: four notes open as tabs, one being written in with the slash menu open, and a Reads as a task chip above it." width="100%">
+
+The desktop build is the same code in a Tauri window: notes open as tabs, the slash menu is where it always was, and editor mode strips the shell back to the page you are writing on. It is also the only place echo can serve MCP over loopback, so an assistant on your machine reads and writes through echo's own tools.
+
 ---
 
 ## How it runs
@@ -118,7 +124,7 @@ Two words are the same word when you write one *instead* of the other, so aliase
 | | |
 | --- | --- |
 | **Search keeps up with typing** | A GIN index over a stored `tsvector`, not a scan. Ten thousand notes answer in 21 ms, related notes in 8 ms. Meaning arrives a moment later and re-orders the answers rather than holding them up. |
-| **Offline is the normal case** | The service worker precaches nothing: the document is network-first so a stale shell can never pin you to an old build, and everything else is cache-first because it is content-addressed. |
+| **Offline is the normal case** | The service worker registers before the first stylesheet is asked for, so one visit is all it takes. It precaches the document and nothing else: the document is network-first so a stale shell can never pin you to an old build, and everything else is cache-first because it is content-addressed. |
 | **Forgetting is real** | Learned rules are derived on read and never written down, so "forget this" is a delete rather than a flag something else might still consult. |
 | **The desktop build is the same code** | Tauri v2 around the same static export. The Rust side is a window and nothing else: the database, the search and the learning run in the web app on every host. |
 | **The database is real Postgres** | PGlite in the browser now, the same migrations on a server later. Nothing outside `@echo/db` writes SQL. |
