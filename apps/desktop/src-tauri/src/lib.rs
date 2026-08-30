@@ -25,7 +25,7 @@ mod mcp;
 
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Mutex;
 
 use fastembed::{
@@ -184,6 +184,7 @@ async fn embed(app: AppHandle, role: String, texts: Vec<String>) -> Result<Vec<V
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn prefixes_text_with_its_role() {

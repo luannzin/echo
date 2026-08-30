@@ -11,4 +11,6 @@ coverage/
 apps/web/public/ort/
 apps/web/public/pglite/
 apps/desktop/src-tauri/target/
+# Where scripts/icons.mjs draws before it copies. Recreated every run.
+scripts/.icons/
 apps/desktop/src-tauri/gen/schemas/

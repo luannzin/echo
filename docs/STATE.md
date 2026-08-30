@@ -950,7 +950,21 @@ builds the desktop app on a tag: NSIS `.exe` and `.msi` on Windows, a `.dmg` per
 macOS, `.deb`/`.rpm`/AppImage on Linux, all onto one draft release. `bun run bump <version>` writes
 the number where it is declared and prints the tag to push.
 
-`icon.icns` is generated now, and was the thing that would have failed the macOS build first: it was
+**Two things broke the first release run, and both had been sitting there since the icon generator
+landed — the desktop build had not been run since.** `cargo check` in `check.yml` catches both, which
+is the argument for that workflow existing at all:
+
+- **Every icon was RGB, and Tauri requires RGBA.** `tauri::generate_context!` is a proc macro, so
+  this failed at compile time on every platform — "icon 32x32.png is not RGBA" — not at bundling.
+  The drawing is opaque, so Chromium's screenshots carry no alpha channel at all. `omitBackground`
+  would give one by making the brand field transparent, which is a different icon; the field is the
+  icon. `scripts/icons.mjs` undoes the PNG filters, adds an opaque channel and re-encodes. Checked
+  against Chromium's own decoder rather than against the code that wrote them: 1.4 million pixels
+  across five sizes, none changed, alpha 255 everywhere.
+- `PathBuf` was imported at the top of `src/lib.rs` and used only inside `#[cfg(test)]`, so every
+  non-test build warned. Moved into the tests module.
+
+`icon.icns` is generated now, and was the thing that would have failed the macOS build next: it was
 missing, and the macOS bundler is the only one that wants it. `scripts/icons.mjs` writes it the same
 way it already wrote the `.ico` — a container of PNG payloads, built rather than fetched from
 `iconutil`, so a format only one of three operating systems can produce does not leave the macOS
@@ -1347,9 +1361,11 @@ production app still opens its database, files a note from the Inbox and moves o
   deployment-time decision rather than a safe one. Worth knowing before choosing a host: the largest
   single file is `ort-wasm-simd-threaded.jsep.wasm` at 26.5MB, over Cloudflare Pages' 25MB per-file
   limit.
-- **The desktop build has never run on this machine and neither has the release workflow.** No Rust
-  toolchain here, so `.github/workflows/release.yml` is written and its YAML parses, and that is the
-  whole of what has been verified. The first tag is the first real test of it.
+- **The desktop build has never run on this machine.** No Rust toolchain here, so nothing below
+  `tauri.conf.json` has been compiled locally. The release workflow has now run once and got as far
+  as compiling the crate, which is what found the RGBA and `PathBuf` problems above; what it has not
+  yet done is produce an installer. The next tag is the first test of the bundling half — the
+  `.icns`, the NSIS `.exe`, the two `.dmg`s — and of whether the draft release assembles.
 - `next-env.d.ts` is committed and rewritten by Next itself — `next dev` points it at `.next/dev/`
   and `next build` at `.next/` — so it flips in `git status` depending on which ran last. Harmless:
   `typecheck` passes either way, with or without `.next` present.

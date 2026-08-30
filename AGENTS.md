@@ -203,6 +203,12 @@ own deploy. Its rules live in `apps/www/AGENTS.md`.
   would produce the `.icns` too, and only on macOS — which would leave the macOS build depending on
   which machine happened to run the generator, on a set whose whole point is that one command
   produces every icon echo ships.
+- **Every icon is re-encoded RGBA, and it is not decoration.** The drawing is opaque, so Chromium
+  writes screenshots with no alpha channel at all, and `tauri::generate_context!` refuses anything
+  that is not RGBA — "icon 32x32.png is not RGBA", at compile time, on every platform. `omitBackground`
+  is not the fix: it would make the brand field transparent, and the field is the icon. So
+  `scripts/icons.mjs` undoes the PNG filters, adds an opaque channel and re-encodes. Verified
+  lossless against Chromium's own decoder: 1.4 million pixels, none of them changed.
 - Sizes at or over 128px are dithered and sizes at or under 64px are flat. That split is arithmetic,
   not taste: the screen is an 8x8 tile and one Bayer cell cannot be smaller than one pixel, so a
   32px dithered orb is noise. Small sizes get the silhouette instead.

@@ -21,6 +21,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateSync, inflateSync } from "node:zlib";
 import { chromium } from "playwright";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -151,6 +152,127 @@ const SPECS = [
   { name: "maskable-512.png", size: 512, orbScale: 0.62 },
 ];
 
+/**
+ * Every icon, re-encoded with an alpha channel it does not visually need.
+ *
+ * The drawing is opaque — a brand field with an orb on it — so Chromium writes a screenshot with no
+ * alpha channel at all, colour type 2. Tauri's `generate_context!` refuses anything that is not
+ * RGBA and fails the build with "icon 32x32.png is not RGBA", which is the whole reason this exists.
+ * `omitBackground` would give an alpha channel by making the field transparent, which is a different
+ * icon; the field is the icon. So the pixels are kept and a fully opaque channel is added beside
+ * them.
+ *
+ * Written here rather than taken from a library for the same reason the `.ico` and the `.icns` are:
+ * one command produces every icon echo ships, and it is one file with no dependency but the browser
+ * that draws.
+ */
+const CRC = Int32Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let bit = 0; bit < 8; bit++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c;
+});
+
+const crc32 = (buffer) => {
+  let c = 0xffffffff;
+  for (const byte of buffer) c = CRC[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+};
+
+const chunk = (type, data) => {
+  const head = Buffer.alloc(8);
+  head.writeUInt32BE(data.length, 0);
+  head.write(type, 4, "ascii");
+  const tail = Buffer.alloc(4);
+  tail.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])), 0);
+  return Buffer.concat([head, data, tail]);
+};
+
+/** Paeth, straight out of the PNG specification. The one filter that is not a subtraction. */
+const paeth = (a, b, c) => {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+};
+
+const toRgba = (source) => {
+  if (source.readUInt32BE(0) !== 0x89504e47) throw new Error("not a PNG");
+  const width = source.readUInt32BE(16);
+  const height = source.readUInt32BE(20);
+  const depth = source[24];
+  const colour = source[25];
+  if (source[28] !== 0) throw new Error("interlaced PNGs are not handled");
+  if (depth !== 8 || (colour !== 2 && colour !== 6)) {
+    throw new Error(`expected 8-bit RGB or RGBA, got depth ${depth} colour ${colour}`);
+  }
+  if (colour === 6) return source;
+
+  const parts = [];
+  for (let at = 8; at + 8 <= source.length; ) {
+    const length = source.readUInt32BE(at);
+    const type = source.toString("ascii", at + 4, at + 8);
+    if (type === "IDAT") parts.push(source.subarray(at + 8, at + 8 + length));
+    if (type === "IEND") break;
+    at += 12 + length;
+  }
+
+  // Filters are relative to the pixels above and to the left, so undoing them means walking the
+  // image once in order and keeping the line before.
+  const raw = inflateSync(Buffer.concat(parts));
+  const bpp = 3;
+  const stride = width * bpp;
+  const pixels = Buffer.alloc(height * stride);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let x = 0; x < stride; x++) {
+      const left = x >= bpp ? pixels[y * stride + x - bpp] : 0;
+      const up = y > 0 ? pixels[(y - 1) * stride + x] : 0;
+      const corner = y > 0 && x >= bpp ? pixels[(y - 1) * stride + x - bpp] : 0;
+      const delta =
+        filter === 0
+          ? 0
+          : filter === 1
+            ? left
+            : filter === 2
+              ? up
+              : filter === 3
+                ? (left + up) >> 1
+                : paeth(left, up, corner);
+      pixels[y * stride + x] = (line[x] + delta) & 0xff;
+    }
+  }
+
+  // Re-encoded unfiltered. These are eleven small images written once, and a filter that saves a
+  // few kilobytes is not worth a second implementation of the same arithmetic backwards.
+  const out = Buffer.alloc(height * (width * 4 + 1));
+  for (let y = 0; y < height; y++) {
+    const start = y * (width * 4 + 1);
+    out[start] = 0;
+    for (let x = 0; x < width; x++) {
+      const from = y * stride + x * bpp;
+      const to = start + 1 + x * 4;
+      out[to] = pixels[from];
+      out[to + 1] = pixels[from + 1];
+      out[to + 2] = pixels[from + 2];
+      out[to + 3] = 255;
+    }
+  }
+
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 6;
+  return Buffer.concat([
+    source.subarray(0, 8),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(out, { level: 9 })),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+};
+
 mkdirSync(WORK, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 for (const spec of SPECS) {
@@ -159,7 +281,9 @@ for (const spec of SPECS) {
     `<style>html,body{margin:0;padding:0;background:${BRAND}}svg{display:block}</style>${iconSvg(spec)}`,
   );
   await page.waitForTimeout(280);
-  await page.screenshot({ path: join(WORK, spec.name) });
+  // Converted the moment it is drawn, so everything below this — the copies, the `.ico` and the
+  // `.icns` payloads — is RGBA without knowing that it had to ask.
+  writeFileSync(join(WORK, spec.name), toRgba(await page.screenshot()));
   await page.close();
   console.log(`  drew ${spec.name} (${spec.size}px)`);
 }
