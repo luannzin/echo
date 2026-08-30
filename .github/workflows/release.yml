@@ -42,14 +42,25 @@ jobs:
           - platform: windows-latest
             target: ""
             name: Windows
-          # `.deb`, `.rpm` and an AppImage. 22.04 rather than latest, and this is the one runner
-          # choice here that is load-bearing: glibc is backward compatible and not forward
-          # compatible, so the version a binary links against is the *oldest* it will ever run on.
-          # Built on a current Ubuntu, echo-notes asks for GLIBC_2.43 and Debian stable answers
-          # "version not found" before main() — which is exactly what happened. 22.04 is glibc 2.35,
-          # under every distribution that has the webkit2gtk 4.1 Tauri v2 needs. `glibc floor` below
-          # is what keeps that true.
-          - platform: ubuntu-22.04
+          # `.deb`, `.rpm` and an AppImage, and this runner choice is the load-bearing one here.
+          #
+          # glibc is backward compatible and not forward compatible, so the version a binary links
+          # against is the *oldest* it will ever run on: built on a current Ubuntu, echo-notes asks
+          # for GLIBC_2.43 and Debian answers "version not found" before main(). The instinct is
+          # therefore to build on the oldest runner there is, and 22.04 is where this started.
+          #
+          # It cannot be 22.04. `fastembed` pulls ONNX Runtime in as a prebuilt static library, and
+          # that library was itself compiled against glibc 2.38 — it calls `__isoc23_strtol` and
+          # friends, which do not exist before then, and libstdc++'s `_M_replace_cold`, which needs
+          # GCC 12. On 22.04 the link fails outright, so there is no binary to have a floor at all.
+          # 24.04 is the oldest runner GitHub offers that can link it, and its 2.39 is therefore not
+          # a preference — it is the floor the embedding runtime imposes. Debian 12 falls under it;
+          # Debian 13 does not.
+          #
+          # Lowering it again means supplying an ONNX Runtime built against an older glibc —
+          # Microsoft's own releases are manylinux — through `ORT_LIB_PATH`, instead of the one ort
+          # downloads. `glibc floor` below keeps whatever is true today honest.
+          - platform: ubuntu-24.04
             target: ""
             name: Linux
 
@@ -59,7 +70,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: system dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-24.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -120,13 +131,13 @@ jobs:
       # This is the check that would have caught the release that ran on the machine that built it
       # and nowhere else. Every symbol a binary imports carries the glibc version that introduced
       # it, and the highest of them is the floor: a `.deb` asking for GLIBC_2.43 installs happily on
-      # Debian 12 and then refuses to start. The number below is Ubuntu 22.04's, so raising it means
+      # Debian and then refuses to start. The number below is the runner's, so raising it means
       # deciding to drop distributions — which is a decision, not a build detail, and belongs in a
       # diff rather than in a bug report from somebody's friend.
       - name: glibc floor
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-24.04'
         env:
-          FLOOR: "2.35"
+          FLOOR: "2.39"
         run: |
           binary=apps/desktop/src-tauri/target/release/echo-notes
           needs=$(objdump -T "$binary" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -uV | tail -1)

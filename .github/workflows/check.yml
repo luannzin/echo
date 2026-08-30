@@ -41,7 +41,11 @@ jobs:
 
   rust:
     name: desktop shell
-    runs-on: ubuntu-22.04
+    # The same runner the release builds Linux on, and for the same reason: the prebuilt ONNX
+    # Runtime `fastembed` links needs glibc 2.38, so 22.04 cannot link this crate at all. `cargo
+    # check` did not notice — it never links — and `cargo test` did. `release.yml` carries the
+    # whole account of it next to the matrix entry.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 

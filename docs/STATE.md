@@ -950,15 +950,25 @@ builds the desktop app on a tag: NSIS `.exe` and `.msi` on Windows, a `.dmg` per
 macOS, `.deb`/`.rpm`/AppImage on Linux, all onto one draft release. `bun run bump <version>` writes
 the number where it is declared and prints the tag to push.
 
-**Linux builds are made on the oldest distribution echo supports, and this was learned the hard
-way.** A `.deb` built on a current Ubuntu installed on a friend's Debian and refused to start:
-`libm.so.6: version GLIBC_2.43 not found`. glibc is backward compatible and not forward compatible,
-so the version a binary links against is the *oldest* it will ever run on — building on your own
-machine produces a package for your own machine. `release.yml` builds Linux on `ubuntu-22.04`, glibc
-2.35, which is under every distribution carrying the webkit2gtk 4.1 Tauri v2 requires; Debian 11 is
-out of reach for that reason and not for this one. The `glibc floor` step reads the built binary's
-symbols back and fails the release if they ask for more than 2.35, so the next time this is wrong it
-is a red build rather than a message from somebody's friend.
+**The Linux glibc floor is 2.39, and it is ONNX Runtime's number rather than ours.** A `.deb` built
+on a current Ubuntu installed on a friend's Debian and refused to start: `libm.so.6: version
+GLIBC_2.43 not found`. glibc is backward compatible and not forward compatible, so the version a
+binary links against is the *oldest* it will ever run on — building on your own machine produces a
+package for your own machine.
+
+The obvious answer was the oldest runner, `ubuntu-22.04`, glibc 2.35. It does not link. `fastembed`
+pulls ONNX Runtime in as a prebuilt static library compiled against glibc 2.38, so it calls
+`__isoc23_strtol` and libstdc++'s `_M_replace_cold`, neither of which exists on 22.04, and the build
+dies at the linker. `cargo check` said nothing — it never links — and `cargo test` found it, which
+is the second time this week the check workflow earned itself.
+
+So Linux builds on `ubuntu-24.04` and the floor is 2.39. **Debian 12 is under it and cannot run
+these builds; Debian 13 is over it.** That is a constraint the embedding runtime imposes, not a
+choice, and the way out is supplying an ONNX Runtime built against an older glibc — the official
+releases are manylinux — through `ORT_LIB_PATH` rather than the one ort downloads. Worth doing if
+anyone actually asks for Debian 12. The `glibc floor` step reads the built binary's symbols back and
+fails the release if they exceed 2.39, so the next time this is wrong it is a red build rather than
+a message from somebody's friend.
 
 **Two things broke the first release run, and both had been sitting there since the icon generator
 landed — the desktop build had not been run since.** `cargo check` in `check.yml` catches both, which
